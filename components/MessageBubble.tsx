@@ -26,12 +26,13 @@ interface MessageBubbleProps {
   onLongPress?: (y: number, height: number) => void;
   onReactionPress?: (emoji: string) => void;
   onSwipeReply?: () => void;
+  onReplyPress?: (messageId: string) => void;
 }
 
 export default function MessageBubble({ 
   messageId, text, time, isMine, attachments, readStatus, 
   isVisible = false, reactions, selected = false, showTail = true,
-  replyTo, onLongPress, onReactionPress, onSwipeReply
+  replyTo, onLongPress, onReactionPress, onSwipeReply, onReplyPress
 }: MessageBubbleProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const bubbleRef = React.useRef<View>(null);
@@ -126,35 +127,40 @@ export default function MessageBubble({
         >
           {showTail && !isSingleEmoji && (isMine ? <View style={styles.myTail} /> : <View style={styles.otherTail} />)}
 
-            {replyTo && (
+          {replyTo && (
+            <TouchableOpacity 
+              activeOpacity={0.7}
+              onPress={() => onReplyPress && onReplyPress(replyTo.message_id)}
+            >
               <View style={styles.replySnippetContainer}>
                 <View style={[styles.replySnippetLeftBar, { backgroundColor: '#FF8C00' }]} />
                 <View style={[styles.replySnippetContent, { backgroundColor: '#FFF3E0' }]}>
                   <Text style={[styles.replySnippetName, { color: '#FF8C00' }]} numberOfLines={1}>
-                  {replyTo.sender_name || "Unknown"}
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  {replyTo.attachments?.[0]?.type?.startsWith('image/') && (
-                    <Ionicons name="image" size={12} color="#4A6572" style={{ marginRight: 4 }} />
-                  )}
-                  <Text style={styles.replySnippetText} numberOfLines={1}>
-                    {replyTo.text || (replyTo.attachments?.[0]?.type?.startsWith('image/') ? 'Photo' : 'Attachment')}
+                    {replyTo.sender_name || "Unknown"}
                   </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {replyTo.attachments?.[0]?.type?.startsWith('image/') && (
+                      <Ionicons name="image" size={12} color="#4A6572" style={{ marginRight: 4 }} />
+                    )}
+                    <Text style={styles.replySnippetText} numberOfLines={1}>
+                      {replyTo.text || (replyTo.attachments?.[0]?.type?.startsWith('image/') ? 'Photo' : 'Attachment')}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              {(() => {
-                const isPhoto = replyTo.attachments?.[0]?.type?.startsWith('image/');
-                const url = replyTo.attachments?.[0]?.url || replyTo.attachments?.[0]?.file_url;
+                {(() => {
+                  const isPhoto = replyTo.attachments?.[0]?.type?.startsWith('image/');
+                  const url = replyTo.attachments?.[0]?.url || replyTo.attachments?.[0]?.file_url;
                   if (isPhoto && url) {
                     return (
                       <View style={[styles.replySnippetContent, { backgroundColor: '#FFF3E0', flex: 0 }]}>
                         <Image source={{ uri: url }} style={styles.replySnippetThumbnail} />
-                    </View>
-                  );
-                }
-                return null;
-              })()}
-            </View>
+                      </View>
+                    );
+                  }
+                  return null;
+                })()}
+              </View>
+            </TouchableOpacity>
           )}
 
           {attachments?.map((file, index) => {

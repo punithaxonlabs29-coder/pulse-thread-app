@@ -376,6 +376,27 @@ export default function ChatScreen() {
     }
   };
 
+  const scrollToMessage = (targetMessageId: string) => {
+    if (!flatListRef.current) return;
+    const allReversed = [...messages].reverse();
+    const index = allReversed.findIndex(m => m.message_id === targetMessageId);
+    
+    if (index !== -1) {
+      if (index >= displayLimit) {
+        setDisplayLimit(index + 20); // Load enough to show it
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+        }, 500); // Wait for render
+      } else {
+        flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      }
+    } else {
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Message is not in history.', ToastAndroid.SHORT);
+      }
+    }
+  };
+
   const displayData = [...messages].reverse().slice(0, displayLimit);
 
   const allSelectedAreMine = messages
@@ -483,15 +504,8 @@ export default function ChatScreen() {
                 activeOpacity={0.8}
                 onPress={() => {
                   const pinnedMsg = messages.find(m => m.is_pinned);
-                  if (pinnedMsg && flatListRef.current) {
-                    const index = displayData.findIndex(m => m.message_id === pinnedMsg.message_id);
-                    if (index !== -1) {
-                      flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
-                    } else {
-                      if (Platform.OS === 'android') {
-                        ToastAndroid.show('Message is too far back in history to scroll to.', ToastAndroid.SHORT);
-                      }
-                    }
+                  if (pinnedMsg) {
+                    scrollToMessage(pinnedMsg.message_id);
                   }
                 }}
               >
@@ -601,6 +615,9 @@ export default function ChatScreen() {
                     reactions={item.reactions}
                     replyTo={item.reply_to}
                     onSwipeReply={() => setReplyingTo(item)}
+                    onReplyPress={(replyMessageId) => {
+                      scrollToMessage(replyMessageId);
+                    }}
                     selected={selectedMessageIds.includes(item.message_id)}
                     onLongPress={(y, height) => {
                       setSelectedMessageIds(prev => {
