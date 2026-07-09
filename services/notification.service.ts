@@ -220,5 +220,16 @@ class NotificationService {
       this.handleNotificationOpen(initialNotification.notification.data);
     }
   }
+
+  /**
+   * Clear all notifications
+   */
+  async clearAllNotifications() {
+    try {
+      await notifee.cancelAllNotifications();
+    } catch (e) {
+      console.error("Error clearing notifications", e);
+    }
+  }
 }
 export default new NotificationService();

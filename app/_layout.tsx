@@ -3,6 +3,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
 import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ChatProvider } from "../contexts/ChatContext";
 import NotificationService from "../services/notification.service";
 
@@ -29,15 +30,17 @@ export default function RootLayout() {
     });
   }, []);
   return (
-    <ChatProvider>
-      <SafeAreaProvider>
-        <StatusBar style="dark" backgroundColor="#F5F7FA" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        />
-      </SafeAreaProvider>
-    </ChatProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ChatProvider>
+        <SafeAreaProvider>
+          <StatusBar style="dark" backgroundColor="#F5F7FA" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+            }}
+          />
+        </SafeAreaProvider>
+      </ChatProvider>
+    </GestureHandlerRootView>
   );
 }

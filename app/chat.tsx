@@ -14,6 +14,7 @@ import MessageInfo from "../components/MessageInfo";
 import { CacheService } from "../services/cache.service";
 import { ConnectsService } from "../services/connects.service";
 import { SessionService } from "../services/session.service";
+import NotificationService from "../services/notification.service";
 import { Message } from "../types/connects";
 import { formatDateHeader, formatTimeOnly } from "../utils/date";
 
@@ -36,6 +37,7 @@ export default function ChatScreen() {
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const [reactionMenuPosition, setReactionMenuPosition] = useState<{ y: number; height: number } | null>(null);
   const [infoMessageId, setInfoMessageId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
   const [visibleItems, setVisibleItems] = useState<Set<string>>(new Set());
   const [floatingDate, setFloatingDate] = useState<string | null>(null);
@@ -98,6 +100,7 @@ export default function ChatScreen() {
   useEffect(() => {
     if (channelId) {
       resetUnreadCount(channelId as string);
+      NotificationService.clearAllNotifications();
     }
   }, [channelId]);
 
@@ -299,7 +302,9 @@ export default function ChatScreen() {
 
   const handleSend = async (text: string, attachments?: any[]) => {
     try {
-      const response = await ConnectsService.sendMessage(channelId as string, text, attachments);
+      const replyId = replyingTo ? replyingTo.message_id : undefined;
+      setReplyingTo(null); // clear instantly for better UX
+      const response = await ConnectsService.sendMessage(channelId as string, text, attachments, replyId);
       
       if (response && response.created_message) {
         setMessages((prev) => {
@@ -413,7 +418,12 @@ export default function ChatScreen() {
               setSelectedMessageIds([]);
               setReactionModalVisible(false);
             }}
-            onReply={selectedMessageIds.length === 1 ? () => { /* Handle reply */ } : undefined}
+            onReply={selectedMessageIds.length === 1 ? () => { 
+              const msg = messages.find(m => m.message_id === selectedMessageIds[0]);
+              if (msg) setReplyingTo(msg);
+              setSelectedMessageIds([]);
+              setReactionModalVisible(false);
+            } : undefined}
             onStar={() => { /* Handle star */ }}
             onInfo={selectedMessageIds.length === 1 ? () => { 
               setInfoMessageId(selectedMessageIds[0]); 
@@ -474,9 +484,13 @@ export default function ChatScreen() {
                 onPress={() => {
                   const pinnedMsg = messages.find(m => m.is_pinned);
                   if (pinnedMsg && flatListRef.current) {
-                    const index = messages.findIndex(m => m.message_id === pinnedMsg.message_id);
+                    const index = displayData.findIndex(m => m.message_id === pinnedMsg.message_id);
                     if (index !== -1) {
                       flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+                    } else {
+                      if (Platform.OS === 'android') {
+                        ToastAndroid.show('Message is too far back in history to scroll to.', ToastAndroid.SHORT);
+                      }
                     }
                   }
                 }}
@@ -545,6 +559,12 @@ export default function ChatScreen() {
             scrollEventThrottle={16}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
+            onScrollToIndexFailed={(info) => {
+              const wait = new Promise(resolve => setTimeout(resolve, 500));
+              wait.then(() => {
+                flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+              });
+            }}
             renderItem={({ item, index }) => {
               const isMine = item.sender_email === currentUserEmail;
               const lastReadMessageId = readReceipts[channelId as string];
@@ -579,6 +599,8 @@ export default function ChatScreen() {
                     readStatus={isMine ? (isRead ? "read" : "delivered") : undefined}
                     isVisible={visibleItems.has(item.message_id)}
                     reactions={item.reactions}
+                    replyTo={item.reply_to}
+                    onSwipeReply={() => setReplyingTo(item)}
                     selected={selectedMessageIds.includes(item.message_id)}
                     onLongPress={(y, height) => {
                       setSelectedMessageIds(prev => {
@@ -615,7 +637,12 @@ export default function ChatScreen() {
           </ImageBackground>
   
           <View style={{ backgroundColor: '#F5F7FA' }}>
-            <MessageInput onSend={handleSend} onTyping={handleTyping} />
+            <MessageInput 
+              onSend={handleSend} 
+              onTyping={handleTyping} 
+              replyingTo={replyingTo}
+              onCancelReply={() => setReplyingTo(null)}
+            />
           </View>
         </KeyboardAvoidingView>
 

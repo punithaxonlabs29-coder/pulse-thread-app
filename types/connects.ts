@@ -44,5 +44,12 @@ export interface Message {
     created_at: string;
     attachments?: any[];
     reactions?: Reaction[];
+    reply_to?: {
+        message_id: string;
+        sender_name: string;
+        text: string;
+        attachments?: any[];
+    };
+    is_pinned?: boolean;
 }
 

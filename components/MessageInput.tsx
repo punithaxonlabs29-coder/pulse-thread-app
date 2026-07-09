@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TextInput, TouchableOpacity, View, Text, Image } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -8,13 +8,16 @@ import AttachmentMenu from './AttachmentMenu';
 import AudioRecorder from './AudioRecorder';
 import EmojiKeyboard from './EmojiKeyboard';
 import { Keyboard } from 'react-native';
+import { Message } from '../types/connects';
 
 interface MessageInputProps {
   onSend: (text: string, attachments?: PendingAttachment[]) => void;
   onTyping?: (isTyping: boolean) => void;
+  replyingTo?: Message | null;
+  onCancelReply?: () => void;
 }
 
-export default function MessageInput({ onSend, onTyping }: MessageInputProps) {
+export default function MessageInput({ onSend, onTyping, replyingTo, onCancelReply }: MessageInputProps) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -142,7 +145,35 @@ export default function MessageInput({ onSend, onTyping }: MessageInputProps) {
   };
 
   return (
-    <View style={styles.wrapper}>
+    <View style={styles.container}>
+      {replyingTo && (
+        <View style={styles.replyPreviewContainer}>
+          <View style={styles.replyPreviewLeftBar} />
+          <View style={styles.replyPreviewContent}>
+            <Text style={styles.replyPreviewName}>{replyingTo.sender_name || "Unknown"}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {replyingTo.attachments?.[0]?.type?.startsWith('image/') && (
+                <Ionicons name="image" size={14} color="#8696A0" style={{ marginRight: 4 }} />
+              )}
+              <Text style={styles.replyPreviewText} numberOfLines={1}>
+                {replyingTo.text || (replyingTo.attachments?.[0]?.type?.startsWith('image/') ? 'Photo' : 'Attachment')}
+              </Text>
+            </View>
+          </View>
+          {(() => {
+            const isPhoto = replyingTo.attachments?.[0]?.type?.startsWith('image/');
+            const url = replyingTo.attachments?.[0]?.url || replyingTo.attachments?.[0]?.file_url;
+            if (isPhoto && url) {
+              return <Image source={{ uri: url }} style={styles.replyPreviewThumbnail} />;
+            }
+            return null;
+          })()}
+          <TouchableOpacity style={styles.replyPreviewClose} onPress={onCancelReply}>
+            <Ionicons name="close" size={20} color="#8696A0" />
+          </TouchableOpacity>
+        </View>
+      )}
+
       <AttachmentPreview attachments={attachments} onRemove={handleRemoveAttachment} />
       
       <View style={styles.inputContainer}>
@@ -219,7 +250,7 @@ export default function MessageInput({ onSend, onTyping }: MessageInputProps) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
+  container: {
     backgroundColor: "#FFFFFF",
   },
   inputContainer: {
@@ -260,5 +291,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
     marginLeft: 4,
+  },
+  replyPreviewContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF3E0',
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+    alignItems: 'center',
+  },
+  replyPreviewLeftBar: {
+    width: 6,
+    height: '100%',
+    backgroundColor: '#FF8C00',
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+  },
+  replyPreviewContent: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  replyPreviewName: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#FF8C00',
+    marginBottom: 2,
+  },
+  replyPreviewText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  replyPreviewThumbnail: {
+    width: 36,
+    height: 36,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  replyPreviewClose: {
+    padding: 12,
   },
 });

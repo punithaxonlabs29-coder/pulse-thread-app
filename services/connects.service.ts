@@ -182,7 +182,8 @@ export const ConnectsService = {
   async sendMessage(
     channelId: string,
     text: string,
-    attachments: any[] = []
+    attachments: any[] = [],
+    replyToMessageId?: string
   ): Promise<any> {
     try {
       const processedAttachments = await Promise.all(
@@ -216,6 +217,7 @@ export const ConnectsService = {
           channel_id: channelId,
           text,
           attachments: processedAttachments,
+          ...(replyToMessageId && { reply_to_message_id: replyToMessageId }),
         }
       );
 

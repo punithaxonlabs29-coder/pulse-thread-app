@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Linking, StyleSheet, Text, TouchableOpacity, View, Image, Animated } from "react-native";
+import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Reaction } from "../types/connects";
 import ImageAttachment from "./ImageAttachment";
 import VideoAttachment from "./VideoAttachment";
@@ -16,17 +17,25 @@ interface MessageBubbleProps {
   reactions?: Reaction[];
   selected?: boolean;
   showTail?: boolean;
+  replyTo?: {
+    message_id: string;
+    sender_name: string;
+    text: string;
+    attachments?: any[];
+  };
   onLongPress?: (y: number, height: number) => void;
   onReactionPress?: (emoji: string) => void;
+  onSwipeReply?: () => void;
 }
 
 export default function MessageBubble({ 
   messageId, text, time, isMine, attachments, readStatus, 
   isVisible = false, reactions, selected = false, showTail = true,
-  onLongPress, onReactionPress 
+  replyTo, onLongPress, onReactionPress, onSwipeReply
 }: MessageBubbleProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const bubbleRef = React.useRef<View>(null);
+  const swipeableRef = React.useRef<Swipeable>(null);
   const TEXT_LIMIT = 300;
 
   const shouldTruncate = text && text.length > TEXT_LIMIT;
@@ -71,31 +80,88 @@ export default function MessageBubble({
     }
   };
 
-  return (
-    <View style={[
-      styles.bubbleWrapper, 
-      selected && styles.selectedWrapper
-    ]}>
-      <TouchableOpacity
-        ref={bubbleRef}
-        activeOpacity={0.9}
-        onLongPress={handleLongPress}
-        style={[
-          styles.messageContainer,
-          isMine ? styles.myMessage : styles.otherMessage,
-          !showTail && (isMine ? styles.myMessageNoTail : styles.otherMessageNoTail),
-          hasAttachments && !hasText && { paddingHorizontal: 4, paddingVertical: 4 },
-          isSingleEmoji && styles.transparentMessage
-        ]}
-      >
-        {showTail && !isSingleEmoji && (isMine ? <View style={styles.myTail} /> : <View style={styles.otherTail} />)}
+  const renderLeftActions = (progress: Animated.AnimatedInterpolation<number>, dragX: Animated.AnimatedInterpolation<number>) => {
+    const scale = dragX.interpolate({
+      inputRange: [0, 50, 100],
+      outputRange: [0, 1, 1],
+      extrapolate: 'clamp',
+    });
+    return (
+      <View style={styles.swipeReplyAction}>
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <View style={styles.replyIconCircle}>
+            <Ionicons name="arrow-undo" size={16} color="#FFFFFF" />
+          </View>
+        </Animated.View>
+      </View>
+    );
+  };
 
-        {attachments?.map((file, index) => {
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      renderLeftActions={renderLeftActions}
+      onSwipeableWillOpen={() => {
+        if (onSwipeReply) onSwipeReply();
+        swipeableRef.current?.close();
+      }}
+      friction={2}
+      leftThreshold={40}
+    >
+      <View style={[
+        styles.bubbleWrapper, 
+        selected && styles.selectedWrapper
+      ]}>
+        <TouchableOpacity
+          ref={bubbleRef}
+          activeOpacity={0.9}
+          onLongPress={handleLongPress}
+          style={[
+            styles.messageContainer,
+            isMine ? styles.myMessage : styles.otherMessage,
+            !showTail && (isMine ? styles.myMessageNoTail : styles.otherMessageNoTail),
+            hasAttachments && !hasText && { paddingHorizontal: 4, paddingVertical: 4 },
+            isSingleEmoji && styles.transparentMessage
+          ]}
+        >
+          {showTail && !isSingleEmoji && (isMine ? <View style={styles.myTail} /> : <View style={styles.otherTail} />)}
+
+            {replyTo && (
+              <View style={styles.replySnippetContainer}>
+                <View style={[styles.replySnippetLeftBar, { backgroundColor: '#FF8C00' }]} />
+                <View style={[styles.replySnippetContent, { backgroundColor: '#FFF3E0' }]}>
+                  <Text style={[styles.replySnippetName, { color: '#FF8C00' }]} numberOfLines={1}>
+                  {replyTo.sender_name || "Unknown"}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {replyTo.attachments?.[0]?.type?.startsWith('image/') && (
+                    <Ionicons name="image" size={12} color="#4A6572" style={{ marginRight: 4 }} />
+                  )}
+                  <Text style={styles.replySnippetText} numberOfLines={1}>
+                    {replyTo.text || (replyTo.attachments?.[0]?.type?.startsWith('image/') ? 'Photo' : 'Attachment')}
+                  </Text>
+                </View>
+              </View>
+              {(() => {
+                const isPhoto = replyTo.attachments?.[0]?.type?.startsWith('image/');
+                const url = replyTo.attachments?.[0]?.url || replyTo.attachments?.[0]?.file_url;
+                  if (isPhoto && url) {
+                    return (
+                      <View style={[styles.replySnippetContent, { backgroundColor: '#FFF3E0', flex: 0 }]}>
+                        <Image source={{ uri: url }} style={styles.replySnippetThumbnail} />
+                    </View>
+                  );
+                }
+                return null;
+              })()}
+            </View>
+          )}
+
+          {attachments?.map((file, index) => {
           const type = file.type || file.mime_type || "";
           const url = file.url || file.file_url;
           const name = file.name || "Attachment";
 
-          // Pass time props down to attachments if they need to render the overlay
           const mediaProps = {
              time: showOverlayTime ? time : undefined,
              readStatus: showOverlayTime ? readStatus : undefined,
@@ -129,8 +195,6 @@ export default function MessageBubble({
               ]}
             >
               {renderText(displayedText)}
-              {/* This inline View acts as a physical block pushing the text to wrap 
-                  if it gets too close to the absolute positioned time footer! */}
               <View style={{ width: isMine && readStatus ? 75 : 60, height: 10 }} />
             </Text>
             
@@ -142,7 +206,6 @@ export default function MessageBubble({
               </TouchableOpacity>
             )}
 
-            {/* Time flows perfectly to the bottom right of the text block because of the View spacer above */}
             <View style={[
               styles.absoluteFooter,
               isSingleEmoji && (isMine ? styles.singleEmojiTimePillMy : styles.singleEmojiTimePillOther)
@@ -167,7 +230,6 @@ export default function MessageBubble({
         ) : null}
       </TouchableOpacity>
 
-      {/* Reactions - placed outside the bubble in normal flow below it */}
       {reactions && reactions.length > 0 && (
         <View style={[styles.reactionsContainer, isMine ? styles.myReactionsContainer : styles.otherReactionsContainer]}>
           {reactions.map((reaction, index) => (
@@ -183,6 +245,7 @@ export default function MessageBubble({
         </View>
       )}
     </View>
+    </Swipeable>
   );
 }
 
@@ -377,5 +440,50 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     color: '#6B7280',
     fontWeight: '500',
+  },
+  swipeReplyAction: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingLeft: 16,
+    width: 80, // Space for the swipe action
+  },
+  replyIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FF8C00',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  replySnippetContainer: {
+    flexDirection: 'row',
+    marginBottom: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  replySnippetLeftBar: {
+    width: 6,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+  },
+  replySnippetContent: {
+    flex: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+  },
+  replySnippetName: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  replySnippetText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  replySnippetThumbnail: {
+    width: 32,
+    height: 32,
+    borderRadius: 4,
   }
 });
