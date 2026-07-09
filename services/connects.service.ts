@@ -109,10 +109,18 @@ export const ConnectsService = {
         };
 
         messages = messages.map(msg => {
-          if (msg.reactions && msg.reactions.length > 0) {
+          let is_forwarded = msg.is_forwarded;
+          let text = msg.text || '';
+          if (text.startsWith('[FWD] ')) {
+            is_forwarded = true;
+            text = text.substring(6);
+          }
+          const updatedMsg = { ...msg, text, is_forwarded };
+
+          if (updatedMsg.reactions && updatedMsg.reactions.length > 0) {
             const aggregatedReactions = new Map<string, { count: number, user_reacted: boolean }>();
             
-            msg.reactions.forEach((r: any) => {
+            updatedMsg.reactions.forEach((r: any) => {
               if (r.type && r.email) {
                 const emoji = reverseReactionMap[r.type] || '👍';
                 const existing = aggregatedReactions.get(emoji) || { count: 0, user_reacted: false };
@@ -132,9 +140,9 @@ export const ConnectsService = {
               user_reacted: data.user_reacted
             } as Reaction));
             
-            return { ...msg, reactions: newReactions };
+            return { ...updatedMsg, reactions: newReactions };
           }
-          return msg;
+          return updatedMsg;
         });
       } catch (err) {
         console.log("Error mapping reactions", err);
@@ -183,7 +191,8 @@ export const ConnectsService = {
     channelId: string,
     text: string,
     attachments: any[] = [],
-    replyToMessageId?: string
+    replyToMessageId?: string,
+    isForwarded?: boolean
   ): Promise<any> {
     try {
       const processedAttachments = await Promise.all(
@@ -215,9 +224,10 @@ export const ConnectsService = {
         "connects/message/send/",
         {
           channel_id: channelId,
-          text,
+          text: isForwarded ? `[FWD] ${text || ''}` : text,
           attachments: processedAttachments,
           ...(replyToMessageId && { reply_to_message_id: replyToMessageId }),
+          ...(isForwarded && { is_forwarded: true }),
         }
       );
 

@@ -75,9 +75,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const data = JSON.parse(event.data);
         if (data.event === "message_created" && data.message) {
-          setLastMessages(prev => ({ ...prev, [channelId]: data.message }));
+          let msg = data.message;
+          let is_forwarded = msg.is_forwarded;
+          let text = msg.text || '';
+          if (text.startsWith('[FWD] ')) {
+            is_forwarded = true;
+            text = text.substring(6);
+          }
+          msg = { ...msg, text, is_forwarded };
+          
+          setLastMessages(prev => ({ ...prev, [channelId]: msg }));
           // If the message is not from the current user, increment unread
-          if (userRef.current && data.message.sender_email.toLowerCase() !== userRef.current.email) {
+          if (userRef.current && msg.sender_email.toLowerCase() !== userRef.current.email) {
             setUnreadCounts(prev => ({ ...prev, [channelId]: (prev[channelId] || 0) + 1 }));
           }
         } else if (data.event === "message_updated" && data.message) {

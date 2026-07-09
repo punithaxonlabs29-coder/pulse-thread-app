@@ -27,12 +27,14 @@ interface MessageBubbleProps {
   onReactionPress?: (emoji: string) => void;
   onSwipeReply?: () => void;
   onReplyPress?: (messageId: string) => void;
+  isForwarded?: boolean;
 }
 
 export default function MessageBubble({ 
   messageId, text, time, isMine, attachments, readStatus, 
   isVisible = false, reactions, selected = false, showTail = true,
-  replyTo, onLongPress, onReactionPress, onSwipeReply, onReplyPress
+  replyTo, onLongPress, onReactionPress, onSwipeReply, onReplyPress,
+  isForwarded = false
 }: MessageBubbleProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const bubbleRef = React.useRef<View>(null);
@@ -126,6 +128,13 @@ export default function MessageBubble({
           ]}
         >
           {showTail && !isSingleEmoji && (isMine ? <View style={styles.myTail} /> : <View style={styles.otherTail} />)}
+
+          {isForwarded && (
+            <View style={styles.forwardedContainer}>
+              <Ionicons name="arrow-redo" size={14} color="#71828A" style={styles.forwardedIcon} />
+              <Text style={styles.forwardedText}>Forwarded</Text>
+            </View>
+          )}
 
           {replyTo && (
             <TouchableOpacity 
@@ -325,6 +334,20 @@ const styles = StyleSheet.create({
     borderLeftColor: "transparent",
     borderBottomWidth: 0,
     borderRightWidth: 0,
+  },
+  forwardedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+    paddingHorizontal: 2,
+  },
+  forwardedIcon: {
+    marginRight: 4,
+  },
+  forwardedText: {
+    fontSize: 13,
+    color: '#71828A',
+    fontStyle: 'italic',
   },
   messageText: {
     fontSize: 16,

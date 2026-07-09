@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Image, ImageBackground, Keyboard, KeyboardAvoidingView, Platform, StyleSheet, Text, ToastAndroid, TouchableOpacity, View, Modal, Share } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -21,6 +21,7 @@ import { formatDateHeader, formatTimeOnly } from "../utils/date";
 import { useChatContext } from "../contexts/ChatContext";
 
 export default function ChatScreen() {
+  const router = useRouter();
   const { channelId, channelName, channelImage } = useLocalSearchParams();
   const [resolvedName, setResolvedName] = useState((channelName as string) || "");
   const [resolvedImage, setResolvedImage] = useState((channelImage as string) || "");
@@ -451,7 +452,17 @@ export default function ChatScreen() {
               setSelectedMessageIds([]); // clear selection when opening info
             } : undefined}
             onDelete={allSelectedAreMine ? () => { /* Handle delete */ } : undefined}
-            onForward={() => { /* Handle forward */ }}
+            onForward={() => {
+              const msgIds = selectedMessageIds.join(',');
+              setSelectedMessageIds([]); // Clear selection
+              router.push({
+                pathname: '/forward',
+                params: {
+                  sourceChannelId: channelId,
+                  messageIds: msgIds
+                }
+              });
+            }}
             onCopy={async () => {
               const selectedMessagesText = messages
                 .filter(m => selectedMessageIds.includes(m.message_id))
@@ -614,6 +625,7 @@ export default function ChatScreen() {
                     isVisible={visibleItems.has(item.message_id)}
                     reactions={item.reactions}
                     replyTo={item.reply_to}
+                    isForwarded={item.is_forwarded}
                     onSwipeReply={() => setReplyingTo(item)}
                     onReplyPress={(replyMessageId) => {
                       scrollToMessage(replyMessageId);

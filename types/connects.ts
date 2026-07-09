@@ -51,5 +51,6 @@ export interface Message {
         attachments?: any[];
     };
     is_pinned?: boolean;
+    is_forwarded?: boolean;
 }
 
