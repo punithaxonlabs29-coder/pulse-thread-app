@@ -8,7 +8,7 @@ import { LoginResponse } from "../types/auth";
 export const AuthService = {
 
   async login(
-    phoneNumber: string,
+    email: string,
     pin: string
   ): Promise<LoginResponse> {
 
@@ -16,14 +16,14 @@ export const AuthService = {
 
       console.log("==================================");
       console.log("Calling Mobile Login API");
-      console.log("Phone Number:", phoneNumber);
+      console.log("Email:", email);
       console.log("PIN:", pin);
       console.log("==================================");
 
       const response = await api.post<LoginResponse>(
         "mobile/login",
         {
-          phone_number: phoneNumber.trim(),
+          email: email.trim(),
           pin: pin.trim(),
         }
       );

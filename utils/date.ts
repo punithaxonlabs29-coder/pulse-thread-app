@@ -1,7 +1,12 @@
 export function formatMessageTime(dateString?: string): string {
   if (!dateString) return "";
 
-  const date = new Date(dateString);
+  let safeDateString = dateString;
+  if (!safeDateString.endsWith('Z') && !safeDateString.includes('+')) {
+    safeDateString += 'Z';
+  }
+
+  const date = new Date(safeDateString);
   if (isNaN(date.getTime())) return "";
 
   const now = new Date();

@@ -10,7 +10,7 @@ export const Colors = {
 
   border: "#E5E7EB",
 
-  danger: "#EF4444",
+  danger: "#f79c9c",
 
   white: "#FFFFFF",
 };

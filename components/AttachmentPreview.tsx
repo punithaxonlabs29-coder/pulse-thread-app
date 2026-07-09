@@ -34,7 +34,7 @@ export default function AttachmentPreview({ attachments, onRemove }: Props) {
                   <Ionicons name="videocam" size={24} color="#FFFFFF" />
                 </View>
               ) : (
-                <View style={[styles.preview, styles.iconContainer, { backgroundColor: '#2563EB' }]}>
+                <View style={[styles.preview, styles.iconContainer, { backgroundColor: '#F97316' }]}>
                   <Ionicons name="document-text" size={24} color="#FFFFFF" />
                 </View>
               )}

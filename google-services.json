@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1030891373973",
+    "project_id": "pulse-threads",
+    "storage_bucket": "pulse-threads.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1030891373973:android:9d03d498acc4c46902229c",
+        "android_client_info": {
+          "package_name": "com.anonymous.pulsethread"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnrP14oE5kYpJ7i3nNAxSiQW4bMbCtNxs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

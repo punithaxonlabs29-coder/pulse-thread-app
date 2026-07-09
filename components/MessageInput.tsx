@@ -1,26 +1,50 @@
 import React, { useState } from "react";
 import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import AttachmentPreview, { PendingAttachment } from './AttachmentPreview';
 import AttachmentMenu from './AttachmentMenu';
 import AudioRecorder from './AudioRecorder';
+import EmojiKeyboard from './EmojiKeyboard';
+import { Keyboard } from 'react-native';
 
 interface MessageInputProps {
   onSend: (text: string, attachments?: PendingAttachment[]) => void;
+  onTyping?: (isTyping: boolean) => void;
 }
 
-export default function MessageInput({ onSend }: MessageInputProps) {
+export default function MessageInput({ onSend, onTyping }: MessageInputProps) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [showEmojiKeyboard, setShowEmojiKeyboard] = useState(false);
+  const typingTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = React.useRef<TextInput>(null);
+
+  const handleTextChange = (newText: string) => {
+    setText(newText);
+    
+    if (onTyping) {
+      onTyping(true);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      typingTimeoutRef.current = setTimeout(() => {
+        onTyping(false);
+      }, 2000);
+    }
+  };
 
   const handleSend = () => {
     if (!text.trim() && attachments.length === 0) return;
     onSend(text, attachments);
     setText("");
     setAttachments([]);
+    if (onTyping) {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      onTyping(false);
+    }
   };
 
   const handleRemoveAttachment = (index: number) => {
@@ -109,11 +133,12 @@ export default function MessageInput({ onSend }: MessageInputProps) {
   };
 
   const handleAudioRecord = (uri: string, durationMillis: number) => {
-    addAttachment({
+    onSend("", [{
       uri,
       type: 'audio/m4a',
       name: `audio_${Date.now()}.m4a`,
-    });
+      mimeType: 'audio/m4a'
+    }]);
   };
 
   return (
@@ -121,8 +146,25 @@ export default function MessageInput({ onSend }: MessageInputProps) {
       <AttachmentPreview attachments={attachments} onRemove={handleRemoveAttachment} />
       
       <View style={styles.inputContainer}>
-        <TouchableOpacity style={styles.iconButton}>
-          <Ionicons name="happy-outline" size={24} color="#6B7280" />
+        <TouchableOpacity 
+          style={styles.iconButton} 
+          onPress={() => {
+            if (showEmojiKeyboard) {
+              setShowEmojiKeyboard(false);
+              setTimeout(() => {
+                inputRef.current?.focus();
+              }, 50);
+            } else {
+              setShowEmojiKeyboard(true);
+              Keyboard.dismiss();
+            }
+          }}
+        >
+          {showEmojiKeyboard ? (
+            <MaterialIcons name="keyboard" size={24} color="#6B7280" />
+          ) : (
+            <Ionicons name="happy-outline" size={24} color="#6B7280" />
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.iconButton} onPress={() => setMenuVisible(true)}>
@@ -130,11 +172,18 @@ export default function MessageInput({ onSend }: MessageInputProps) {
         </TouchableOpacity>
 
         <TextInput
+          ref={inputRef}
+          showSoftInputOnFocus={!showEmojiKeyboard}
           placeholder="Type a message..."
           placeholderTextColor="#9CA3AF"
           style={styles.input}
           value={text}
-          onChangeText={setText}
+          onChangeText={handleTextChange}
+          onFocus={() => {
+             if (showEmojiKeyboard) {
+               // Do nothing, we want it to stay emoji
+             }
+          }}
           multiline
         />
 
@@ -152,6 +201,10 @@ export default function MessageInput({ onSend }: MessageInputProps) {
         onClose={() => setMenuVisible(false)} 
         onSelectOption={handleMenuSelect} 
       />
+
+      {showEmojiKeyboard && (
+        <EmojiKeyboard onEmojiSelected={(emoji) => handleTextChange(text + emoji)} />
+      )}
     </View>
   );
 }
@@ -188,7 +241,7 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   sendButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#F97316",
     width: 40,
     height: 40,
     borderRadius: 20,

@@ -19,20 +19,21 @@ import { AuthService } from "../../services/auth.service";
 export default function LoginScreen() {
   const router = useRouter();
 
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [pin, setPin] = useState("");
 
   const [showPin, setShowPin] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!phoneNumber.trim()) {
-      Alert.alert("Validation", "Please enter your phone number.");
+    if (!email.trim()) {
+      Alert.alert("Validation", "Please enter your email.");
       return;
     }
 
-    if (phoneNumber.length !== 10) {
-      Alert.alert("Validation", "Please enter a valid phone number.");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert("Validation", "Please enter a valid email address.");
       return;
     }
 
@@ -45,7 +46,7 @@ export default function LoginScreen() {
       setLoading(true);
 
       const response = await AuthService.login(
-        phoneNumber,
+        email,
         pin
       );
 
@@ -91,22 +92,23 @@ export default function LoginScreen() {
         Sign in to continue to Pulse Threads
       </Text>
 
-      {/* Phone Number */}
+      {/* Email */}
 
       <View style={styles.inputContainer}>
         <Ionicons
-          name="call-outline"
+          name="mail-outline"
           size={22}
           color="#8A8A8A"
         />
 
         <TextInput
-          value={phoneNumber}
-          onChangeText={setPhoneNumber}
-          placeholder="Phone Number"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Email Address"
           placeholderTextColor="#999"
-          keyboardType="phone-pad"
-          maxLength={10}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
           style={styles.input}
         />
       </View>
@@ -227,14 +229,14 @@ const styles = StyleSheet.create({
 
   forgot: {
     textAlign: "right",
-    color: "#2563EB",
+    color: "#F97316",
     marginBottom: 30,
     fontWeight: "600",
   },
 
   button: {
     height: 58,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#F97316",
     borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Image, StyleSheet, View, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { ConnectsService } from '../services/connects.service';
 
 interface ImageAttachmentProps {
@@ -25,12 +26,20 @@ export default function ImageAttachment({ url, name, messageId }: ImageAttachmen
   if (!source) {
     return (
       <View style={[styles.image, styles.loadingContainer]}>
-        <ActivityIndicator color="#2563EB" />
+        <ActivityIndicator color="#F97316" />
       </View>
     );
   }
 
-  return <Image source={{ uri: source }} style={styles.image} resizeMode="cover" />;
+  return (
+    <Image 
+      source={{ uri: source }} 
+      style={styles.image} 
+      contentFit="cover" 
+      cachePolicy="memory-disk" 
+      transition={200}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

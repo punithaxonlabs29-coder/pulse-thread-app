@@ -66,7 +66,7 @@ export default function ProfileScreen() {
         <Ionicons
           name={icon}
           size={22}
-          color="#2563EB"
+          color="#F97316"
         />
         <Text style={styles.menuText}>{title}</Text>
       </View>
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#F97316",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 15,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   designation: {
     marginTop: 5,
     fontSize: 16,
-    color: "#2563EB",
+    color: "#F97316",
     fontWeight: "600",
   },
 

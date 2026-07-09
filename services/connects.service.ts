@@ -1,5 +1,5 @@
 import { AxiosError } from "axios";
-import api from "./api";
+import { mainApi } from "./api";
 import { Channel, Message } from "../types/connects";
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -22,7 +22,7 @@ export const ConnectsService = {
       console.log("Fetching Channels");
       console.log("==================================");
 
-      const response = await api.get<GetChannelsResponse>("api/connects/channels/");
+      const response = await mainApi.get<GetChannelsResponse>(`connects/channels/?t=${Date.now()}`);
 
       console.log("====== CHANNEL RESPONSE ======");
       console.log(response.data);
@@ -54,11 +54,41 @@ export const ConnectsService = {
     }
   },
 
-  async getMessages(channelId: string): Promise<Message[]> {
+  async getPeople(): Promise<any[]> {
     try {
-      const response = await api.get<GetMessagesResponse>(
-        `api/connects/messages/?channel_id=${channelId}&limit=50&lightweight=true`
-      );
+      const response = await mainApi.get("connects/people/");
+      if (response.data.status && response.data.people) {
+        return response.data.people;
+      }
+      return [];
+    } catch (error) {
+      console.log("Get People Error:", (error as AxiosError).message);
+      throw error;
+    }
+  },
+
+  async createChannel(channelName: string, memberEmail: string, memberName: string): Promise<any> {
+    try {
+      const response = await mainApi.post("connects/channel/create/", {
+        channel_name: channelName,
+        channel_type: "direct",
+        members: [{ email: memberEmail, name: memberName, role: "member" }]
+      });
+      return response.data;
+    } catch (error) {
+      console.log("Create Channel Error:", (error as AxiosError).message);
+      throw error;
+    }
+  },
+
+  async getMessages(channelId: string, after?: string): Promise<Message[]> {
+    try {
+      let url = `connects/messages/?channel_id=${channelId}&limit=50&lightweight=true&t=${Date.now()}`;
+      if (after) {
+        url += `&after=${encodeURIComponent(after)}`;
+      }
+      
+      const response = await mainApi.get<GetMessagesResponse>(url);
 
       console.log("Messages API Response:", response.data.status);
       return response.data.messages || [];
@@ -68,10 +98,30 @@ export const ConnectsService = {
     }
   },
 
+  async markChannelRead(channelId: string, lastMessageId?: string): Promise<boolean> {
+    try {
+      const response = await mainApi.post("connects/channel/read/", {
+        channel_id: channelId,
+        last_read_message_id: lastMessageId
+      });
+      return response.data.status;
+    } catch (error) {
+      console.log("Mark Channel Read Error:", (error as AxiosError).message);
+      return false;
+    }
+  },
+
   async getMessageAttachment(messageId: string): Promise<any[]> {
     try {
-      const response = await api.get(
-        `api/connects/message/attachment/?message_id=${messageId}`
+      const response = await mainApi.get(
+        `connects/message/attachment/?message_id=${messageId}`,
+        {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
       );
       return response.data.attachments || [];
     } catch (error) {
@@ -111,8 +161,8 @@ export const ConnectsService = {
         })
       );
 
-      const response = await api.post(
-        "api/connects/message/send/",
+      const response = await mainApi.post(
+        "connects/message/send/",
         {
           channel_id: channelId,
           text,
@@ -126,6 +176,35 @@ export const ConnectsService = {
       const err = error as AxiosError;
       console.log("Send Message Error:", err.response?.data || err.message);
       throw error;
+    }
+  },
+
+  async toggleReaction(messageId: string, emoji: string): Promise<any> {
+    try {
+      const response = await mainApi.post(
+        "connects/message/react/",
+        {
+          message_id: messageId,
+          emoji: emoji
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.log("Toggle Reaction Error:", (error as AxiosError).message);
+      throw error;
+    }
+  },
+
+  async saveFCMToken(token: string, deviceType: string): Promise<boolean> {
+    try {
+      const response = await mainApi.post("connects/save-fcm-token/", {
+        fcm_token: token,
+        device_type: deviceType,
+      });
+      return response.data.status;
+    } catch (error) {
+      console.log("Save FCM Token Error:", (error as AxiosError).message);
+      return false;
     }
   },
 };

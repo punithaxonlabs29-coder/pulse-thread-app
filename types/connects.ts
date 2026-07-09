@@ -1,3 +1,9 @@
+export interface Reaction {
+    emoji: string;
+    count: number;
+    user_reacted: boolean;
+}
+
 export interface Member {
     email: string;
     name: string;
@@ -13,6 +19,7 @@ export interface LastMessage {
     sender_email: string;
     sender_name: string;
     created_at: string;
+    attachments?: any[];
 }
 
 export interface Channel {
@@ -25,6 +32,7 @@ export interface Channel {
     last_message?: LastMessage;
     created_at: string;
     updated_at: string;
+    channel_image?: string;
 }
 
 export interface Message {
@@ -35,5 +43,6 @@ export interface Message {
     text: string;
     created_at: string;
     attachments?: any[];
+    reactions?: Reaction[];
 }
 

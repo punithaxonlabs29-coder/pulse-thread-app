@@ -1,14 +1,43 @@
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { Platform } from "react-native";
+import { useEffect } from "react";
+import { ChatProvider } from "../contexts/ChatContext";
+import NotificationService from "../services/notification.service";
+
+let navigating = false;
 
 export default function RootLayout() {
+  useEffect(() => {
+    NotificationService.initialize((channelId) => {
+      if (navigating) return;
+      navigating = true;
+
+      // Small timeout ensures the router is fully mounted if opening from completely closed state
+      setTimeout(() => {
+        router.push({
+          pathname: "/chat",
+          params: { channelId: channelId }
+        });
+
+        // Release the lock after navigation completes
+        setTimeout(() => {
+          navigating = false;
+        }, 1000);
+      }, 300);
+    });
+  }, []);
   return (
-    <SafeAreaProvider>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-        }}
-      />
-    </SafeAreaProvider>
+    <ChatProvider>
+      <SafeAreaProvider>
+        <StatusBar style="dark" backgroundColor="#F5F7FA" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+          }}
+        />
+      </SafeAreaProvider>
+    </ChatProvider>
   );
 }
