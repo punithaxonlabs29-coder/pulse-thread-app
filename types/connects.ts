@@ -52,5 +52,7 @@ export interface Message {
     };
     is_pinned?: boolean;
     is_forwarded?: boolean;
+    is_deleted?: boolean;
+    deleted_by?: string;
 }
 

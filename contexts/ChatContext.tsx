@@ -6,6 +6,7 @@ import { SessionService } from '../services/session.service';
 interface ChatContextType {
   typingState: Record<string, Set<string>>;
   sendTypingStatus: (channelId: string, isTyping: boolean) => void;
+  broadcastDeleteEvent: (channelId: string, messageId: string) => void;
   connectChannels: (channelIds: string[]) => void;
   registerMembers: (channels: any[]) => void;
   lastMessages: Record<string, Message>;
@@ -145,6 +146,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (userRef.current && data.user_email?.toLowerCase() !== userRef.current.email) {
             setReadReceipts(prev => ({ ...prev, [channelId]: data.message_id }));
           }
+        } else if (data.event === "message_deleted") {
+          // Emulate a message update to trigger chat.tsx to update the message
+          setLastUpdatedMessage({
+            message_id: data.message_id,
+            channel_id: channelId,
+            is_deleted: true,
+            text: "This message was deleted",
+            attachments: [],
+            reactions: [],
+            sender_email: "",
+            created_at: new Date().toISOString()
+          });
         }
       } catch (error) {}
     };
@@ -167,6 +180,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const broadcastDeleteEvent = useCallback((channelId: string, messageId: string) => {
+    const ws = socketsRef.current[channelId];
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        event: "message_deleted",
+        message_id: messageId
+      }));
+    }
+  }, []);
+
   const resetUnreadCount = useCallback((channelId: string) => {
     setUnreadCounts(prev => ({ ...prev, [channelId]: 0 }));
   }, []);
@@ -182,7 +205,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastPinnedEvent,
       unreadCounts,
       readReceipts,
-      resetUnreadCount 
+      resetUnreadCount,
+      broadcastDeleteEvent
     }}>
       {children}
     </ChatContext.Provider>

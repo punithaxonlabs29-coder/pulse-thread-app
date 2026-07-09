@@ -28,13 +28,14 @@ interface MessageBubbleProps {
   onSwipeReply?: () => void;
   onReplyPress?: (messageId: string) => void;
   isForwarded?: boolean;
+  isDeleted?: boolean;
 }
 
 export default function MessageBubble({ 
   messageId, text, time, isMine, attachments, readStatus, 
   isVisible = false, reactions, selected = false, showTail = true,
   replyTo, onLongPress, onReactionPress, onSwipeReply, onReplyPress,
-  isForwarded = false
+  isForwarded = false, isDeleted = false
 }: MessageBubbleProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const bubbleRef = React.useRef<View>(null);
@@ -129,120 +130,129 @@ export default function MessageBubble({
         >
           {showTail && !isSingleEmoji && (isMine ? <View style={styles.myTail} /> : <View style={styles.otherTail} />)}
 
-          {isForwarded && (
-            <View style={styles.forwardedContainer}>
-              <Ionicons name="arrow-redo" size={14} color="#71828A" style={styles.forwardedIcon} />
-              <Text style={styles.forwardedText}>Forwarded</Text>
+          {isDeleted ? (
+            <View style={styles.deletedContainer}>
+              <Ionicons name="ban-outline" size={16} color="#8F98A0" style={styles.deletedIcon} />
+              <Text style={styles.deletedText}>You deleted this message</Text>
             </View>
-          )}
-
-          {replyTo && (
-            <TouchableOpacity 
-              activeOpacity={0.7}
-              onPress={() => onReplyPress && onReplyPress(replyTo.message_id)}
-            >
-              <View style={styles.replySnippetContainer}>
-                <View style={[styles.replySnippetLeftBar, { backgroundColor: '#FF8C00' }]} />
-                <View style={[styles.replySnippetContent, { backgroundColor: '#FFF3E0' }]}>
-                  <Text style={[styles.replySnippetName, { color: '#FF8C00' }]} numberOfLines={1}>
-                    {replyTo.sender_name || "Unknown"}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    {replyTo.attachments?.[0]?.type?.startsWith('image/') && (
-                      <Ionicons name="image" size={12} color="#4A6572" style={{ marginRight: 4 }} />
-                    )}
-                    <Text style={styles.replySnippetText} numberOfLines={1}>
-                      {replyTo.text || (replyTo.attachments?.[0]?.type?.startsWith('image/') ? 'Photo' : 'Attachment')}
-                    </Text>
-                  </View>
+          ) : (
+            <>
+              {isForwarded && (
+                <View style={styles.forwardedContainer}>
+                  <Ionicons name="arrow-redo" size={14} color="#71828A" style={styles.forwardedIcon} />
+                  <Text style={styles.forwardedText}>Forwarded</Text>
                 </View>
-                {(() => {
-                  const isPhoto = replyTo.attachments?.[0]?.type?.startsWith('image/');
-                  const url = replyTo.attachments?.[0]?.url || replyTo.attachments?.[0]?.file_url;
-                  if (isPhoto && url) {
-                    return (
-                      <View style={[styles.replySnippetContent, { backgroundColor: '#FFF3E0', flex: 0 }]}>
-                        <Image source={{ uri: url }} style={styles.replySnippetThumbnail} />
-                      </View>
-                    );
-                  }
-                  return null;
-                })()}
-              </View>
-            </TouchableOpacity>
-          )}
-
-          {attachments?.map((file, index) => {
-          const type = file.type || file.mime_type || "";
-          const url = file.url || file.file_url;
-          const name = file.name || "Attachment";
-
-          const mediaProps = {
-             time: showOverlayTime ? time : undefined,
-             readStatus: showOverlayTime ? readStatus : undefined,
-             isMine
-          };
-
-          if (type.startsWith("image/")) {
-            return <ImageAttachment key={index} url={url || ""} name={name} messageId={messageId} {...mediaProps} />;
-          }
-          if (type.startsWith("video/") || name.endsWith(".webm") || name.endsWith(".mp4")) {
-            return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="video" isVisible={isVisible} {...mediaProps} />;
-          }
-          if (type.startsWith("audio/")) {
-            return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="audio" isVisible={isVisible} {...mediaProps} />;
-          }
-          if (type.toLowerCase() === "link" || file.file_type === "Link") {
-            return null;
-          }
-          return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="document" {...mediaProps} />;
-        })}
-
-        {hasText ? (
-          <View style={[hasAttachments ? { marginTop: 4 } : {}, { position: 'relative' }]}>
-            <Text
-              style={[
-                styles.messageText,
-                isMine ? styles.myMessageText : styles.otherMessageText,
-                isSingleEmoji && styles.singleEmojiText,
-                isMediumEmoji && styles.mediumEmojiText,
-                isSmallEmoji && styles.smallEmojiText
-              ]}
-            >
-              {renderText(displayedText)}
-              <View style={{ width: isMine && readStatus ? 75 : 60, height: 10 }} />
-            </Text>
-            
-            {shouldTruncate && (
-              <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
-                <Text style={[styles.readMoreText, isMine ? styles.myReadMoreText : styles.otherReadMoreText]}>
-                  {isExpanded ? "Read Less" : "Read More"}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <View style={[
-              styles.absoluteFooter,
-              isSingleEmoji && (isMine ? styles.singleEmojiTimePillMy : styles.singleEmojiTimePillOther)
-            ]}>
-              <Text style={[
-                styles.time, 
-                isMine ? styles.myTimeText : styles.otherTimeText,
-                isSingleEmoji && { color: '#6B7280' }
-              ]}>
-                {time}
-              </Text>
-              {isMine && readStatus && (
-                <Ionicons
-                  name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
-                  size={14}
-                  color={readStatus === "read" ? "#53BDEB" : "#8696A0"}
-                  style={styles.tickIcon}
-                />
               )}
-            </View>
-          </View>
-        ) : null}
+
+              {replyTo && (
+                <TouchableOpacity 
+                  activeOpacity={0.7}
+                  onPress={() => onReplyPress && onReplyPress(replyTo.message_id)}
+                >
+                  <View style={styles.replySnippetContainer}>
+                    <View style={[styles.replySnippetLeftBar, { backgroundColor: '#FF8C00' }]} />
+                    <View style={[styles.replySnippetContent, { backgroundColor: '#FFF3E0' }]}>
+                      <Text style={[styles.replySnippetName, { color: '#FF8C00' }]} numberOfLines={1}>
+                        {replyTo.sender_name || "Unknown"}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {replyTo.attachments?.[0]?.type?.startsWith('image/') && (
+                          <Ionicons name="image" size={12} color="#4A6572" style={{ marginRight: 4 }} />
+                        )}
+                        <Text style={styles.replySnippetText} numberOfLines={1}>
+                          {replyTo.text || (replyTo.attachments?.[0]?.type?.startsWith('image/') ? 'Photo' : 'Attachment')}
+                        </Text>
+                      </View>
+                    </View>
+                    {(() => {
+                      const isPhoto = replyTo.attachments?.[0]?.type?.startsWith('image/');
+                      const url = replyTo.attachments?.[0]?.url || replyTo.attachments?.[0]?.file_url;
+                      if (isPhoto && url) {
+                        return (
+                          <View style={[styles.replySnippetContent, { backgroundColor: '#FFF3E0', flex: 0 }]}>
+                            <Image source={{ uri: url }} style={styles.replySnippetThumbnail} />
+                          </View>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {attachments?.map((file, index) => {
+              const type = file.type || file.mime_type || "";
+              const url = file.url || file.file_url;
+              const name = file.name || "Attachment";
+
+              const mediaProps = {
+                 time: showOverlayTime ? time : undefined,
+                 readStatus: showOverlayTime ? readStatus : undefined,
+                 isMine
+              };
+
+              if (type.startsWith("image/")) {
+                return <ImageAttachment key={index} url={url || ""} name={name} messageId={messageId} {...mediaProps} />;
+              }
+              if (type.startsWith("video/") || name.endsWith(".webm") || name.endsWith(".mp4")) {
+                return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="video" isVisible={isVisible} {...mediaProps} />;
+              }
+              if (type.startsWith("audio/")) {
+                return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="audio" isVisible={isVisible} {...mediaProps} />;
+              }
+              if (type.toLowerCase() === "link" || file.file_type === "Link") {
+                return null;
+              }
+              return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="document" {...mediaProps} />;
+            })}
+
+            {hasText ? (
+              <View style={[hasAttachments ? { marginTop: 4 } : {}, { position: 'relative' }]}>
+                <Text
+                  style={[
+                    styles.messageText,
+                    isMine ? styles.myMessageText : styles.otherMessageText,
+                    isSingleEmoji && styles.singleEmojiText,
+                    isMediumEmoji && styles.mediumEmojiText,
+                    isSmallEmoji && styles.smallEmojiText
+                  ]}
+                >
+                  {renderText(displayedText)}
+                  <View style={{ width: isMine && readStatus ? 75 : 60, height: 10 }} />
+                </Text>
+                
+                {shouldTruncate && (
+                  <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
+                    <Text style={[styles.readMoreText, isMine ? styles.myReadMoreText : styles.otherReadMoreText]}>
+                      {isExpanded ? "Read Less" : "Read More"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <View style={[
+                  styles.absoluteFooter,
+                  isSingleEmoji && (isMine ? styles.singleEmojiTimePillMy : styles.singleEmojiTimePillOther)
+                ]}>
+                  <Text style={[
+                    styles.time, 
+                    isMine ? styles.myTimeText : styles.otherTimeText,
+                    isSingleEmoji && { color: '#6B7280' }
+                  ]}>
+                    {time}
+                  </Text>
+                  {isMine && readStatus && (
+                    <Ionicons
+                      name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
+                      size={14}
+                      color={readStatus === "read" ? "#53BDEB" : "#8696A0"}
+                      style={styles.tickIcon}
+                    />
+                  )}
+                </View>
+              </View>
+            ) : null}
+          </>
+        )}
       </TouchableOpacity>
 
       {reactions && reactions.length > 0 && (
@@ -514,5 +524,22 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 4,
+  },
+  deletedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+    paddingRight: 10,
+  },
+  deletedIcon: {
+    marginRight: 6,
+  },
+  deletedText: {
+    fontSize: 15,
+    color: '#8F98A0',
+    fontStyle: 'italic',
+  },
+  deletedTimeContainer: {
+    marginTop: 2,
   }
 });

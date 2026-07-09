@@ -31,13 +31,14 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const messagesRef = useRef<Message[]>([]);
   const isLoadedRef = useRef(false);
-  const { sendTypingStatus, lastMessages, lastUpdatedMessage, lastPinnedEvent, typingState, resetUnreadCount, readReceipts } = useChatContext();
+  const { sendTypingStatus, lastMessages, lastUpdatedMessage, lastPinnedEvent, typingState, resetUnreadCount, readReceipts, broadcastDeleteEvent } = useChatContext();
   const typingUsers = typingState[channelId as string] ? Array.from(typingState[channelId as string]) : [];
 
   const [reactionModalVisible, setReactionModalVisible] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const [reactionMenuPosition, setReactionMenuPosition] = useState<{ y: number; height: number } | null>(null);
   const [infoMessageId, setInfoMessageId] = useState<string | null>(null);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
   const [visibleItems, setVisibleItems] = useState<Set<string>>(new Set());
@@ -135,7 +136,15 @@ export default function ChatScreen() {
   useEffect(() => {
     if (lastUpdatedMessage && lastUpdatedMessage.channel_id === channelId) {
       setMessages(prev => {
-        const updated = prev.map(m => m.message_id === lastUpdatedMessage.message_id ? lastUpdatedMessage : m);
+        const updated = prev.map(m => {
+          if (m.message_id === lastUpdatedMessage.message_id) {
+            if (lastUpdatedMessage.is_deleted) {
+              return { ...m, is_deleted: true, text: "This message was deleted", attachments: [] };
+            }
+            return lastUpdatedMessage;
+          }
+          return m;
+        });
         CacheService.saveMessages(channelId as string, updated);
         return updated;
       });
@@ -363,6 +372,44 @@ export default function ChatScreen() {
     }
   };
 
+  const handleCopyMessage = () => {
+    if (selectedMessageIds.length > 0) {
+      const messagesToCopy = selectedMessageIds.map(id => {
+        const msg = messages.find(m => m.message_id === id);
+        return msg ? msg.text : "";
+      }).join("\n");
+      
+      Clipboard.setStringAsync(messagesToCopy);
+      ToastAndroid.show("Message copied to clipboard", ToastAndroid.SHORT);
+      setSelectedMessageIds([]); // Clear selection after copy
+    }
+  };
+
+  const handleDeleteMessages = async (deleteForEveryone: boolean) => {
+    setDeleteModalVisible(false);
+    const idsToDelete = [...selectedMessageIds];
+    setSelectedMessageIds([]);
+
+    // Optimistic update
+    setMessages(prev => {
+      const updated = prev.map(m => 
+        idsToDelete.includes(m.message_id) 
+          ? { ...m, is_deleted: true, text: "This message was deleted", attachments: [] } 
+          : m
+      );
+      CacheService.saveMessages(channelId as string, updated);
+      return updated;
+    });
+
+    // Call API (silent fallback on failure, or could handle rollback)
+    for (const msgId of idsToDelete) {
+      const success = await ConnectsService.deleteMessage(channelId as string, msgId, deleteForEveryone);
+      if (success && deleteForEveryone) {
+        broadcastDeleteEvent(channelId as string, msgId);
+      }
+    }
+  };
+
   const handleReactionSelect = (emoji: string) => {
     if (!selectedMessageIds[0]) return;
     const msgId = selectedMessageIds[0];
@@ -451,7 +498,7 @@ export default function ChatScreen() {
               setInfoMessageId(selectedMessageIds[0]); 
               setSelectedMessageIds([]); // clear selection when opening info
             } : undefined}
-            onDelete={allSelectedAreMine ? () => { /* Handle delete */ } : undefined}
+            onDelete={() => setDeleteModalVisible(true)}
             onForward={() => {
               const msgIds = selectedMessageIds.join(',');
               setSelectedMessageIds([]); // Clear selection
@@ -463,24 +510,7 @@ export default function ChatScreen() {
                 }
               });
             }}
-            onCopy={async () => {
-              const selectedMessagesText = messages
-                .filter(m => selectedMessageIds.includes(m.message_id))
-                .map(m => m.text)
-                .filter(t => !!t)
-                .join('\n\n');
-              
-              if (selectedMessagesText) {
-                await Clipboard.setStringAsync(selectedMessagesText);
-                setSelectedMessageIds([]);
-                setReactionModalVisible(false);
-                if (Platform.OS === 'android') {
-                  ToastAndroid.show('Message copied', ToastAndroid.SHORT);
-                } else {
-                  Alert.alert('Copied', 'Message copied to clipboard');
-                }
-              }
-            }}
+            onCopy={handleCopyMessage}
             onShare={async () => {
               const selectedMessagesText = messages
                 .filter(m => selectedMessageIds.includes(m.message_id))
@@ -626,6 +656,7 @@ export default function ChatScreen() {
                     reactions={item.reactions}
                     replyTo={item.reply_to}
                     isForwarded={item.is_forwarded}
+                    isDeleted={item.is_deleted}
                     onSwipeReply={() => setReplyingTo(item)}
                     onReplyPress={(replyMessageId) => {
                       scrollToMessage(replyMessageId);
@@ -691,6 +722,42 @@ export default function ChatScreen() {
             />
           )}
         </Modal>
+
+        <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContainer}>
+            <Text style={styles.deleteModalTitle}>Delete message?</Text>
+            
+            {allSelectedAreMine && (
+              <TouchableOpacity 
+                style={styles.deleteModalButton}
+                onPress={() => handleDeleteMessages(true)}
+              >
+                <Text style={styles.deleteModalButtonText}>Delete for everyone</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity 
+              style={styles.deleteModalButton}
+              onPress={() => handleDeleteMessages(false)}
+            >
+              <Text style={styles.deleteModalButtonText}>Delete for me</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.deleteModalButton}
+              onPress={() => setDeleteModalVisible(false)}
+            >
+              <Text style={styles.deleteModalButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       </SafeAreaView>
   );
 }
@@ -829,5 +896,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     color: "#54656F",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteModalContainer: {
+    width: '85%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 20,
+  },
+  deleteModalButton: {
+    paddingVertical: 12,
+    alignItems: 'flex-end',
+  },
+  deleteModalButtonText: {
+    fontSize: 16,
+    color: '#FF8C00',
+    fontWeight: '600',
   }
 });

@@ -293,4 +293,18 @@ export const ConnectsService = {
       return false;
     }
   },
+
+  async deleteMessage(channelId: string, messageId: string, deleteForEveryone: boolean): Promise<boolean> {
+    try {
+      const response = await mainApi.post("connects/message/delete/", {
+        channel_id: channelId,
+        message_id: messageId,
+        delete_for_everyone: deleteForEveryone,
+      });
+      return response.data.status;
+    } catch (error) {
+      console.log("Delete Message Error:", (error as AxiosError).message);
+      return false;
+    }
+  },
 };
