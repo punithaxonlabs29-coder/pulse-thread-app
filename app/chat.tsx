@@ -1,18 +1,21 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { FlatList, StyleSheet, Platform, ActivityIndicator, View, ImageBackground, KeyboardAvoidingView, Text, Keyboard, TouchableOpacity } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, FlatList, Image, ImageBackground, Keyboard, KeyboardAvoidingView, Platform, StyleSheet, Text, ToastAndroid, TouchableOpacity, View, Modal, Share } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as Clipboard from 'expo-clipboard';
 
 import ChatHeader from "../components/ChatHeader";
 import MessageBubble from "../components/MessageBubble";
 import MessageInput from "../components/MessageInput";
 import ReactionPicker from "../components/ReactionPicker";
+import SelectionHeader from "../components/SelectionHeader";
+import MessageInfo from "../components/MessageInfo";
+import { CacheService } from "../services/cache.service";
 import { ConnectsService } from "../services/connects.service";
 import { SessionService } from "../services/session.service";
 import { Message } from "../types/connects";
-import { formatMessageTime } from "../utils/date";
-import { CacheService } from "../services/cache.service";
+import { formatDateHeader, formatTimeOnly } from "../utils/date";
 
 import { useChatContext } from "../contexts/ChatContext";
 
@@ -26,16 +29,29 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const messagesRef = useRef<Message[]>([]);
   const isLoadedRef = useRef(false);
-  const { sendTypingStatus, lastMessages, typingState, resetUnreadCount, readReceipts } = useChatContext();
+  const { sendTypingStatus, lastMessages, lastUpdatedMessage, lastPinnedEvent, typingState, resetUnreadCount, readReceipts } = useChatContext();
   const typingUsers = typingState[channelId as string] ? Array.from(typingState[channelId as string]) : [];
 
   const [reactionModalVisible, setReactionModalVisible] = useState(false);
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
+  const [reactionMenuPosition, setReactionMenuPosition] = useState<{ y: number; height: number } | null>(null);
+  const [infoMessageId, setInfoMessageId] = useState<string | null>(null);
 
   const [visibleItems, setVisibleItems] = useState<Set<string>>(new Set());
+  const [floatingDate, setFloatingDate] = useState<string | null>(null);
+  const [showFloatingDate, setShowFloatingDate] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 10 });
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     setVisibleItems(new Set(viewableItems.map((v: any) => v.item.message_id)));
+    if (viewableItems.length > 0) {
+      // Since inverted=true, the top-most visible item has the highest index
+      const topItem = viewableItems.reduce((prev: any, current: any) => (prev.index > current.index) ? prev : current);
+      if (topItem && topItem.item) {
+        setFloatingDate(formatDateHeader(topItem.item.created_at));
+      }
+    }
   });
 
   const [isScrolledUp, setIsScrolledUp] = useState(false);
@@ -63,6 +79,13 @@ export default function ChatScreen() {
         isScrolledUpRef.current = true;
       }
     }
+
+    // Show the floating date pill and hide it after a delay when scrolling stops
+    setShowFloatingDate(true);
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      setShowFloatingDate(false);
+    }, 1500);
   };
 
   const scrollToBottom = useCallback(() => {
@@ -103,6 +126,38 @@ export default function ChatScreen() {
       ConnectsService.markChannelRead(channelId as string, newMessage.message_id);
     }
   }, [lastMessages[channelId as string], currentUserEmail, scrollToBottom]);
+
+  // Handle incoming message updates (like reactions) in real-time
+  useEffect(() => {
+    if (lastUpdatedMessage && lastUpdatedMessage.channel_id === channelId) {
+      setMessages(prev => {
+        const updated = prev.map(m => m.message_id === lastUpdatedMessage.message_id ? lastUpdatedMessage : m);
+        CacheService.saveMessages(channelId as string, updated);
+        return updated;
+      });
+    }
+  }, [lastUpdatedMessage, channelId]);
+
+  useEffect(() => {
+    if (lastPinnedEvent && lastPinnedEvent.channelId === channelId) {
+      setMessages(prev => {
+        const updated = prev.map(m => {
+          // If pinning, unpin all others
+          if (lastPinnedEvent.isPinned) {
+            if (m.message_id === lastPinnedEvent.messageId) return { ...m, is_pinned: true };
+            if (m.is_pinned) return { ...m, is_pinned: false };
+            return m;
+          } else {
+            // If unpinning, just unpin the target
+            if (m.message_id === lastPinnedEvent.messageId) return { ...m, is_pinned: false };
+            return m;
+          }
+        });
+        CacheService.saveMessages(channelId as string, updated);
+        return updated;
+      });
+    }
+  }, [lastPinnedEvent, channelId]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -303,27 +358,157 @@ export default function ChatScreen() {
   };
 
   const handleReactionSelect = (emoji: string) => {
-    if (!selectedMessageId) return;
-    const msgId = selectedMessageId;
-    setSelectedMessageId(null);
+    if (!selectedMessageIds[0]) return;
+    const msgId = selectedMessageIds[0];
     setReactionModalVisible(false);
     handleReactionToggle(msgId, emoji);
+    setSelectedMessageIds([]); // Clear selection after reacting
   };
 
   const handleLoadMore = () => {
     if (displayLimit < messages.length) {
-      setDisplayLimit(prev => prev + 30);
+      setDisplayLimit(prev => prev + 20);
     }
   };
 
+  const displayData = [...messages].reverse().slice(0, displayLimit);
+
+  const allSelectedAreMine = messages
+    .filter(m => selectedMessageIds.includes(m.message_id))
+    .every(m => m.sender_email === currentUserEmail);
+
   return (
     <SafeAreaView style={styles.container}>
-      <ChatHeader 
-        name={resolvedName} 
-        status="Active" 
-        imageUrl={resolvedImage}
-        typingUsers={typingUsers}
-      />
+        {selectedMessageIds.length > 0 ? (
+          <SelectionHeader 
+            selectedCount={selectedMessageIds.length}
+            isPinned={selectedMessageIds.length === 1 ? messages.find(m => m.message_id === selectedMessageIds[0])?.is_pinned : false}
+            onPinToggle={selectedMessageIds.length === 1 ? async () => {
+              const msgId = selectedMessageIds[0];
+              const msg = messages.find(m => m.message_id === msgId);
+              if (msg) {
+                const newPinnedState = !msg.is_pinned;
+                const success = await ConnectsService.togglePinMessage(channelId as string, msgId, newPinnedState);
+                if (success) {
+                  // Optimistically update local state
+                  setMessages(prev => {
+                    const updated = prev.map(m => {
+                      if (newPinnedState) {
+                        if (m.message_id === msgId) return { ...m, is_pinned: true };
+                        if (m.is_pinned) return { ...m, is_pinned: false };
+                        return m;
+                      } else {
+                        if (m.message_id === msgId) return { ...m, is_pinned: false };
+                        return m;
+                      }
+                    });
+                    CacheService.saveMessages(channelId as string, updated);
+                    return updated;
+                  });
+                }
+                setSelectedMessageIds([]);
+              }
+            } : undefined}
+            onClearSelection={() => {
+              setSelectedMessageIds([]);
+              setReactionModalVisible(false);
+            }}
+            onReply={selectedMessageIds.length === 1 ? () => { /* Handle reply */ } : undefined}
+            onStar={() => { /* Handle star */ }}
+            onInfo={selectedMessageIds.length === 1 ? () => { 
+              setInfoMessageId(selectedMessageIds[0]); 
+              setSelectedMessageIds([]); // clear selection when opening info
+            } : undefined}
+            onDelete={allSelectedAreMine ? () => { /* Handle delete */ } : undefined}
+            onForward={() => { /* Handle forward */ }}
+            onCopy={async () => {
+              const selectedMessagesText = messages
+                .filter(m => selectedMessageIds.includes(m.message_id))
+                .map(m => m.text)
+                .filter(t => !!t)
+                .join('\n\n');
+              
+              if (selectedMessagesText) {
+                await Clipboard.setStringAsync(selectedMessagesText);
+                setSelectedMessageIds([]);
+                setReactionModalVisible(false);
+                if (Platform.OS === 'android') {
+                  ToastAndroid.show('Message copied', ToastAndroid.SHORT);
+                } else {
+                  Alert.alert('Copied', 'Message copied to clipboard');
+                }
+              }
+            }}
+            onShare={async () => {
+              const selectedMessagesText = messages
+                .filter(m => selectedMessageIds.includes(m.message_id))
+                .map(m => m.text)
+                .filter(t => !!t)
+                .join('\n\n');
+              
+              if (selectedMessagesText) {
+                try {
+                  await Share.share({
+                    message: selectedMessagesText,
+                  });
+                } catch (error: any) {
+                  Alert.alert('Error', error.message);
+                }
+                setSelectedMessageIds([]);
+                setReactionModalVisible(false);
+              }
+            }}
+          />
+        ) : (
+          <View>
+            <ChatHeader 
+              name={resolvedName} 
+              status="Active" 
+              imageUrl={resolvedImage}
+              typingUsers={typingUsers}
+            />
+            {messages.find(m => m.is_pinned) && (
+              <TouchableOpacity 
+                style={styles.pinnedBanner} 
+                activeOpacity={0.8}
+                onPress={() => {
+                  const pinnedMsg = messages.find(m => m.is_pinned);
+                  if (pinnedMsg && flatListRef.current) {
+                    const index = messages.findIndex(m => m.message_id === pinnedMsg.message_id);
+                    if (index !== -1) {
+                      flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+                    }
+                  }
+                }}
+              >
+                <Ionicons name="pin" size={16} color="#8696A0" style={styles.pinnedIcon} />
+                <View style={styles.pinnedTextContainer}>
+                  {(() => {
+                    const pinnedMsg = messages.find(m => m.is_pinned);
+                    const isPhoto = pinnedMsg?.attachments?.[0]?.type?.startsWith('image/');
+                    return (
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {isPhoto && <Ionicons name="image-outline" size={16} color="#4A6572" style={{ marginRight: 6 }} />}
+                        <Text style={styles.pinnedSubtitle} numberOfLines={1}>
+                          {pinnedMsg?.text ? pinnedMsg.text : (isPhoto ? "Photo" : "Attachment")}
+                        </Text>
+                      </View>
+                    );
+                  })()}
+                </View>
+                {(() => {
+                    const pinnedMsg = messages.find(m => m.is_pinned);
+                    const isPhoto = pinnedMsg?.attachments?.[0]?.type?.startsWith('image/');
+                    const url = pinnedMsg?.attachments?.[0]?.url || pinnedMsg?.attachments?.[0]?.file_url;
+                    if (isPhoto && url) {
+                      return <Image source={{ uri: url }} style={styles.pinnedThumbnail} />
+                    }
+                    return null;
+                })()}
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         <KeyboardAvoidingView 
           style={{ flex: 1 }}
@@ -335,6 +520,14 @@ export default function ChatScreen() {
             style={styles.backgroundImage}
             resizeMode="cover"
           >
+            {showFloatingDate && floatingDate && (
+              <View style={styles.floatingDateContainer}>
+                <View style={styles.floatingDatePill}>
+                  <Text style={styles.floatingDateText}>{floatingDate}</Text>
+                </View>
+              </View>
+            )}
+
             {loading ? (
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color="#F97316" />
@@ -343,7 +536,7 @@ export default function ChatScreen() {
               <FlatList
             ref={flatListRef}
             inverted={true}
-            data={[...messages].reverse().slice(0, displayLimit)}
+            data={displayData}
             extraData={{ receipts: readReceipts[channelId as string], visibleItems }}
             keyExtractor={(item, index) => item.message_id + index}
             onViewableItemsChanged={onViewableItemsChanged.current}
@@ -356,28 +549,53 @@ export default function ChatScreen() {
               const isMine = item.sender_email === currentUserEmail;
               const lastReadMessageId = readReceipts[channelId as string];
               
-              // Note: since data is reversed, index mapping to the original array needs reversal if used strictly
-              // But for readStatus, checking if it's in the read receipt is enough.
               const isRead = lastReadMessageId 
-                ? messages.findIndex(m => m.message_id === lastReadMessageId) >= messages.findIndex(m => m.message_id === item.message_id)
+                ? messages.findIndex(m => m.message_id === lastReadMessageId) >= index
                 : false;
   
+              const currentDateStr = formatDateHeader(item.created_at);
+              const olderDateStr = displayData[index + 1] ? formatDateHeader(displayData[index + 1].created_at) : null;
+              const showDateHeader = currentDateStr !== olderDateStr;
+
+              const isFirstInGroup = displayData[index + 1]?.sender_email !== item.sender_email;
+              const showTail = showDateHeader || isFirstInGroup;
+
               return (
-                <MessageBubble 
-                  messageId={item.message_id}
-                  text={item.text} 
-                  attachments={item.attachments || []}
-                  time={formatMessageTime(item.created_at)} 
-                  isMine={isMine} 
-                  readStatus={isMine ? (isRead ? "read" : "delivered") : undefined}
-                  isVisible={visibleItems.has(item.message_id)}
-                  reactions={item.reactions}
-                  onLongPress={() => {
-                    setSelectedMessageId(item.message_id);
-                    setReactionModalVisible(true);
-                  }}
-                  onReactionPress={(emoji) => handleReactionToggle(item.message_id, emoji)}
-                />
+                <View>
+                  {showDateHeader && (
+                    <View style={styles.dateHeaderContainer}>
+                      <View style={styles.dateHeaderPill}>
+                        <Text style={styles.dateHeaderText}>{currentDateStr}</Text>
+                      </View>
+                    </View>
+                  )}
+                  <MessageBubble 
+                    messageId={item.message_id}
+                    text={item.text} 
+                    attachments={item.attachments || []}
+                    time={formatTimeOnly(item.created_at)} 
+                    isMine={isMine} 
+                    showTail={showTail}
+                    readStatus={isMine ? (isRead ? "read" : "delivered") : undefined}
+                    isVisible={visibleItems.has(item.message_id)}
+                    reactions={item.reactions}
+                    selected={selectedMessageIds.includes(item.message_id)}
+                    onLongPress={(y, height) => {
+                      setSelectedMessageIds(prev => {
+                        if (prev.includes(item.message_id)) return prev;
+                        const next = [...prev, item.message_id];
+                        if (next.length === 1) {
+                          setReactionMenuPosition({ y, height });
+                          setReactionModalVisible(true);
+                        } else {
+                          setReactionModalVisible(false);
+                        }
+                        return next;
+                      });
+                    }}
+                    onReactionPress={(emoji) => handleReactionToggle(item.message_id, emoji)}
+                  />
+                </View>
               );
             }}
             contentContainerStyle={[styles.listContent, { paddingBottom: 16 }]}
@@ -405,7 +623,18 @@ export default function ChatScreen() {
           visible={reactionModalVisible}
           onClose={() => setReactionModalVisible(false)}
           onSelectReaction={handleReactionSelect}
+          position={reactionMenuPosition}
         />
+
+        <Modal visible={!!infoMessageId} animationType="slide" onRequestClose={() => setInfoMessageId(null)}>
+          {infoMessageId && (
+            <MessageInfo 
+              message={messages.find(m => m.message_id === infoMessageId)!}
+              currentUserEmail={currentUserEmail}
+              onClose={() => setInfoMessageId(null)}
+            />
+          )}
+        </Modal>
       </SafeAreaView>
   );
 }
@@ -442,19 +671,43 @@ const styles = StyleSheet.create({
   },
   floatingPill: {
     position: 'absolute',
-    bottom: 16,
     right: 16,
-    backgroundColor: '#F97316',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    bottom: 16,
+    backgroundColor: '#374151',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowRadius: 3.84,
+    zIndex: 10,
+  },
+  floatingDateContainer: {
+    position: 'absolute',
+    top: 10,
+    width: '100%',
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  floatingDatePill: {
+    backgroundColor: 'rgba(235, 239, 243, 0.9)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  floatingDateText: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '500',
   },
   unreadBadge: {
     position: 'absolute',
@@ -474,5 +727,51 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  pinnedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F6F1ED', // Light orange background as requested
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+  },
+  pinnedIcon: {
+    marginRight: 12,
+  },
+  pinnedTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  pinnedSubtitle: {
+    fontSize: 14,
+    color: '#4A6572', // Bluish gray text color
+  },
+  pinnedThumbnail: {
+    width: 32,
+    height: 32,
+    borderRadius: 4,
+    marginLeft: 12,
+  },
+  dateHeaderContainer: {
+    alignItems: "center",
+    marginVertical: 12,
+  },
+  dateHeaderPill: {
+    backgroundColor: "#ECE5DD",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  dateHeaderText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#54656F",
   }
 });

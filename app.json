@@ -46,7 +46,8 @@
       "expo-secure-store",
       "expo-sqlite",
       "@react-native-firebase/app",
-      "@react-native-firebase/messaging"
+      "@react-native-firebase/messaging",
+      "./withNotifee.js"
     ],
     "experiments": {
       "typedRoutes": true,

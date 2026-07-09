@@ -40,3 +40,41 @@ export function formatMessageTime(dateString?: string): string {
     year: '2-digit' 
   });
 }
+
+export function formatTimeOnly(dateString?: string): string {
+  if (!dateString) return "";
+  let safeDateString = dateString;
+  if (!safeDateString.endsWith('Z') && !safeDateString.includes('+')) {
+    safeDateString += 'Z';
+  }
+  const date = new Date(safeDateString);
+  if (isNaN(date.getTime())) return "";
+
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+}
+
+export function formatDateHeader(dateString?: string): string {
+  if (!dateString) return "";
+  let safeDateString = dateString;
+  if (!safeDateString.endsWith('Z') && !safeDateString.includes('+')) {
+    safeDateString += 'Z';
+  }
+  const date = new Date(safeDateString);
+  if (isNaN(date.getTime())) return "";
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const targetDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  const diffTime = today.getTime() - targetDay.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  
+  return date.toLocaleDateString('en-GB', { 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric' 
+  });
+}

@@ -32,22 +32,23 @@ const { width } = Dimensions.get('window');
 const EMOJI_SIZE = 40;
 const COLUMNS = Math.floor(width / EMOJI_SIZE);
 
+import { Ionicons } from '@expo/vector-icons';
+
 interface EmojiKeyboardProps {
   onEmojiSelected: (emoji: string) => void;
+  onBackspace?: () => void;
 }
 
-export default function EmojiKeyboard({ onEmojiSelected }: EmojiKeyboardProps) {
+export default function EmojiKeyboard({ onEmojiSelected, onBackspace }: EmojiKeyboardProps) {
   
   const flatData = useMemo(() => {
     const items: any[] = [];
     EMOJI_CATEGORIES.forEach((category) => {
       items.push({ type: 'header', title: category.title });
-      for (let i = 0; i < category.emojis.length; i += COLUMNS) {
-        items.push({
-          type: 'row',
-          emojis: category.emojis.slice(i, i + COLUMNS)
-        });
-      }
+      items.push({
+        type: 'category_emojis',
+        emojis: category.emojis
+      });
     });
     return items;
   }, []);
@@ -57,23 +58,31 @@ export default function EmojiKeyboard({ onEmojiSelected }: EmojiKeyboardProps) {
       return (
         <View style={styles.categoryContainer}>
           <Text style={styles.categoryTitle}>{item.title}</Text>
+          {item.title === 'Smileys & People' && (
+            <TouchableOpacity style={styles.backspaceTopButton} onPress={onBackspace} onLongPress={() => onBackspace && onBackspace()}>
+              <Ionicons name="backspace-outline" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          )}
         </View>
       );
     }
 
-    return (
-      <View style={styles.emojiGrid}>
-        {item.emojis.map((emoji: string) => (
-          <TouchableOpacity
-            key={emoji}
-            style={styles.emojiWrapper}
-            onPress={() => onEmojiSelected(emoji)}
-          >
-            <Text style={styles.emoji}>{emoji}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
+    if (item.type === 'category_emojis') {
+      return (
+        <View style={styles.emojiGrid}>
+          {item.emojis.map((emoji: string) => (
+            <TouchableOpacity
+              key={emoji}
+              style={styles.emojiWrapper}
+              onPress={() => onEmojiSelected(emoji)}
+            >
+              <Text style={styles.emoji}>{emoji}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      );
+    }
+    return null;
   };
 
   return (
@@ -100,26 +109,31 @@ const styles = StyleSheet.create({
   },
   categoryContainer: {
     paddingVertical: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingRight: 12,
   },
   categoryTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#6B7280',
     paddingHorizontal: 12,
-    marginBottom: 8,
   },
   emojiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 4,
   },
   emojiWrapper: {
-    width: width / COLUMNS,
-    height: 40,
+    width: width / Math.floor(width / 48), // Increased width hit area
+    height: 52, // Increased height hit area
     justifyContent: 'center',
     alignItems: 'center',
   },
   emoji: {
-    fontSize: 28,
+    fontSize: 34,
+  },
+  backspaceTopButton: {
+    padding: 4,
   }
 });

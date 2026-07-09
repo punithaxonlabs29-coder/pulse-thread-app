@@ -46,6 +46,10 @@ export default function ChatHeader({ name, status, imageUrl, typingUsers = [] }:
           <Text style={styles.status} numberOfLines={1}>{status}</Text>
         )}
       </View>
+
+      <TouchableOpacity style={styles.menuButton}>
+        <Ionicons name="ellipsis-vertical" size={24} color="#111827" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -80,6 +84,7 @@ const styles = StyleSheet.create({
   },
   headerInfo: {
     marginLeft: 4,
+    flex: 1,
   },
   name: {
     fontSize: 16,
@@ -97,4 +102,7 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     marginTop: 2,
   },
+  menuButton: {
+    padding: 8,
+  }
 });

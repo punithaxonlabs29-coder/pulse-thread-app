@@ -9,6 +9,8 @@ interface ChatContextType {
   connectChannels: (channelIds: string[]) => void;
   registerMembers: (channels: any[]) => void;
   lastMessages: Record<string, Message>;
+  lastUpdatedMessage: Message | null;
+  lastPinnedEvent: { channelId: string; messageId: string; isPinned: boolean } | null;
   unreadCounts: Record<string, number>;
   readReceipts: Record<string, string>;
   resetUnreadCount: (channelId: string) => void;
@@ -19,6 +21,8 @@ export const ChatContext = createContext<ChatContextType | undefined>(undefined)
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [typingState, setTypingState] = useState<Record<string, Set<string>>>({});
   const [lastMessages, setLastMessages] = useState<Record<string, Message>>({});
+  const [lastUpdatedMessage, setLastUpdatedMessage] = useState<Message | null>(null);
+  const [lastPinnedEvent, setLastPinnedEvent] = useState<{ channelId: string; messageId: string; isPinned: boolean } | null>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [readReceipts, setReadReceipts] = useState<Record<string, string>>({});
   const socketsRef = useRef<Record<string, WebSocket>>({});
@@ -76,6 +80,37 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (userRef.current && data.message.sender_email.toLowerCase() !== userRef.current.email) {
             setUnreadCounts(prev => ({ ...prev, [channelId]: (prev[channelId] || 0) + 1 }));
           }
+        } else if (data.event === "message_updated" && data.message) {
+          let updatedMsg = data.message;
+          if (updatedMsg.reactions && updatedMsg.reactions.length > 0) {
+            const aggregatedReactions = new Map<string, { count: number, user_reacted: boolean }>();
+            const reverseReactionMap: Record<string, string> = {
+              'like': '👍', 'dislike': '👎', 'heart': '❤️',
+              'laugh': '😂', 'wow': '😮', 'sad': '😢', 'pray': '👏'
+            };
+            const currentUserEmail = userRef.current?.email || "";
+            
+            updatedMsg.reactions.forEach((r: any) => {
+              if (r.type && r.email) {
+                const emoji = reverseReactionMap[r.type] || '👍';
+                const existing = aggregatedReactions.get(emoji) || { count: 0, user_reacted: false };
+                existing.count += 1;
+                if (r.email.toLowerCase() === currentUserEmail) {
+                  existing.user_reacted = true;
+                }
+                aggregatedReactions.set(emoji, existing);
+              } else if (r.emoji && r.count !== undefined) {
+                 aggregatedReactions.set(r.emoji, { count: r.count, user_reacted: r.user_reacted || false });
+              }
+            });
+            
+            updatedMsg.reactions = Array.from(aggregatedReactions.entries()).map(([emoji, rData]) => ({
+              emoji,
+              count: rData.count,
+              user_reacted: rData.user_reacted
+            }));
+          }
+          setLastUpdatedMessage(updatedMsg);
         } else if (data.event === "typing_indicator") {
           const userEmail = data.user_email;
           const resolvedName = memberNamesRef.current[userEmail.toLowerCase()] || data.user_name || userEmail;
@@ -91,6 +126,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
               return { ...prev, [channelId]: channelTyping };
             });
           }
+        } else if (data.event === "message_pinned_updated") {
+          setLastPinnedEvent({
+            channelId: data.channel_id,
+            messageId: data.message_id,
+            isPinned: data.is_pinned
+          });
         } else if (data.event === "read_receipt_updated") {
           if (userRef.current && data.user_email?.toLowerCase() !== userRef.current.email) {
             setReadReceipts(prev => ({ ...prev, [channelId]: data.message_id }));
@@ -128,6 +169,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       connectChannels, 
       registerMembers, 
       lastMessages,
+      lastUpdatedMessage,
+      lastPinnedEvent,
       unreadCounts,
       readReceipts,
       resetUnreadCount 

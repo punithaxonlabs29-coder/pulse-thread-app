@@ -26,9 +26,11 @@ interface VideoAttachmentProps {
   isMine: boolean;
   type?: 'video' | 'audio' | 'document' | 'link';
   isVisible?: boolean;
+  time?: string;
+  readStatus?: "sent" | "delivered" | "read";
 }
 
-export default function VideoAttachment({ url, name, messageId, isMine, type = 'video', isVisible = false }: VideoAttachmentProps) {
+export default function VideoAttachment({ url, name, messageId, isMine, type = 'video', isVisible = false, time, readStatus }: VideoAttachmentProps) {
   const [loading, setLoading] = useState(false);
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [isVideoModalVisible, setVideoModalVisible] = useState(false);
@@ -222,7 +224,7 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
               resizeMode="cover"
             />
           ) : null}
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: thumbnailUrl ? 'rgba(0,0,0,0.3)' : '#1F2937', borderRadius: 12 }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: thumbnailUrl ? 'rgba(0,0,0,0.2)' : '#1F2937', borderRadius: 12 }]} />
           {loading ? (
             <ActivityIndicator size="large" color="#FFFFFF" />
           ) : (
@@ -234,6 +236,19 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
             <Ionicons name="videocam" size={14} color="#FFF" />
             <Text style={styles.videoDuration}> 0:11</Text>
           </View>
+          {time && (
+            <View style={styles.timeOverlay}>
+              <Text style={styles.timeText}>{time}</Text>
+              {isMine && readStatus && (
+                <Ionicons
+                  name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
+                  size={14}
+                  color={readStatus === "read" ? "#53BDEB" : "#FFFFFF"}
+                  style={styles.tickIcon}
+                />
+              )}
+            </View>
+          )}
         </Pressable>
 
         <Modal visible={isVideoModalVisible} animationType="slide" transparent={false} onRequestClose={() => setVideoModalVisible(false)}>
@@ -307,13 +322,33 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
           </View>
           <View style={styles.documentInfo}>
              <Text style={styles.documentCardName} numberOfLines={1}>{name}</Text>
-             <Text style={styles.documentCardMeta}>{isLink ? 'Web Link' : `1 page • ${ext} • Document`}</Text>
+             <Text style={styles.documentCardMeta}>{isLink ? 'Web Link' : `1 page • ${ext} • 141 kB`}</Text>
           </View>
         </View>
+        {time && !isLink && (
+          <View style={styles.docTimeOverlay}>
+            <Text style={styles.docTimeText}>{time}</Text>
+            {isMine && readStatus && (
+              <Ionicons
+                name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
+                size={14}
+                color={readStatus === "read" ? "#53BDEB" : "#8696A0"}
+                style={styles.tickIcon}
+              />
+            )}
+          </View>
+        )}
         <View style={[styles.documentCardBottom, isMine ? styles.myDocumentBottom : styles.otherDocumentBottom]}>
-          <Text style={[styles.documentActionText, isMine ? styles.myActionText : styles.otherActionText]}>
-            {isLink ? 'Open Link' : 'Open Document'}
-          </Text>
+          {isLink ? (
+            <Text style={[styles.documentActionText, isMine ? styles.myActionText : styles.otherActionText]}>
+              Open Link
+            </Text>
+          ) : (
+            <View style={{ flexDirection: 'row', width: '100%', justifyContent: 'space-between', paddingHorizontal: 40 }}>
+              <Text style={[styles.documentActionText, isMine ? styles.myActionText : styles.otherActionText]}>Open</Text>
+              <Text style={[styles.documentActionText, isMine ? styles.myActionText : styles.otherActionText]}>Save as...</Text>
+            </View>
+          )}
         </View>
       </Pressable>
 
@@ -585,5 +620,34 @@ const styles = StyleSheet.create({
     width: width,
     height: height,
     backgroundColor: '#F3F4F6',
+  },
+  timeOverlay: {
+    position: 'absolute',
+    bottom: 6,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  timeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+  },
+  docTimeOverlay: {
+    position: 'absolute',
+    bottom: 40, // Above the bottom action bar
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  docTimeText: {
+    color: '#8696A0',
+    fontSize: 11,
+  },
+  tickIcon: {
+    marginLeft: 2,
   }
 });

@@ -203,7 +203,16 @@ export default function MessageInput({ onSend, onTyping }: MessageInputProps) {
       />
 
       {showEmojiKeyboard && (
-        <EmojiKeyboard onEmojiSelected={(emoji) => handleTextChange(text + emoji)} />
+        <EmojiKeyboard 
+          onEmojiSelected={(emoji) => handleTextChange(text + emoji)} 
+          onBackspace={() => {
+            if (text.length > 0) {
+              const arr = Array.from(text);
+              arr.pop();
+              handleTextChange(arr.join(''));
+            }
+          }}
+        />
       )}
     </View>
   );
@@ -216,7 +225,9 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
-    padding: 10,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 4,
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
     borderColor: "#E5E7EB",
