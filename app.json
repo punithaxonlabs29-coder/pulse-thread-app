@@ -23,7 +23,8 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.pulsethread",
 
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "output": "static",

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
+import { styles } from './AudioRecorder.styles';
+
 
 interface Props {
   onRecordComplete: (uri: string, durationMillis: number) => void;
@@ -58,15 +60,3 @@ export default function AudioRecorder({ onRecordComplete }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  micButton: {
-    padding: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 2,
-    borderRadius: 20,
-  },
-  recordingActive: {
-    backgroundColor: '#EF4444',
-  }
-});

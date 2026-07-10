@@ -8,6 +8,8 @@ import {
 import { Feather } from "@expo/vector-icons";
 
 import { Colors } from "../../constants/Colors";
+import { styles } from './InputField.styles';
+
 
 interface Props {
   placeholder: string;
@@ -46,27 +48,3 @@ export default function InputField({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    height: 58,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: Colors.border,
-
-    flexDirection: "row",
-
-    alignItems: "center",
-
-    paddingHorizontal: 18,
-
-    marginTop: 15,
-  },
-
-  input: {
-    flex: 1,
-
-    marginLeft: 12,
-
-    fontSize: 16,
-  },
-});

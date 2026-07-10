@@ -36,12 +36,14 @@ export interface Channel {
 }
 
 export interface Message {
-    message_id: string;
+    local_id?: string;
+    message_id: string; // server ID
     channel_id: string;
     sender_email: string;
     sender_name: string;
     text: string;
     created_at: string;
+    status?: "pending" | "sending" | "sent" | "delivered" | "read" | "failed";
     attachments?: any[];
     reactions?: Reaction[];
     reply_to?: {
@@ -52,7 +54,7 @@ export interface Message {
     };
     is_pinned?: boolean;
     is_forwarded?: boolean;
+    is_edited?: boolean;
     is_deleted?: boolean;
     deleted_by?: string;
 }
-

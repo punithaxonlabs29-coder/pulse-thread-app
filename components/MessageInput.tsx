@@ -9,6 +9,8 @@ import AudioRecorder from './AudioRecorder';
 import EmojiKeyboard from './EmojiKeyboard';
 import { Keyboard } from 'react-native';
 import { Message } from '../types/connects';
+import { styles } from './MessageInput.styles';
+
 
 interface MessageInputProps {
   onSend: (text: string, attachments?: PendingAttachment[]) => void;
@@ -249,88 +251,3 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "#FFFFFF",
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 4,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  iconButton: {
-    padding: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 2,
-  },
-  input: {
-    flex: 1,
-    marginHorizontal: 8,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
-    minHeight: 40,
-    maxHeight: 120,
-    fontSize: 16,
-    color: "#111827",
-  },
-  sendButton: {
-    backgroundColor: "#F97316",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
-    marginLeft: 4,
-  },
-  replyPreviewContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF3E0',
-    marginHorizontal: 12,
-    marginTop: 8,
-    borderRadius: 8,
-    overflow: 'hidden',
-    alignItems: 'center',
-  },
-  replyPreviewLeftBar: {
-    width: 6,
-    height: '100%',
-    backgroundColor: '#FF8C00',
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
-  },
-  replyPreviewContent: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    justifyContent: 'center',
-  },
-  replyPreviewName: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#FF8C00',
-    marginBottom: 2,
-  },
-  replyPreviewText: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  replyPreviewThumbnail: {
-    width: 36,
-    height: 36,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  replyPreviewClose: {
-    padding: 12,
-  },
-});

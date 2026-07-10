@@ -33,6 +33,8 @@ const EMOJI_SIZE = 40;
 const COLUMNS = Math.floor(width / EMOJI_SIZE);
 
 import { Ionicons } from '@expo/vector-icons';
+import { styles } from './EmojiKeyboard.styles';
+
 
 interface EmojiKeyboardProps {
   onEmojiSelected: (emoji: string) => void;
@@ -100,40 +102,3 @@ export default function EmojiKeyboard({ onEmojiSelected, onBackspace }: EmojiKey
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    height: 300,
-    backgroundColor: '#F3F4F6',
-    borderTopWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  categoryContainer: {
-    paddingVertical: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingRight: 12,
-  },
-  categoryTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    paddingHorizontal: 12,
-  },
-  emojiGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  emojiWrapper: {
-    width: width / Math.floor(width / 48), // Increased width hit area
-    height: 52, // Increased height hit area
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emoji: {
-    fontSize: 34,
-  },
-  backspaceTopButton: {
-    padding: 4,
-  }
-});

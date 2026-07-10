@@ -82,11 +82,17 @@ export const ConnectsService = {
     }
   },
 
-  async getMessages(channelId: string, after?: string): Promise<Message[]> {
+  async getMessages(channelId: string, after?: string, before?: string, limit: number = 50, offset?: number): Promise<Message[]> {
     try {
-      let url = `connects/messages/?channel_id=${channelId}&limit=50&lightweight=true&t=${Date.now()}`;
+      let url = `connects/messages/?channel_id=${channelId}&limit=${limit}&lightweight=true&t=${Date.now()}`;
       if (after) {
         url += `&after=${encodeURIComponent(after)}`;
+      }
+      if (before) {
+        url += `&before=${encodeURIComponent(before)}`;
+      }
+      if (offset !== undefined) {
+        url += `&offset=${offset}`;
       }
       
       const response = await mainApi.get<GetMessagesResponse>(url);
@@ -151,6 +157,44 @@ export const ConnectsService = {
       return messages;
     } catch (error) {
       console.log("Get Messages Error:", (error as AxiosError).message);
+      throw error;
+    }
+  },
+
+  async syncMessages(channelId: string, lastSync?: string, lastMessageId?: string): Promise<{
+    status: boolean;
+    new: Message[];
+    updated: Message[];
+    deleted: string[];
+    reactions: any[];
+    has_more: boolean;
+    server_time: string;
+  }> {
+    try {
+      const response = await mainApi.post('connects/messages/sync/', {
+        channel_id: channelId,
+        last_sync: lastSync,
+        last_message_id: lastMessageId
+      });
+      return response.data;
+    } catch (error) {
+      console.log("syncMessages error:", (error as AxiosError).message || error);
+      throw error;
+    }
+  },
+
+  async deleteMessage(channelId: string, messageId: string, deleteForEveryone: boolean = false): Promise<boolean> {
+    try {
+      const response = await mainApi.post("connects/message/delete/", {
+        channel_id: channelId,
+        message_id: messageId,
+        delete_for_everyone: deleteForEveryone
+      });
+      return response.data.status;
+    } catch (error) {
+      console.log("Delete Message Error:", (error as AxiosError).message);
+      // Even if backend fails, we return false and handle local optimistic update in UI layer if needed,
+      // but usually we want to throw to let UI know
       throw error;
     }
   },
@@ -294,17 +338,4 @@ export const ConnectsService = {
     }
   },
 
-  async deleteMessage(channelId: string, messageId: string, deleteForEveryone: boolean): Promise<boolean> {
-    try {
-      const response = await mainApi.post("connects/message/delete/", {
-        channel_id: channelId,
-        message_id: messageId,
-        delete_for_everyone: deleteForEveryone,
-      });
-      return response.data.status;
-    } catch (error) {
-      console.log("Delete Message Error:", (error as AxiosError).message);
-      return false;
-    }
-  },
 };

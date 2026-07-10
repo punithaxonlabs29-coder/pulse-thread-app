@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Image, ImageBackground, Keyboard, KeyboardAvoidingView, Platform, StyleSheet, Text, ToastAndroid, TouchableOpacity, View, Modal, Share } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, Alert, Image, ImageBackground, Keyboard, KeyboardAvoidingView, Platform, Text, ToastAndroid, TouchableOpacity, View, Modal, Share } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { FlashList } from "@shopify/flash-list";
+import type { FlashListRef } from "@shopify/flash-list";
 import * as Clipboard from 'expo-clipboard';
 
 import ChatHeader from "../components/ChatHeader";
@@ -19,6 +21,7 @@ import { Message } from "../types/connects";
 import { formatDateHeader, formatTimeOnly } from "../utils/date";
 
 import { useChatContext } from "../contexts/ChatContext";
+import { styles } from "./_chat.styles";
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -28,11 +31,15 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [loading, setLoading] = useState(true);
-  const flatListRef = useRef<FlatList>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const flatListRef = useRef<FlashListRef<Message>>(null);
   const messagesRef = useRef<Message[]>([]);
   const isLoadedRef = useRef(false);
   const { sendTypingStatus, lastMessages, lastUpdatedMessage, lastPinnedEvent, typingState, resetUnreadCount, readReceipts, broadcastDeleteEvent } = useChatContext();
   const typingUsers = typingState[channelId as string] ? Array.from(typingState[channelId as string]) : [];
+  const insets = useSafeAreaInsets();
 
   const [reactionModalVisible, setReactionModalVisible] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
@@ -60,7 +67,7 @@ export default function ChatScreen() {
 
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [displayLimit, setDisplayLimit] = useState(30);
+
   const isScrolledUpRef = useRef(false);
   const hasInitiallyScrolled = useRef(false);
 
@@ -212,7 +219,6 @@ export default function ChatScreen() {
           CacheService.saveMessages(id, updatedMessages);
           
           if (updatedMessages.length > prev.length) {
-            setDisplayLimit(current => current + (updatedMessages.length - prev.length));
             if (!isScrolledUpRef.current) {
               setTimeout(() => {
                 scrollToBottom();
@@ -418,9 +424,29 @@ export default function ChatScreen() {
     setSelectedMessageIds([]); // Clear selection after reacting
   };
 
-  const handleLoadMore = () => {
-    if (displayLimit < messages.length) {
-      setDisplayLimit(prev => prev + 20);
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore || messages.length === 0) return;
+    setLoadingMore(true);
+    try {
+      const oldestMessage = messages[0];
+      const olderMessages = await ConnectsService.getMessages(channelId as string, undefined, oldestMessage.created_at, 30);
+      if (olderMessages.length > 0) {
+        setMessages(prev => {
+          const messageMap = new Map<string, Message>();
+          olderMessages.forEach(m => messageMap.set(m.message_id, m));
+          prev.forEach(m => messageMap.set(m.message_id, m));
+          const updated = Array.from(messageMap.values()).sort((a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+          CacheService.saveMessages(channelId as string, updated);
+          return updated;
+        });
+      }
+      if (olderMessages.length < 30) setHasMore(false);
+    } catch (error) {
+      console.log('Error loading more messages:', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -428,16 +454,14 @@ export default function ChatScreen() {
     if (!flatListRef.current) return;
     const allReversed = [...messages].reverse();
     const index = allReversed.findIndex(m => m.message_id === targetMessageId);
-    
     if (index !== -1) {
-      if (index >= displayLimit) {
-        setDisplayLimit(index + 20); // Load enough to show it
-        setTimeout(() => {
-          flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
-        }, 500); // Wait for render
-      } else {
-        flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
-      }
+      flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      // Highlight the message after a short delay to let scroll settle
+      setTimeout(() => {
+        setHighlightedMessageId(targetMessageId);
+        // Clear the highlight after animation completes (200ms in + 800ms hold + 400ms out)
+        setTimeout(() => setHighlightedMessageId(null), 1500);
+      }, 400);
     } else {
       if (Platform.OS === 'android') {
         ToastAndroid.show('Message is not in history.', ToastAndroid.SHORT);
@@ -445,7 +469,13 @@ export default function ChatScreen() {
     }
   };
 
-  const displayData = [...messages].reverse().slice(0, displayLimit);
+  const displayData = [...messages]
+    .filter(m => {
+      const hasText = m.text && m.text.trim().length > 0;
+      const hasAttachments = m.attachments && m.attachments.length > 0;
+      return hasText || hasAttachments || m.is_deleted;
+    })
+    .reverse();
 
   const allSelectedAreMine = messages
     .filter(m => selectedMessageIds.includes(m.message_id))
@@ -582,7 +612,7 @@ export default function ChatScreen() {
         <KeyboardAvoidingView 
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 + insets.top : 0}
         >
           <ImageBackground 
             source={require('../assets/images/chat_bg.png')} 
@@ -602,86 +632,106 @@ export default function ChatScreen() {
                 <ActivityIndicator size="large" color="#F97316" />
               </View>
             ) : (
-              <FlatList
-            ref={flatListRef}
-            inverted={true}
-            data={displayData}
-            extraData={{ receipts: readReceipts[channelId as string], visibleItems }}
-            keyExtractor={(item, index) => item.message_id + index}
-            onViewableItemsChanged={onViewableItemsChanged.current}
-            viewabilityConfig={viewabilityConfig.current}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.5}
-            onScrollToIndexFailed={(info) => {
-              const wait = new Promise(resolve => setTimeout(resolve, 500));
-              wait.then(() => {
-                flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
-              });
-            }}
-            renderItem={({ item, index }) => {
-              const isMine = item.sender_email === currentUserEmail;
-              const lastReadMessageId = readReceipts[channelId as string];
-              
-              const isRead = lastReadMessageId 
-                ? messages.findIndex(m => m.message_id === lastReadMessageId) >= index
-                : false;
-  
-              const currentDateStr = formatDateHeader(item.created_at);
-              const olderDateStr = displayData[index + 1] ? formatDateHeader(displayData[index + 1].created_at) : null;
-              const showDateHeader = currentDateStr !== olderDateStr;
-
-              const isFirstInGroup = displayData[index + 1]?.sender_email !== item.sender_email;
-              const showTail = showDateHeader || isFirstInGroup;
-
-              return (
-                <View>
-                  {showDateHeader && (
-                    <View style={styles.dateHeaderContainer}>
-                      <View style={styles.dateHeaderPill}>
-                        <Text style={styles.dateHeaderText}>{currentDateStr}</Text>
+              <FlashList
+                ref={flatListRef}
+                inverted={true}
+                data={displayData}
+                extraData={{ receipts: readReceipts[channelId as string], visibleItems }}
+                keyExtractor={(item, index) => item.message_id + index}
+                onViewableItemsChanged={onViewableItemsChanged.current}
+                viewabilityConfig={viewabilityConfig.current}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={0.3}
+                bounces={false}
+                overScrollMode="never"
+                ListFooterComponent={
+                  hasMore && loadingMore ? (
+                    <View style={{
+                      alignItems: 'center',
+                      paddingTop: messages.find(m => m.is_pinned) ? 56 : 14,
+                      paddingBottom: 14,
+                    }}>
+                      <View style={{
+                        backgroundColor: '#FFFFFF',
+                        width: 34,
+                        height: 34,
+                        borderRadius: 17,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        elevation: 4,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.18,
+                        shadowRadius: 2.5,
+                      }}>
+                        <ActivityIndicator size="small" color="#F97316" />
                       </View>
                     </View>
-                  )}
-                  <MessageBubble 
-                    messageId={item.message_id}
-                    text={item.text} 
-                    attachments={item.attachments || []}
-                    time={formatTimeOnly(item.created_at)} 
-                    isMine={isMine} 
-                    showTail={showTail}
-                    readStatus={isMine ? (isRead ? "read" : "delivered") : undefined}
-                    isVisible={visibleItems.has(item.message_id)}
-                    reactions={item.reactions}
-                    replyTo={item.reply_to}
-                    isForwarded={item.is_forwarded}
-                    isDeleted={item.is_deleted}
-                    onSwipeReply={() => setReplyingTo(item)}
-                    onReplyPress={(replyMessageId) => {
-                      scrollToMessage(replyMessageId);
-                    }}
-                    selected={selectedMessageIds.includes(item.message_id)}
-                    onLongPress={(y, height) => {
-                      setSelectedMessageIds(prev => {
-                        if (prev.includes(item.message_id)) return prev;
-                        const next = [...prev, item.message_id];
-                        if (next.length === 1) {
-                          setReactionMenuPosition({ y, height });
-                          setReactionModalVisible(true);
-                        } else {
-                          setReactionModalVisible(false);
-                        }
-                        return next;
-                      });
-                    }}
-                    onReactionPress={(emoji) => handleReactionToggle(item.message_id, emoji)}
-                  />
-                </View>
-              );
-            }}
-            contentContainerStyle={[styles.listContent, { paddingBottom: 16 }]}
-            />
+                  ) : null
+                }
+
+                renderItem={({ item, index }) => {
+                  const isMine = item.sender_email === currentUserEmail;
+                  const lastReadMessageId = readReceipts[channelId as string];
+                  const isRead = lastReadMessageId
+                    ? messages.findIndex(m => m.message_id === lastReadMessageId) >= index
+                    : false;
+                  const currentDateStr = formatDateHeader(item.created_at);
+                  const olderDateStr = displayData[index + 1] ? formatDateHeader(displayData[index + 1].created_at) : null;
+                  const showDateHeader = currentDateStr !== olderDateStr;
+                  const isFirstInGroup = displayData[index + 1]?.sender_email !== item.sender_email;
+                  const showTail = showDateHeader || isFirstInGroup;
+                  return (
+                    <View>
+                      {showDateHeader && (
+                        <View style={styles.dateHeaderContainer}>
+                          <View style={styles.dateHeaderPill}>
+                            <Text style={styles.dateHeaderText}>{currentDateStr}</Text>
+                          </View>
+                        </View>
+                      )}
+                      <MessageBubble
+                        messageId={item.message_id}
+                        text={item.text}
+                        attachments={item.attachments || []}
+                        time={formatTimeOnly(item.created_at)}
+                        isMine={isMine}
+                        showTail={showTail}
+                        readStatus={isMine ? (isRead ? "read" : "delivered") : undefined}
+                        isVisible={visibleItems.has(item.message_id)}
+                        reactions={item.reactions}
+                        replyTo={item.reply_to}
+                        isForwarded={item.is_forwarded}
+                        isDeleted={item.is_deleted}
+                        highlighted={highlightedMessageId === item.message_id}
+                        onSwipeReply={() => setReplyingTo(item)}
+                        onReplyPress={(replyMessageId) => { scrollToMessage(replyMessageId); }}
+                        selected={selectedMessageIds.includes(item.message_id)}
+                        onLongPress={(y, height) => {
+                          setSelectedMessageIds(prev => {
+                            if (prev.includes(item.message_id)) return prev;
+                            const next = [...prev, item.message_id];
+                            if (next.length === 1) {
+                              setReactionMenuPosition({ y, height });
+                              setReactionModalVisible(true);
+                            } else {
+                              setReactionModalVisible(false);
+                            }
+                            return next;
+                          });
+                        }}
+                        onReactionPress={(emoji) => handleReactionToggle(item.message_id, emoji)}
+                      />
+                    </View>
+                  );
+                }}
+                contentContainerStyle={[
+                  styles.listContent, 
+                  { paddingBottom: 16, flexGrow: 1, justifyContent: 'flex-end' }
+                ]}
+              />
             )}
 
             {isScrolledUp && (
@@ -762,171 +812,4 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F7FA",
-  },
-  loader: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  typingIndicatorContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-  },
-  typingIndicatorText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontStyle: 'italic',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-  },
-  listContent: {
-    padding: 16,
-    paddingTop: 24,
-  },
-  floatingPill: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-    backgroundColor: '#374151',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 10,
-  },
-  floatingDateContainer: {
-    position: 'absolute',
-    top: 10,
-    width: '100%',
-    alignItems: 'center',
-    zIndex: 20,
-  },
-  floatingDatePill: {
-    backgroundColor: 'rgba(235, 239, 243, 0.9)',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
-  },
-  floatingDateText: {
-    fontSize: 12,
-    color: '#4B5563',
-    fontWeight: '500',
-  },
-  unreadBadge: {
-    position: 'absolute',
-    top: -4,
-    left: -4,
-    backgroundColor: '#10B981', // Subtle green badge on the orange pill for unread
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  unreadBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  pinnedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F6F1ED', // Light orange background as requested
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  pinnedIcon: {
-    marginRight: 12,
-  },
-  pinnedTextContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  pinnedSubtitle: {
-    fontSize: 14,
-    color: '#4A6572', // Bluish gray text color
-  },
-  pinnedThumbnail: {
-    width: 32,
-    height: 32,
-    borderRadius: 4,
-    marginLeft: 12,
-  },
-  dateHeaderContainer: {
-    alignItems: "center",
-    marginVertical: 12,
-  },
-  dateHeaderPill: {
-    backgroundColor: "#ECE5DD",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
-  },
-  dateHeaderText: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#54656F",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteModalContainer: {
-    width: '85%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  deleteModalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 20,
-  },
-  deleteModalButton: {
-    paddingVertical: 12,
-    alignItems: 'flex-end',
-  },
-  deleteModalButtonText: {
-    fontSize: 16,
-    color: '#FF8C00',
-    fontWeight: '600',
-  }
-});
+

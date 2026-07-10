@@ -7,10 +7,18 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ChatProvider } from "../contexts/ChatContext";
 import NotificationService from "../services/notification.service";
 
+import { DatabaseService } from "../services/database.service";
+import { backgroundWorker } from "../services/background.worker";
+
 let navigating = false;
 
 export default function RootLayout() {
   useEffect(() => {
+    // Initialize SQLite Database on startup
+    DatabaseService.init().then(() => {
+      backgroundWorker.start();
+    }).catch(console.error);
+
     NotificationService.initialize((channelId) => {
       if (navigating) return;
       navigating = true;

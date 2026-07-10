@@ -17,6 +17,8 @@ import { SessionService } from "../../services/session.service";
 import { CacheService } from "../../services/cache.service";
 import { Channel } from "../../types/connects";
 import { useChatContext } from "../../contexts/ChatContext";
+import { styles } from './index.styles';
+
 
 export default function ChatsScreen() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -177,37 +179,3 @@ export default function ChatsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
-
-  listContainer: {
-    paddingBottom: 20,
-  },
-
-  loader: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#111827",
-  },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-  },
-
-  newChatButton: {
-    padding: 8,
-  },
-});

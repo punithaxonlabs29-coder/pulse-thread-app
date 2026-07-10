@@ -5,9 +5,10 @@ const MAX_CACHE_SIZE = 500 * 1024 * 1024; // 500 MB
 
 export interface MediaCacheEntry {
   message_id: string;
-  video_url: string;
+  media_url: string;
+  media_type: string;
   thumbnail_uri: string | null;
-  cached_video_uri: string | null;
+  local_uri: string | null;
   last_accessed: number;
   size_bytes: number;
 }
@@ -27,8 +28,10 @@ class MediaCacheService {
       const cacheDir = FileSystem.cacheDirectory + 'cache/';
       const thumbDir = cacheDir + 'thumbnails/';
       const videoDir = cacheDir + 'videos/';
+      const imageDir = cacheDir + 'images/';
+      const docDir   = cacheDir + 'documents/';
 
-      for (const dir of [cacheDir, thumbDir, videoDir]) {
+      for (const dir of [cacheDir, thumbDir, videoDir, imageDir, docDir]) {
         const info = await FileSystem.getInfoAsync(dir);
         if (!info.exists) {
           await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
@@ -40,13 +43,33 @@ class MediaCacheService {
       await this.db.execAsync(`
         CREATE TABLE IF NOT EXISTS media_cache (
           message_id TEXT PRIMARY KEY,
-          video_url TEXT,
+          media_url TEXT,
+          media_type TEXT,
           thumbnail_uri TEXT,
-          cached_video_uri TEXT,
+          local_uri TEXT,
           last_accessed INTEGER,
           size_bytes INTEGER
         );
       `);
+
+      // Attempt to add new columns in case the table was created by an older version of the app
+      const columnsToAdd = [
+        'ALTER TABLE media_cache ADD COLUMN media_url TEXT;',
+        'ALTER TABLE media_cache ADD COLUMN media_type TEXT;',
+        'ALTER TABLE media_cache ADD COLUMN thumbnail_uri TEXT;',
+        'ALTER TABLE media_cache ADD COLUMN local_uri TEXT;',
+        'ALTER TABLE media_cache ADD COLUMN last_accessed INTEGER;',
+        'ALTER TABLE media_cache ADD COLUMN size_bytes INTEGER;'
+      ];
+      
+      for (const stmt of columnsToAdd) {
+        try {
+          await this.db.execAsync(stmt);
+        } catch (e) {
+          // Ignore error, column likely already exists
+        }
+      }
+
       this.initialized = true;
     } catch (e) {
       console.error("MediaCacheManager init error:", e);
@@ -76,7 +99,7 @@ class MediaCacheService {
     }
   }
 
-  async saveThumbnail(messageId: string, videoUrl: string, uri: string, sizeBytes: number) {
+  async saveThumbnail(messageId: string, mediaUrl: string, uri: string, sizeBytes: number) {
     if (!messageId) return;
     if (!this.initialized) await this.init();
     if (!this.db) return;
@@ -93,8 +116,8 @@ class MediaCacheService {
         );
       } else {
         await this.db.runAsync(
-          'INSERT INTO media_cache (message_id, video_url, thumbnail_uri, cached_video_uri, last_accessed, size_bytes) VALUES ($id, $url, $thumb, $video, $last, $size)',
-          { $id: messageId, $url: videoUrl || "", $thumb: uri || "", $video: "", $last: now, $size: sizeBytes || 0 }
+          'INSERT INTO media_cache (message_id, media_url, media_type, thumbnail_uri, local_uri, last_accessed, size_bytes) VALUES ($id, $url, $type, $thumb, $video, $last, $size)',
+          { $id: messageId, $url: mediaUrl || "", $type: "video", $thumb: uri || "", $video: "", $last: now, $size: sizeBytes || 0 }
         );
       }
       this.enforceLRU();
@@ -103,7 +126,7 @@ class MediaCacheService {
     }
   }
 
-  async saveVideo(messageId: string, videoUrl: string, uri: string, sizeBytes: number) {
+  async saveMedia(messageId: string, mediaUrl: string, uri: string, sizeBytes: number, mediaType: string = 'video') {
     if (!messageId) return;
     if (!this.initialized) await this.init();
     if (!this.db) return;
@@ -115,18 +138,18 @@ class MediaCacheService {
       if (existing) {
         const newSize = (existing.size_bytes || 0) + sizeBytes;
         await this.db.runAsync(
-          'UPDATE media_cache SET cached_video_uri = $video, last_accessed = $last, size_bytes = $size WHERE message_id = $id',
+          'UPDATE media_cache SET local_uri = $video, last_accessed = $last, size_bytes = $size WHERE message_id = $id',
           { $video: uri || "", $last: now, $size: newSize, $id: messageId }
         );
       } else {
         await this.db.runAsync(
-          'INSERT INTO media_cache (message_id, video_url, thumbnail_uri, cached_video_uri, last_accessed, size_bytes) VALUES ($id, $url, $thumb, $video, $last, $size)',
-          { $id: messageId, $url: videoUrl || "", $thumb: "", $video: uri || "", $last: now, $size: sizeBytes || 0 }
+          'INSERT INTO media_cache (message_id, media_url, media_type, thumbnail_uri, local_uri, last_accessed, size_bytes) VALUES ($id, $url, $type, $thumb, $video, $last, $size)',
+          { $id: messageId, $url: mediaUrl || "", $type: mediaType, $thumb: "", $video: uri || "", $last: now, $size: sizeBytes || 0 }
         );
       }
       this.enforceLRU();
     } catch (e) {
-      console.error("saveVideo error:", e);
+      console.error("saveMedia error:", e);
     }
   }
 
@@ -161,9 +184,9 @@ class MediaCacheService {
         for (const item of oldestItems) {
           if (currentSize <= MAX_CACHE_SIZE) break;
 
-          if (item.cached_video_uri) {
+          if (item.local_uri) {
             try {
-              await FileSystem.deleteAsync(item.cached_video_uri, { idempotent: true });
+              await FileSystem.deleteAsync(item.local_uri, { idempotent: true });
             } catch (e) {}
           }
           if (item.thumbnail_uri) {

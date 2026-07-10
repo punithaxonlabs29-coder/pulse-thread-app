@@ -3,6 +3,8 @@ import messaging, {
 } from '@react-native-firebase/messaging';
 import notifee, { AndroidImportance, AndroidStyle, EventType } from '@notifee/react-native';
 import { ConnectsService } from './connects.service';
+import { syncEngine } from './sync.engine';
+import { messageRepository } from './message.repository';
 import { Platform, Alert } from 'react-native';
 
 // Export this helper so index.js can cleanly execute it without importing React components
@@ -11,6 +13,23 @@ export async function displayIncomingMessage(message: FirebaseMessagingTypes.Rem
   
   if (message.data?.title) {
     try {
+      const channelId = message.data.channel_id as string;
+      const messageId = message.data.message_id as string;
+      
+      if (channelId) {
+        // Run incremental sync!
+        // We might not know lastSync time easily here, so just sync last 200 without lastSync,
+        // SyncEngine will deduplicate
+        ConnectsService.syncMessages(channelId).then(async (syncData) => {
+           if (syncData.status && syncData.new) {
+             for (const msg of syncData.new) {
+               await messageRepository.saveMessageLocal(msg);
+               syncEngine.handleIncomingMessage(msg);
+             }
+           }
+        }).catch(e => console.log("Background sync error:", e));
+      }
+
       // Create channel in case it doesn't exist (crucial for killed state in Android 8+)
       await notifee.createChannel({
         id: 'high_importance_channel',
@@ -150,6 +169,18 @@ class NotificationService {
         if (message.data?.title) {
           const senderName = (message.data.senderName as string) || (message.data.title as string);
           
+          const channelId = message.data.channel_id as string;
+          if (channelId) {
+            ConnectsService.syncMessages(channelId).then(async (syncData) => {
+               if (syncData.status && syncData.new) {
+                 for (const msg of syncData.new) {
+                   await messageRepository.saveMessageLocal(msg);
+                   syncEngine.handleIncomingMessage(msg);
+                 }
+               }
+            }).catch(e => console.log("Foreground sync error:", e));
+          }
+
           await notifee.displayNotification({
             title: senderName,
             body: message.data.body as string,

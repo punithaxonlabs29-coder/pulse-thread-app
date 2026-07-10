@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import { CONFIG } from "../constants/config";
 import { Message } from "../types/connects";
 import { SessionService } from '../services/session.service';
+import { syncEngine } from '../services/sync.engine';
 
 interface ChatContextType {
   typingState: Record<string, Set<string>>;
@@ -85,8 +86,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           msg = { ...msg, text, is_forwarded };
           
+          // Delegate to SyncEngine
+          syncEngine.handleIncomingMessage(channelId, msg);
+
+          // Maintain context states for legacy / badge support
           setLastMessages(prev => ({ ...prev, [channelId]: msg }));
-          // If the message is not from the current user, increment unread
           if (userRef.current && msg.sender_email.toLowerCase() !== userRef.current.email) {
             setUnreadCounts(prev => ({ ...prev, [channelId]: (prev[channelId] || 0) + 1 }));
           }
@@ -96,7 +100,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const aggregatedReactions = new Map<string, { count: number, user_reacted: boolean }>();
             const reverseReactionMap: Record<string, string> = {
               'like': '👍', 'dislike': '👎', 'heart': '❤️',
-              'laugh': '😂', 'wow': '😮', 'sad': '😢', 'pray': '👏'
+              'laugh': '😂', 'wow': '😮', 'sad': '😢', 'pray': '🙏'
             };
             const currentUserEmail = userRef.current?.email || "";
             
@@ -120,6 +124,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
               user_reacted: rData.user_reacted
             }));
           }
+          
+          // Delegate to SyncEngine
+          syncEngine.handleMessageUpdate(channelId, updatedMsg);
           setLastUpdatedMessage(updatedMsg);
         } else if (data.event === "typing_indicator") {
           const userEmail = data.user_email;
@@ -147,7 +154,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setReadReceipts(prev => ({ ...prev, [channelId]: data.message_id }));
           }
         } else if (data.event === "message_deleted") {
-          // Emulate a message update to trigger chat.tsx to update the message
+          // Delegate to SyncEngine
+          syncEngine.handleMessageDelete(channelId, data.message_id);
+
           setLastUpdatedMessage({
             message_id: data.message_id,
             channel_id: channelId,

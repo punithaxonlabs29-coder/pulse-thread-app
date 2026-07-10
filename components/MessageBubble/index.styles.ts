@@ -1,0 +1,116 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+  bubbleWrapper: {
+    width: "100%",
+    paddingVertical: 1, 
+    marginBottom: 8, 
+  },
+  selectedWrapper: {
+    backgroundColor: "rgba(0,0,0,0.08)", 
+  },
+  messageContainer: {
+    maxWidth: "80%",
+    marginVertical: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    position: "relative",
+  },
+  myMessage: {
+    alignSelf: "flex-end",
+    backgroundColor: "#F8A871", 
+    borderTopRightRadius: 0,
+  },
+  otherMessage: {
+    alignSelf: "flex-start",
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 0,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+  },
+  transparentMessage: {
+    backgroundColor: 'transparent',
+    elevation: 0,
+    shadowOpacity: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
+  myMessageNoTail: {
+    borderTopRightRadius: 8,
+  },
+  otherMessageNoTail: {
+    borderTopLeftRadius: 8,
+  },
+  myTail: {
+    position: "absolute",
+    right: -10,
+    top: 0,
+    width: 0,
+    height: 0,
+    borderTopWidth: 16,
+    borderTopColor: "#F8A871",
+    borderRightWidth: 10,
+    borderRightColor: "transparent",
+    borderBottomWidth: 0,
+    borderLeftWidth: 0,
+  },
+  otherTail: {
+    position: "absolute",
+    left: -10,
+    top: 0,
+    width: 0,
+    height: 0,
+    borderTopWidth: 16,
+    borderTopColor: "#FFFFFF",
+    borderLeftWidth: 10,
+    borderLeftColor: "transparent",
+    borderBottomWidth: 0,
+    borderRightWidth: 0,
+  },
+  forwardedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+    paddingHorizontal: 2,
+  },
+  forwardedIcon: {
+    marginRight: 4,
+  },
+  forwardedText: {
+    fontSize: 13,
+    color: '#71828A',
+    fontStyle: 'italic',
+  },
+  swipeReplyAction: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingLeft: 16,
+    width: 80, 
+  },
+  replyIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FF8C00',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deletedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+    paddingRight: 10,
+  },
+  deletedIcon: {
+    marginRight: 6,
+  },
+  deletedText: {
+    fontSize: 15,
+    color: '#8F98A0',
+    fontStyle: 'italic',
+  },
+});

@@ -8,6 +8,8 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 
 import { Colors } from "../../constants/Colors";
+import { styles } from './PrimaryButton.styles';
+
 
 export default function PrimaryButton() {
   return (
@@ -27,24 +29,3 @@ export default function PrimaryButton() {
   );
 }
 
-const styles = StyleSheet.create({
-  button: {
-    height: 58,
-
-    borderRadius: 15,
-
-    justifyContent: "center",
-
-    alignItems: "center",
-
-    marginTop: 35,
-  },
-
-  text: {
-    color: "#fff",
-
-    fontWeight: "700",
-
-    fontSize: 18,
-  },
-});
