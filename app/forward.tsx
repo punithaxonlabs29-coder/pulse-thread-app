@@ -18,7 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ConnectsService } from "../services/connects.service";
 import { SessionService } from "../services/session.service";
-import { CacheService } from "../services/cache.service";
+import { messageRepository } from "../services/message.repository";
 import { Channel, Message } from "../types/connects";
 import { styles } from './_forward.styles';
 
@@ -33,6 +33,7 @@ export default function ForwardScreen() {
   const [sending, setSending] = useState(false);
   const [optionalMessage, setOptionalMessage] = useState("");
   const [messagesToForward, setMessagesToForward] = useState<Message[]>([]);
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
 
   useEffect(() => {
     loadData();
@@ -44,14 +45,15 @@ export default function ForwardScreen() {
       // Load channels
       const user = await SessionService.getUser();
       if (user) {
-        const fetchedChannels = await ConnectsService.getChannels(user.org_gst_number);
+        setCurrentUserEmail(user.email_id);
+        const fetchedChannels = await ConnectsService.getChannels();
         setChannels(fetchedChannels);
       }
 
       // Load original messages to forward
       if (sourceChannelId && messageIds) {
         const ids = (messageIds as string).split(',');
-        const cachedMessages = await CacheService.getCachedMessages(sourceChannelId as string) || [];
+        const cachedMessages = await messageRepository.getMessages(sourceChannelId as string, 500, 0);
         const toForward = cachedMessages.filter(m => ids.includes(m.message_id));
         setMessagesToForward(toForward);
       }
@@ -130,7 +132,7 @@ export default function ForwardScreen() {
   const getChannelName = (channel: Channel) => {
     if (channel.channel_type === "direct") {
       const otherMember = channel.members.find(
-        (m: any) => m.email_id !== SessionService.currentUser?.email_id
+        (m: any) => m.email_id !== currentUserEmail
       );
       return otherMember?.name || channel.channel_name;
     }

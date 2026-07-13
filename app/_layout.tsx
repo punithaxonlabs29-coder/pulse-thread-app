@@ -19,6 +19,9 @@ export default function RootLayout() {
       backgroundWorker.start();
     }).catch(console.error);
 
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    
     NotificationService.initialize((channelId) => {
       if (navigating) return;
       navigating = true;
@@ -35,7 +38,20 @@ export default function RootLayout() {
           navigating = false;
         }, 1000);
       }, 300);
+    }).then(unsub => {
+      if (cancelled) {
+        unsub(); // component already unmounted before init finished — clean up immediately
+      } else {
+        unsubscribe = unsub;
+      }
     });
+
+    return () => {
+      cancelled = true;
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

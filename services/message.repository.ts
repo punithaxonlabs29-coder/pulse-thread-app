@@ -13,6 +13,120 @@ export class MessageRepository {
     this.remoteDataSource = new MessageRemoteDataSource();
   }
 
+  private listeners = new Map<string, Set<(messages: Message[]) => void>>();
+
+  /**
+   * Observe changes to a channel's messages in SQLite.
+   * Instantly fires with current data, then again on any writes.
+   */
+  observe(channelId: string, callback: (messages: Message[]) => void): () => void {
+    if (!this.listeners.has(channelId)) {
+      this.listeners.set(channelId, new Set());
+    }
+    this.listeners.get(channelId)!.add(callback);
+    
+    // Initial fetch to populate UI immediately
+    this.getMessages(channelId).then(callback);
+
+    // Return unsubscribe function
+    return () => {
+      const channelListeners = this.listeners.get(channelId);
+      if (channelListeners) {
+        channelListeners.delete(callback);
+      }
+    };
+  }
+
+  /**
+   * Internal method to broadcast SQLite changes to UI components
+   */
+  private async notifyObservers(channelId: string) {
+    const channelListeners = this.listeners.get(channelId);
+    if (channelListeners && channelListeners.size > 0) {
+      const latestMessages = await this.getMessages(channelId);
+      channelListeners.forEach(callback => callback(latestMessages));
+    }
+  }
+
+  /**
+   * Delta update: mark a message as deleted optimistically
+   */
+  async markMessageDeletedLocal(messageId: string, channelId: string): Promise<void> {
+    const db = DatabaseService.getDB();
+    await db.runAsync(
+      `UPDATE messages SET is_deleted = 1, text = 'This message was deleted' WHERE server_id = ? OR local_id = ?`,
+      [messageId, messageId]
+    );
+    this.notifyObservers(channelId);
+  }
+
+  /**
+   * Delta update: toggle a reaction optimistically
+   */
+  async toggleReactionLocal(messageId: string, emoji: string, channelId: string): Promise<void> {
+    const db = DatabaseService.getDB();
+    const reactionId = `${messageId}_${emoji}`;
+
+    await db.withTransactionAsync(async () => {
+      const existing = await db.getFirstAsync<{count: number, user_reacted: number}>(
+        `SELECT count, user_reacted FROM reactions WHERE id = ?`,
+        [reactionId]
+      );
+
+      if (existing) {
+        let newCount = existing.count + (existing.user_reacted ? -1 : 1);
+        let newUserReacted = existing.user_reacted ? 0 : 1;
+        
+        if (newCount <= 0 && newUserReacted === 0) {
+          await db.runAsync(`DELETE FROM reactions WHERE id = ?`, [reactionId]);
+        } else {
+          await db.runAsync(
+            `UPDATE reactions SET count = ?, user_reacted = ? WHERE id = ?`,
+            [newCount, newUserReacted, reactionId]
+          );
+        }
+      } else {
+        await db.runAsync(
+          `INSERT INTO reactions (id, message_id, emoji, count, user_reacted) VALUES (?, ?, ?, 1, 1)`,
+          [reactionId, messageId, emoji]
+        );
+      }
+    });
+
+    this.notifyObservers(channelId);
+  }
+
+  /**
+   * Delta update: toggle a pin optimistically
+   */
+  async togglePinLocal(messageId: string, isPinned: boolean, channelId: string): Promise<void> {
+    const db = DatabaseService.getDB();
+    await db.withTransactionAsync(async () => {
+      if (isPinned) {
+        // Unpin all other messages in the channel first
+        await db.runAsync(`UPDATE messages SET is_pinned = 0 WHERE channel_id = ?`, [channelId]);
+        // Pin the target message
+        await db.runAsync(`UPDATE messages SET is_pinned = 1 WHERE server_id = ? OR local_id = ?`, [messageId, messageId]);
+      } else {
+        // Just unpin the target message
+        await db.runAsync(`UPDATE messages SET is_pinned = 0 WHERE server_id = ? OR local_id = ?`, [messageId, messageId]);
+      }
+    });
+    this.notifyObservers(channelId);
+  }
+
+  /**
+   * Update message status locally
+   */
+  async updateMessageStatusLocal(localId: string, status: string, channelId: string): Promise<void> {
+    const db = DatabaseService.getDB();
+    await db.runAsync(
+      `UPDATE messages SET status = ? WHERE local_id = ?`,
+      [status, localId]
+    );
+    this.notifyObservers(channelId);
+  }
+
   /**
    * Fetch messages for a channel. 
    * This immediately returns local data, but also can trigger a remote fetch if needed.
@@ -22,10 +136,72 @@ export class MessageRepository {
   }
 
   /**
+   * Promote a pending message to sent using a targeted update
+   * This prevents overwriting local mutations (like pins or reactions) that happened while the message was queued
+   */
+  async promotePendingMessageLocal(localId: string, serverMessage: Message, channelId: string): Promise<void> {
+    const db = DatabaseService.getDB();
+    await db.withTransactionAsync(async () => {
+      // Update core server-assigned fields AND authoritative fields (in case of server-side sanitization/moderation),
+      // while leaving local mutations (is_pinned, is_deleted, reactions) completely untouched
+      await db.runAsync(
+        `UPDATE messages SET 
+          server_id = ?, 
+          status = ?, 
+          created_at = ?,
+          text = COALESCE(?, text),
+          sender_name = COALESCE(?, sender_name)
+         WHERE local_id = ?`,
+        [
+          serverMessage.message_id, 
+          'sent', 
+          serverMessage.created_at,
+          serverMessage.text ?? null,
+          serverMessage.sender_name ?? null,
+          localId
+        ]
+      );
+      
+      // If the server assigned URLs to attachments, we should update those too, but that's safe to INSERT OR REPLACE
+      if (serverMessage.attachments && serverMessage.attachments.length > 0) {
+        for (const att of serverMessage.attachments) {
+          const attId = att.id || `${localId}_${att.name}`;
+          await db.runAsync(`
+            INSERT OR REPLACE INTO attachments
+            (id, message_id, type, name, url, file_url, size, duration)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `, [
+            attId,
+            localId,
+            att.type || 'file',
+            att.name || '',
+            att.url || '',
+            att.file_url || '',
+            att.size || 0,
+            att.duration || 0
+          ]);
+        }
+      }
+    });
+
+    this.notifyObservers(channelId);
+  }
+
+  /**
    * Save a single message locally
    */
   async saveMessageLocal(message: Message): Promise<void> {
     await this.localDataSource.saveMessage(message);
+    this.notifyObservers(message.channel_id);
+  }
+
+  /**
+   * Save an array of messages in a single SQLite transaction and notify observers ONCE.
+   */
+  async saveMessagesBatchLocal(messages: Message[], channelId: string): Promise<void> {
+    if (messages.length === 0) return;
+    await this.localDataSource.saveMessagesBatch(messages);
+    this.notifyObservers(channelId);
   }
 
   /**

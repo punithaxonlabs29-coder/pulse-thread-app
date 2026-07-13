@@ -1,10 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { ActivityIndicator, Alert, Image, ImageBackground, Keyboard, KeyboardAvoidingView, Platform, Text, ToastAndroid, TouchableOpacity, View, Modal, Share } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
-import type { FlashListRef } from "@shopify/flash-list";
+import type { FlashListRef, FlashListProps } from "@shopify/flash-list";
+
+// Augment the FlashListProps to fix the missing estimatedItemSize type in v2.3.2
+declare module "@shopify/flash-list" {
+  interface FlashListProps<TItem> {
+    estimatedItemSize?: number;
+  }
+}
+
 import * as Clipboard from 'expo-clipboard';
 
 import ChatHeader from "../components/ChatHeader";
@@ -23,6 +31,9 @@ import { formatDateHeader, formatTimeOnly } from "../utils/date";
 import { useChatContext } from "../contexts/ChatContext";
 import { styles } from "./_chat.styles";
 
+import { typingManager } from "../services/typing.manager";
+import { messageRepository } from "../services/message.repository";
+
 export default function ChatScreen() {
   const router = useRouter();
   const { channelId, channelName, channelImage } = useLocalSearchParams();
@@ -37,9 +48,17 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlashListRef<Message>>(null);
   const messagesRef = useRef<Message[]>([]);
   const isLoadedRef = useRef(false);
-  const { sendTypingStatus, lastMessages, lastUpdatedMessage, lastPinnedEvent, typingState, resetUnreadCount, readReceipts, broadcastDeleteEvent } = useChatContext();
-  const typingUsers = typingState[channelId as string] ? Array.from(typingState[channelId as string]) : [];
+  const { lastUpdatedMessage, lastPinnedEvent, resetUnreadCount, readReceipts, broadcastDeleteEvent } = useChatContext();
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (!channelId) return;
+    const unsubscribe = typingManager.subscribe(channelId as string, (usersSet) => {
+      setTypingUsers(Array.from(usersSet));
+    });
+    return () => unsubscribe();
+  }, [channelId]);
 
   const [reactionModalVisible, setReactionModalVisible] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
@@ -113,50 +132,44 @@ export default function ChatScreen() {
     }
   }, [channelId]);
 
-  useEffect(() => {
-    if (channelId && lastMessages[channelId as string] && isLoadedRef.current) {
-      const newMessage = lastMessages[channelId as string];
-      resetUnreadCount(channelId as string);
-      
-      setMessages(prev => {
-        if (prev.some(m => m.message_id === newMessage.message_id)) {
-          return prev;
-        }
-        const updated = [...prev, newMessage];
-        CacheService.saveMessages(channelId as string, updated);
-        
-        if (!isScrolledUpRef.current || newMessage.sender_email === currentUserEmail) {
-          setTimeout(() => {
-            scrollToBottom();
-          }, 100);
-        } else {
-          setUnreadCount(c => c + 1);
-        }
-        
-        return updated;
-      });
-      ConnectsService.markChannelRead(channelId as string, newMessage.message_id);
-    }
-  }, [lastMessages[channelId as string], currentUserEmail, scrollToBottom]);
-
-  // Handle incoming message updates (like reactions) in real-time
+  // Handle incoming message creations and updates in real-time
   useEffect(() => {
     if (lastUpdatedMessage && lastUpdatedMessage.channel_id === channelId) {
       setMessages(prev => {
-        const updated = prev.map(m => {
-          if (m.message_id === lastUpdatedMessage.message_id) {
-            if (lastUpdatedMessage.is_deleted) {
-              return { ...m, is_deleted: true, text: "This message was deleted", attachments: [] };
+        const exists = prev.some(m => m.message_id === lastUpdatedMessage.message_id);
+        
+        let updated;
+        if (exists) {
+          // Update existing
+          updated = prev.map(m => {
+            if (m.message_id === lastUpdatedMessage.message_id) {
+              if (lastUpdatedMessage.is_deleted) {
+                return { ...m, is_deleted: true, text: "This message was deleted", attachments: [] };
+              }
+              return lastUpdatedMessage;
             }
-            return lastUpdatedMessage;
+            return m;
+          });
+        } else {
+          // Append new message
+          updated = [...prev, lastUpdatedMessage];
+          
+          if (!isScrolledUpRef.current || lastUpdatedMessage.sender_email === currentUserEmail) {
+            setTimeout(() => {
+              scrollToBottom();
+            }, 100);
+          } else {
+            setUnreadCount(c => c + 1);
           }
-          return m;
-        });
-        CacheService.saveMessages(channelId as string, updated);
+          ConnectsService.markChannelRead(channelId as string, lastUpdatedMessage.message_id);
+          resetUnreadCount(channelId as string);
+        }
+        
+        messageRepository.saveMessagesBatchLocal(updated, channelId as string);
         return updated;
       });
     }
-  }, [lastUpdatedMessage, channelId]);
+  }, [lastUpdatedMessage, channelId, currentUserEmail, scrollToBottom]);
 
   useEffect(() => {
     if (lastPinnedEvent && lastPinnedEvent.channelId === channelId) {
@@ -173,7 +186,7 @@ export default function ChatScreen() {
             return m;
           }
         });
-        CacheService.saveMessages(channelId as string, updated);
+        messageRepository.saveMessagesBatchLocal(updated, channelId as string);
         return updated;
       });
     }
@@ -216,7 +229,7 @@ export default function ChatScreen() {
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           );
           
-          CacheService.saveMessages(id, updatedMessages);
+          messageRepository.saveMessagesBatchLocal(updatedMessages, id);
           
           if (updatedMessages.length > prev.length) {
             if (!isScrolledUpRef.current) {
@@ -268,7 +281,7 @@ export default function ChatScreen() {
         }
 
         // 1. Instant Load from Cache
-        const cachedMessages = await CacheService.getCachedMessages(id);
+        const cachedMessages = await messageRepository.getMessages(id);
         if (cachedMessages && cachedMessages.length > 0) {
           setMessages(cachedMessages);
           setLoading(false);
@@ -299,7 +312,7 @@ export default function ChatScreen() {
           );
 
           setMessages(updatedMessages);
-          await CacheService.saveMessages(id, updatedMessages);
+          await messageRepository.saveMessagesBatchLocal(updatedMessages, id);
           
           if (updatedMessages.length > 0) {
             ConnectsService.markChannelRead(id, updatedMessages[updatedMessages.length - 1].message_id);
@@ -328,7 +341,7 @@ export default function ChatScreen() {
             return prev;
           }
           const updated = [...prev, response.created_message];
-          CacheService.saveMessages(channelId as string, updated);
+          messageRepository.saveMessagesBatchLocal(updated, channelId as string);
           return updated;
         });
         setTimeout(() => {
@@ -343,8 +356,8 @@ export default function ChatScreen() {
   };
 
   const handleTyping = (isTyping: boolean) => {
-    if (sendTypingStatus && channelId) {
-      sendTypingStatus(channelId as string, isTyping);
+    if (channelId) {
+      typingManager.broadcastTyping(channelId as string, isTyping, currentUserEmail, resolvedName);
     }
   };
 
@@ -403,7 +416,7 @@ export default function ChatScreen() {
           ? { ...m, is_deleted: true, text: "This message was deleted", attachments: [] } 
           : m
       );
-      CacheService.saveMessages(channelId as string, updated);
+      messageRepository.saveMessagesBatchLocal(updated, channelId as string);
       return updated;
     });
 
@@ -438,7 +451,7 @@ export default function ChatScreen() {
           const updated = Array.from(messageMap.values()).sort((a, b) =>
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           );
-          CacheService.saveMessages(channelId as string, updated);
+          messageRepository.saveMessagesBatchLocal(updated, channelId as string);
           return updated;
         });
       }
@@ -469,13 +482,48 @@ export default function ChatScreen() {
     }
   };
 
-  const displayData = [...messages]
-    .filter(m => {
-      const hasText = m.text && m.text.trim().length > 0;
-      const hasAttachments = m.attachments && m.attachments.length > 0;
-      return hasText || hasAttachments || m.is_deleted;
-    })
-    .reverse();
+  const displayData = useMemo(() => {
+    const start = performance.now();
+    const filtered = [...messages]
+      .filter(m => {
+        const hasText = m.text && m.text.trim().length > 0;
+        const hasAttachments = m.attachments && m.attachments.length > 0;
+        return hasText || hasAttachments || m.is_deleted;
+      })
+      .reverse();
+
+    const mapped = filtered.map((item, index) => {
+      const timeStr = formatTimeOnly(item.created_at);
+      const currentDateStr = formatDateHeader(item.created_at);
+      const olderDateStr = filtered[index + 1] ? formatDateHeader(filtered[index + 1].created_at) : null;
+      const showDateHeader = currentDateStr !== olderDateStr;
+      const isFirstInGroup = filtered[index + 1]?.sender_email !== item.sender_email;
+      const showTail = showDateHeader || isFirstInGroup;
+      
+      const hasText = !!item.text;
+      const isEmojiOnly = hasText && /^[\s\p{Emoji}\uFE0F\u200D]+$/u.test(item.text);
+      const emojiCount = hasText && isEmojiOnly ? Array.from(item.text.replace(/[\s\uFE0F\u200D]/g, '')).length : 0;
+      
+      const isSingleEmoji = isEmojiOnly && emojiCount === 1;
+      const isMediumEmoji = isEmojiOnly && emojiCount > 1 && emojiCount <= 3;
+      const isSmallEmoji = isEmojiOnly && emojiCount > 3;
+
+      return {
+        ...item,
+        timeStr,
+        currentDateStr,
+        showDateHeader,
+        isFirstInGroup,
+        showTail,
+        isSingleEmoji,
+        isMediumEmoji,
+        isSmallEmoji
+      };
+    });
+    
+    console.log(`[RENDER_PERF] displayData completely precomputed in ${(performance.now() - start).toFixed(1)}ms`);
+    return mapped;
+  }, [messages]);
 
   const allSelectedAreMine = messages
     .filter(m => selectedMessageIds.includes(m.message_id))
@@ -506,7 +554,7 @@ export default function ChatScreen() {
                         return m;
                       }
                     });
-                    CacheService.saveMessages(channelId as string, updated);
+                    messageRepository.saveMessagesBatchLocal(updated, channelId as string);
                     return updated;
                   });
                 }
@@ -632,7 +680,7 @@ export default function ChatScreen() {
                 <ActivityIndicator size="large" color="#F97316" />
               </View>
             ) : (
-              <FlashList
+              <FlashList<any>
                 ref={flatListRef}
                 inverted={true}
                 data={displayData}
@@ -644,6 +692,7 @@ export default function ChatScreen() {
                 scrollEventThrottle={16}
                 onEndReached={handleLoadMore}
                 onEndReachedThreshold={0.3}
+                estimatedItemSize={80}
                 bounces={false}
                 overScrollMode="never"
                 ListFooterComponent={
@@ -678,17 +727,12 @@ export default function ChatScreen() {
                   const isRead = lastReadMessageId
                     ? messages.findIndex(m => m.message_id === lastReadMessageId) >= index
                     : false;
-                  const currentDateStr = formatDateHeader(item.created_at);
-                  const olderDateStr = displayData[index + 1] ? formatDateHeader(displayData[index + 1].created_at) : null;
-                  const showDateHeader = currentDateStr !== olderDateStr;
-                  const isFirstInGroup = displayData[index + 1]?.sender_email !== item.sender_email;
-                  const showTail = showDateHeader || isFirstInGroup;
-                  return (
+                  const bubble = (
                     <View>
-                      {showDateHeader && (
+                      {item.showDateHeader && (
                         <View style={styles.dateHeaderContainer}>
                           <View style={styles.dateHeaderPill}>
-                            <Text style={styles.dateHeaderText}>{currentDateStr}</Text>
+                            <Text style={styles.dateHeaderText}>{item.currentDateStr}</Text>
                           </View>
                         </View>
                       )}
@@ -696,19 +740,22 @@ export default function ChatScreen() {
                         messageId={item.message_id}
                         text={item.text}
                         attachments={item.attachments || []}
-                        time={formatTimeOnly(item.created_at)}
-                        isMine={isMine}
-                        showTail={showTail}
-                        readStatus={isMine ? (isRead ? "read" : "delivered") : undefined}
-                        isVisible={visibleItems.has(item.message_id)}
-                        reactions={item.reactions}
-                        replyTo={item.reply_to}
-                        isForwarded={item.is_forwarded}
-                        isDeleted={item.is_deleted}
-                        highlighted={highlightedMessageId === item.message_id}
-                        onSwipeReply={() => setReplyingTo(item)}
-                        onReplyPress={(replyMessageId) => { scrollToMessage(replyMessageId); }}
-                        selected={selectedMessageIds.includes(item.message_id)}
+                          time={item.timeStr}
+                          isMine={isMine}
+                          showTail={item.showTail}
+                          readStatus={isMine ? (item.status === 'sending' || item.status === 'pending' || item.status === 'failed' ? item.status : (isRead ? "read" : "delivered")) : undefined}
+                          isVisible={visibleItems.has(item.message_id)}
+                          reactions={item.reactions}
+                          replyTo={item.reply_to}
+                          isForwarded={item.is_forwarded}
+                          isDeleted={item.is_deleted}
+                          highlighted={highlightedMessageId === item.message_id}
+                          isSingleEmoji={item.isSingleEmoji}
+                          isMediumEmoji={item.isMediumEmoji}
+                          isSmallEmoji={item.isSmallEmoji}
+                          onSwipeReply={() => setReplyingTo(item)}
+                          onReplyPress={(replyMessageId) => { scrollToMessage(replyMessageId); }}
+                          selected={selectedMessageIds.includes(item.message_id)}
                         onLongPress={(y, height) => {
                           setSelectedMessageIds(prev => {
                             if (prev.includes(item.message_id)) return prev;
@@ -726,6 +773,7 @@ export default function ChatScreen() {
                       />
                     </View>
                   );
+                  return bubble;
                 }}
                 contentContainerStyle={[
                   styles.listContent, 

@@ -79,6 +79,7 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages (channel_id);
       CREATE INDEX IF NOT EXISTS idx_messages_server_id ON messages (server_id);
       CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at);
+      CREATE INDEX IF NOT EXISTS idx_messages_channel_created ON messages (channel_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments (message_id);
       CREATE INDEX IF NOT EXISTS idx_reactions_message_id ON reactions (message_id);
     `;

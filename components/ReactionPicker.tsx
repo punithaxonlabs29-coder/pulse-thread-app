@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import { styles } from './ReactionPicker.styles';
 
 
@@ -25,29 +25,29 @@ export default function ReactionPicker({ visible, onClose, onSelectReaction, pos
     ];
   }
 
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={containerStyle}>
-              {EMOJIS.map((emoji) => (
-                <TouchableOpacity 
-                  key={emoji} 
-                  style={styles.emojiButton}
-                  onPress={() => {
-                    onSelectReaction(emoji);
-                    onClose();
-                  }}
-                >
-                  <Text style={styles.emojiText}>{emoji}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+    <TouchableWithoutFeedback onPress={onClose}>
+      <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+        <TouchableWithoutFeedback>
+          <View style={containerStyle}>
+            {EMOJIS.map((emoji) => (
+              <TouchableOpacity 
+                key={emoji} 
+                style={styles.emojiButton}
+                onPress={() => {
+                  onSelectReaction(emoji);
+                  onClose();
+                }}
+              >
+                <Text style={styles.emojiText}>{emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 

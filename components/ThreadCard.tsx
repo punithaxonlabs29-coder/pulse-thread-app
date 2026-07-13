@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Channel } from "../types/connects";
 import { formatMessageTime } from "../utils/date";
 import { styles } from './ThreadCard.styles';
-
+import { useTyping } from "../hooks/useTyping";
 
 interface ThreadCardProps {
   channel: Channel;
@@ -20,7 +20,6 @@ interface ThreadCardProps {
   displayAttachments?: any[];
   displayTime?: string;
   displayUnreadCount?: number;
-  typingUsers?: string[];
   onPress: () => void;
 }
 
@@ -31,9 +30,10 @@ export default function ThreadCard({
   displayAttachments = [],
   displayTime,
   displayUnreadCount,
-  typingUsers = [],
   onPress,
 }: ThreadCardProps) {
+  const typingUsersSet = useTyping(channel.channel_id);
+  const typingUsers = Array.from(typingUsersSet);
 
   const otherMember =
     channel.channel_type === "direct"

@@ -36,13 +36,17 @@ export interface MessageBubbleProps {
   isForwarded?: boolean;
   isDeleted?: boolean;
   highlighted?: boolean;
+  isSingleEmoji?: boolean;
+  isMediumEmoji?: boolean;
+  isSmallEmoji?: boolean;
 }
 
 const MessageBubble = React.memo(({ 
   messageId, text, time, isMine, attachments, readStatus, 
   isVisible = false, reactions, selected = false, showTail = true,
   replyTo, onLongPress, onReactionPress, onSwipeReply, onReplyPress,
-  isForwarded = false, isDeleted = false, highlighted = false
+  isForwarded = false, isDeleted = false, highlighted = false,
+  isSingleEmoji = false, isMediumEmoji = false, isSmallEmoji = false
 }: MessageBubbleProps) => {
   const bubbleRef = React.useRef<View>(null);
   const swipeableRef = React.useRef<Swipeable>(null);
@@ -62,13 +66,6 @@ const MessageBubble = React.memo(({
   const hasAttachments = attachments && attachments.length > 0;
   const hasText = !!text;
   const showOverlayTime = !hasText; 
-
-  const isEmojiOnly = hasText && /^[\s\p{Emoji}\uFE0F\u200D]+$/u.test(text);
-  const emojiCount = hasText && isEmojiOnly ? Array.from(text.replace(/[\s\uFE0F\u200D]/g, '')).length : 0;
-  
-  const isSingleEmoji = isEmojiOnly && emojiCount === 1;
-  const isMediumEmoji = isEmojiOnly && emojiCount > 1 && emojiCount <= 3;
-  const isSmallEmoji = isEmojiOnly && emojiCount > 3;
 
   const handleLongPress = () => {
     if (onLongPress && bubbleRef.current) {

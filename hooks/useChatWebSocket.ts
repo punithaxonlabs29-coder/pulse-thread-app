@@ -13,7 +13,7 @@ interface UseChatWebSocketProps {
 export function useChatWebSocket({ channelId, currentUserEmail, onMessageReceived, onTypingStatusChange, onReconnect }: UseChatWebSocketProps) {
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
   const isComponentMounted = useRef(true);
 
   const connect = () => {

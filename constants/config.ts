@@ -3,7 +3,7 @@ export const CONFIG = {
   //API_BASE_URL: "https://pulse.jarvinai.com/psapi/pulse/api/",
   //WS_BASE_URL: "wss://pulse.jarvinai.com/psapi/ws/",
   
-   AUTH_BASE_URL: "http://192.168.1.11:8000/pulse/",
-   API_BASE_URL: "http://192.168.1.11:8000/pulse/api/",
-   WS_BASE_URL: "ws://192.168.1.11:8000/ws/",
+   AUTH_BASE_URL: "http://192.168.1.6:8000/pulse/",
+   API_BASE_URL: "http://192.168.1.6:8000/pulse/api/",
+   WS_BASE_URL: "ws://192.168.1.6:8000/ws/",
 };

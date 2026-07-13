@@ -236,7 +236,8 @@ export const ConnectsService = {
     text: string,
     attachments: any[] = [],
     replyToMessageId?: string,
-    isForwarded?: boolean
+    isForwarded?: boolean,
+    localId?: string
   ): Promise<any> {
     try {
       const processedAttachments = await Promise.all(
@@ -272,6 +273,7 @@ export const ConnectsService = {
           attachments: processedAttachments,
           ...(replyToMessageId && { reply_to_message_id: replyToMessageId }),
           ...(isForwarded && { is_forwarded: true }),
+          ...(localId && { local_id: localId }),
         }
       );
 

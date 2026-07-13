@@ -1,6 +1,11 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { Channel, Message } from '../types/connects';
 
+/**
+ * CacheService: Handles lightweight UI preferences and basic channel caching.
+ * DO NOT use this service for message caching. Messages use SQLite as the 
+ * single source of truth via messageRepository.ts.
+ */
 export const CacheService = {
   getCachePath(key: string): string {
     return `${FileSystem.documentDirectory}${key}.json`;
@@ -28,32 +33,6 @@ export const CacheService = {
       }
     } catch (error) {
       console.log('Error reading cached channels:', error);
-    }
-    return null;
-  },
-
-  async saveMessages(channelId: string, messages: Message[]): Promise<void> {
-    try {
-      const path = this.getCachePath(`messages_${channelId}`);
-      await FileSystem.writeAsStringAsync(path, JSON.stringify(messages), {
-        encoding: 'utf8',
-      });
-    } catch (error) {
-      console.log('Error caching messages:', error);
-    }
-  },
-
-  async getCachedMessages(channelId: string): Promise<Message[] | null> {
-    try {
-      const path = this.getCachePath(`messages_${channelId}`);
-      const fileInfo = await FileSystem.getInfoAsync(path);
-      
-      if (fileInfo.exists) {
-        const data = await FileSystem.readAsStringAsync(path, { encoding: 'utf8' });
-        return JSON.parse(data) as Message[];
-      }
-    } catch (error) {
-      console.log('Error reading cached messages:', error);
     }
     return null;
   }

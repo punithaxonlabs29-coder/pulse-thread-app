@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,8 +15,9 @@ import ThreadCard from "../../components/ThreadCard";
 import { ConnectsService } from "../../services/connects.service";
 import { SessionService } from "../../services/session.service";
 import { CacheService } from "../../services/cache.service";
-import { Channel } from "../../types/connects";
+import { Channel, Message } from "../../types/connects";
 import { useChatContext } from "../../contexts/ChatContext";
+import { syncEventBus } from "../../services/sync.engine";
 import { styles } from './index.styles';
 
 
@@ -24,15 +25,42 @@ export default function ChatsScreen() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserEmail, setCurrentUserEmail] = useState("");
-  const { connectChannels, lastMessages, typingState, registerMembers, unreadCounts } = useChatContext();
+  const { connectChannels, registerMembers, unreadCounts } = useChatContext();
 
   const router = useRouter();
+  const lastFetchTime = React.useRef(0);
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
+      const now = Date.now();
+      // Only refetch if it's been more than 10 seconds since the last fetch
+      if (now - lastFetchTime.current > 10000) {
+        lastFetchTime.current = now;
+        loadData();
+      }
     }, [])
   );
+
+  useEffect(() => {
+    const handleNewMessage = (event: string, data: { channelId: string, message: Message }) => {
+      setChannels(prev => {
+        const idx = prev.findIndex(c => c.channel_id === data.channelId);
+        if (idx === -1) return prev;
+        const next = [...prev];
+        next[idx] = {
+          ...next[idx],
+          last_message: data.message,
+          updated_at: data.message.created_at
+        };
+        return next;
+      });
+    };
+
+    syncEventBus.on('new_message', handleNewMessage);
+    return () => {
+      syncEventBus.off('new_message', handleNewMessage);
+    };
+  }, []);
 
   const loadData = async () => {
     try {
@@ -89,17 +117,11 @@ export default function ChatsScreen() {
 
   const sortedChannels = useMemo(() => {
     return [...channels].sort((a, b) => {
-      const msgA = lastMessages[a.channel_id];
-      const timeA = msgA ? new Date(msgA.created_at).getTime() : 
-                    (a.last_message ? new Date(a.last_message.created_at).getTime() : new Date(a.updated_at).getTime());
-      
-      const msgB = lastMessages[b.channel_id];
-      const timeB = msgB ? new Date(msgB.created_at).getTime() : 
-                    (b.last_message ? new Date(b.last_message.created_at).getTime() : new Date(b.updated_at).getTime());
-      
+      const timeA = a.last_message ? new Date(a.last_message.created_at).getTime() : new Date(a.updated_at).getTime();
+      const timeB = b.last_message ? new Date(b.last_message.created_at).getTime() : new Date(b.updated_at).getTime();
       return timeB - timeA;
     });
-  }, [channels, lastMessages]);
+  }, [channels]);
 
   if (loading) {
     return (
@@ -130,12 +152,10 @@ export default function ChatsScreen() {
         data={sortedChannels}
         keyExtractor={(item) => item.channel_id}
         renderItem={({ item }) => {
-          // Apply real-time last message if available from context
-          const realTimeMessage = lastMessages[item.channel_id];
-          const displayMessage = realTimeMessage?.text || item.last_message?.text;
-          const displayAttachments = realTimeMessage?.attachments || item.last_message?.attachments || [];
-          const displayTime = realTimeMessage?.created_at || item.updated_at;
-          const activeTypingUsers = typingState[item.channel_id] ? Array.from(typingState[item.channel_id]) : [];
+          // Channels state is now real-time updated via syncEventBus
+          const displayMessage = item.last_message?.text;
+          const displayAttachments = item.last_message?.attachments || [];
+          const displayTime = item.last_message?.created_at || item.updated_at;
           const displayUnreadCount = unreadCounts[item.channel_id] ?? item.unread_count;
 
           const otherMember = item.channel_type === "direct" 
@@ -158,7 +178,6 @@ export default function ChatsScreen() {
               displayAttachments={displayAttachments}
               displayTime={displayTime}
               displayUnreadCount={displayUnreadCount}
-              typingUsers={activeTypingUsers}
               onPress={() => {
                 router.push({
                   pathname: "/chat",

@@ -23,8 +23,7 @@ export async function displayIncomingMessage(message: FirebaseMessagingTypes.Rem
         ConnectsService.syncMessages(channelId).then(async (syncData) => {
            if (syncData.status && syncData.new) {
              for (const msg of syncData.new) {
-               await messageRepository.saveMessageLocal(msg);
-               syncEngine.handleIncomingMessage(msg);
+               await syncEngine.handleIncomingMessage(channelId, msg);
              }
            }
         }).catch(e => console.log("Background sync error:", e));
@@ -109,10 +108,12 @@ class NotificationService {
 
     await this.requestPermission();
     await this.registerDevice();
-    this.registerForegroundListener();
+    const unsubscribeForeground = this.registerForegroundListener();
     this.registerBackgroundListener();
     this.registerNotificationOpened();
     this.checkInitialNotification();
+
+    return unsubscribeForeground;
   }
 
   /**
@@ -163,7 +164,7 @@ class NotificationService {
    */
   registerForegroundListener() {
     // 1. Handle incoming push when app is already open
-    messaging().onMessage(
+    const unsubscribeFirebase = messaging().onMessage(
       async (message: FirebaseMessagingTypes.RemoteMessage) => {
         console.log("Foreground Message Arrived:", message);
         if (message.data?.title) {
@@ -174,8 +175,7 @@ class NotificationService {
             ConnectsService.syncMessages(channelId).then(async (syncData) => {
                if (syncData.status && syncData.new) {
                  for (const msg of syncData.new) {
-                   await messageRepository.saveMessageLocal(msg);
-                   syncEngine.handleIncomingMessage(msg);
+                   await syncEngine.handleIncomingMessage(channelId, msg);
                  }
                }
             }).catch(e => console.log("Foreground sync error:", e));
@@ -205,7 +205,7 @@ class NotificationService {
     );
 
     // 2. Handle when user clicks the Notifee banner while app is foregrounded or backgrounded
-    notifee.onForegroundEvent(({ type, detail }) => {
+    const unsubscribeNotifee = notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.PRESS && detail.notification) {
         console.log("User clicked Notifee banner!", detail.notification);
         const channelId = detail.notification.data?.channel_id;
@@ -214,6 +214,11 @@ class NotificationService {
         }
       }
     });
+
+    return () => {
+      unsubscribeFirebase();
+      unsubscribeNotifee();
+    };
   }
 
   /**

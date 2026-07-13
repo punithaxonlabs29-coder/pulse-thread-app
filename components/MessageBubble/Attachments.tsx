@@ -37,18 +37,18 @@ export const Attachments = React.memo(({
         };
 
         if (type.startsWith("image/")) {
-          return <ImageAttachment key={index} url={url || ""} name={name} messageId={messageId} {...mediaProps} />;
+          return <ImageAttachment key={index} url={url || ""} name={name} messageId={messageId} {...mediaProps} readStatus={mediaProps.readStatus as any} />;
         }
         if (type.startsWith("video/") || name.endsWith(".webm") || name.endsWith(".mp4")) {
-          return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="video" isVisible={isVisible} {...mediaProps} />;
+          return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="video" isVisible={isVisible} {...mediaProps} readStatus={mediaProps.readStatus as any} />;
         }
         if (type.startsWith("audio/")) {
-          return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="audio" isVisible={isVisible} {...mediaProps} />;
+          return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="audio" isVisible={isVisible} {...mediaProps} readStatus={mediaProps.readStatus as any} />;
         }
         if (type.toLowerCase() === "link" || file.file_type === "Link") {
           return null;
         }
-        return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="document" {...mediaProps} />;
+        return <VideoAttachment key={index} url={url || ""} messageId={messageId} name={name} type="document" {...mediaProps} readStatus={mediaProps.readStatus as any} />;
       })}
     </>
   );
