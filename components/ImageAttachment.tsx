@@ -3,6 +3,7 @@ import { StyleSheet, View, ActivityIndicator, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from "@expo/vector-icons";
 import { ConnectsService } from '../services/connects.service';
+import DownloadButton from './ui/DownloadButton';
 import { styles } from './ImageAttachment.styles';
 
 
@@ -11,14 +12,19 @@ interface ImageAttachmentProps {
   name: string;
   messageId: string;
   time?: string;
-  readStatus?: "sent" | "delivered" | "read";
+  readStatus?: "sent" | "delivered" | "read" | "pending" | "sending" | "failed";
   isMine?: boolean;
+  gridMode?: boolean;
+  isVisible?: boolean;
 }
 
-export default function ImageAttachment({ url, name, messageId, time, readStatus, isMine }: ImageAttachmentProps) {
+export default function ImageAttachment({ url, name, messageId, time, readStatus, isMine, gridMode, isVisible = true }: ImageAttachmentProps) {
   const [source, setSource] = useState<string | null>(url || null);
 
   useEffect(() => {
+    // In gridMode, defer loading until it becomes visible
+    if (!isVisible && gridMode) return;
+
     if (!url) {
       ConnectsService.getMessageAttachment(messageId).then((attachments) => {
         if (attachments && attachments.length > 0) {
@@ -27,26 +33,29 @@ export default function ImageAttachment({ url, name, messageId, time, readStatus
         }
       }).catch(err => console.log("Failed to load image base64", err));
     }
-  }, [url, messageId, name]);
+  }, [url, messageId, name, isVisible, gridMode]);
 
-  if (!source) {
+  if (!source || (!isVisible && gridMode)) {
     return (
-      <View style={[styles.image, styles.loadingContainer]}>
-        <ActivityIndicator color="#F97316" />
+      <View style={[styles.image, styles.loadingContainer, gridMode && { width: '100%', height: '100%', borderRadius: 0 }]}>
+        {isVisible && <ActivityIndicator color="#F97316" />}
       </View>
     );
   }
 
+  // Optimize expo-image decoding in grid mode by setting downsampling bounds
+  const downsampleProps = gridMode ? { width: 150, height: 150 } : undefined;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, gridMode && { width: '100%', height: '100%', borderRadius: 0 }]}>
       <Image 
-        source={{ uri: source }} 
-        style={styles.image} 
+        source={downsampleProps ? { uri: source, ...downsampleProps } : { uri: source }} 
+        style={[styles.image, gridMode && { width: '100%', height: '100%', borderRadius: 0 }]} 
         contentFit="cover" 
         cachePolicy="memory-disk" 
         transition={200}
       />
-      {time && (
+      {!gridMode && time && (
         <View style={styles.timeOverlay}>
           <Text style={styles.timeText}>{time}</Text>
           {isMine && readStatus && (
@@ -59,7 +68,13 @@ export default function ImageAttachment({ url, name, messageId, time, readStatus
           )}
         </View>
       )}
+
+      {/* Download Button Component Overlay */}
+      {!gridMode && source ? (
+        <View style={styles.downloadOverlay}>
+          <DownloadButton url={source} filename={name} style={styles.downloadCircle} />
+        </View>
+      ) : null}
     </View>
   );
 }
-

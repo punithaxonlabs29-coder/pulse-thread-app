@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ConnectsService } from "../services/connects.service";
 import { SessionService } from "../services/session.service";
+import { CacheService } from "../services/cache.service";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from './_new-chat.styles';
 
@@ -30,19 +31,41 @@ export default function NewChatScreen() {
     try {
       setLoading(true);
       const user = await SessionService.getUser();
+      let currentEmail = "";
       if (user) {
-        setCurrentUserEmail(user.email_id);
+        currentEmail = user.email_id;
+        setCurrentUserEmail(currentEmail);
       }
 
+      // 1. Instant Load from Cache
+      const cachedPeople = await CacheService.getCachedPeople();
+      if (cachedPeople && cachedPeople.length > 0) {
+        const others = cachedPeople.filter(
+          (p: any) => {
+            const pEmail = p.email || p.email_id;
+            return pEmail?.toLowerCase() !== currentEmail?.toLowerCase();
+          }
+        );
+        setPeople(others);
+        setLoading(false);
+      }
+
+      // 2. Fetch live data
       const allPeople = await ConnectsService.getPeople();
-      // Filter out the current user
-      const others = allPeople.filter(
-        (p: any) => {
-          const pEmail = p.email || p.email_id;
-          return pEmail?.toLowerCase() !== user?.email_id?.toLowerCase();
-        }
-      );
-      setPeople(others);
+      
+      if (allPeople && allPeople.length > 0) {
+        // Save to cache
+        await CacheService.savePeople(allPeople);
+
+        // Filter out the current user
+        const others = allPeople.filter(
+          (p: any) => {
+            const pEmail = p.email || p.email_id;
+            return pEmail?.toLowerCase() !== currentEmail?.toLowerCase();
+          }
+        );
+        setPeople(others);
+      }
     } catch (error) {
       console.log('Error fetching people:', error);
     } finally {

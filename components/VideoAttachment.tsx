@@ -29,10 +29,11 @@ interface VideoAttachmentProps {
   type?: 'video' | 'audio' | 'document' | 'link';
   isVisible?: boolean;
   time?: string;
-  readStatus?: "sent" | "delivered" | "read";
+  readStatus?: "sent" | "delivered" | "read" | "pending" | "sending" | "failed";
+  gridMode?: boolean;
 }
 
-export default function VideoAttachment({ url, name, messageId, isMine, type = 'video', isVisible = false, time, readStatus }: VideoAttachmentProps) {
+export default function VideoAttachment({ url, name, messageId, isMine, type = 'video', isVisible = false, time, readStatus, gridMode = false }: VideoAttachmentProps) {
   const [loading, setLoading] = useState(false);
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [isVideoModalVisible, setVideoModalVisible] = useState(false);
@@ -218,15 +219,15 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
   if (type === 'video') {
     return (
       <>
-        <Pressable onPress={handlePress} style={styles.videoContainer}>
-          {thumbnailUrl ? (
+        <Pressable onPress={handlePress} style={[styles.videoContainer, gridMode && { width: '100%', height: '100%', borderRadius: 0, marginTop: 0 }]}>
+          {thumbnailUrl && isVisible ? (
             <Image
-              source={{ uri: thumbnailUrl }}
-              style={[StyleSheet.absoluteFill, { borderRadius: 12 }]}
+              source={gridMode ? { uri: thumbnailUrl, width: 150, height: 150 } : { uri: thumbnailUrl }}
+              style={[StyleSheet.absoluteFill, { borderRadius: gridMode ? 0 : 12 }]}
               resizeMode="cover"
             />
           ) : null}
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: thumbnailUrl ? 'rgba(0,0,0,0.2)' : '#1F2937', borderRadius: 12 }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: thumbnailUrl ? 'rgba(0,0,0,0.2)' : '#1F2937', borderRadius: gridMode ? 0 : 12 }]} />
           {loading ? (
             <ActivityIndicator size="large" color="#FFFFFF" />
           ) : (
@@ -234,11 +235,18 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
               <Ionicons name="play" size={32} color="#FFFFFF" style={{ marginLeft: 4 }} />
             </View>
           )}
-          <View style={styles.videoFooter}>
-            <Ionicons name="videocam" size={14} color="#FFF" />
-            <Text style={styles.videoDuration}> 0:11</Text>
-          </View>
-          {time && (
+          {!gridMode && (
+            <View style={styles.videoFooter}>
+              <Ionicons name="videocam" size={14} color="#FFF" />
+              <Text style={styles.videoDuration}> 0:11</Text>
+            </View>
+          )}
+          {!gridMode && url ? (
+            <View style={styles.downloadOverlay}>
+              <DownloadButton url={url} filename={name} style={styles.downloadCircle} />
+            </View>
+          ) : null}
+          {!gridMode && time && (
             <View style={styles.timeOverlay}>
               <Text style={styles.timeText}>{time}</Text>
               {isMine && readStatus && (

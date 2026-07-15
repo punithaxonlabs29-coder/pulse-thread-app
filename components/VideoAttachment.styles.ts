@@ -274,5 +274,16 @@ export const styles = StyleSheet.create({
   },
   tickIcon: {
     marginLeft: 2,
+  },
+  downloadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  downloadCircle: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 24,
+    padding: 2,
   }
 });

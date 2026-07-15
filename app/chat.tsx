@@ -16,6 +16,8 @@ declare module "@shopify/flash-list" {
 import * as Clipboard from 'expo-clipboard';
 
 import ChatHeader from "../components/ChatHeader";
+import SearchHeader from "../components/SearchHeader";
+import CalendarModal from "../components/CalendarModal";
 import MessageBubble from "../components/MessageBubble";
 import MessageInput from "../components/MessageInput";
 import ReactionPicker from "../components/ReactionPicker";
@@ -33,10 +35,11 @@ import { styles } from "./_chat.styles";
 
 import { typingManager } from "../services/typing.manager";
 import { messageRepository } from "../services/message.repository";
+import { backgroundWorker } from "../services/background.worker";
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { channelId, channelName, channelImage } = useLocalSearchParams();
+  const { channelId, channelName, channelImage, channelType } = useLocalSearchParams();
   const [resolvedName, setResolvedName] = useState((channelName as string) || "");
   const [resolvedImage, setResolvedImage] = useState((channelImage as string) || "");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -67,6 +70,14 @@ export default function ChatScreen() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
+  // ── Search state ──────────────────────────────────────────────────────────
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [searchResults, setSearchResults] = useState<Message[]>([]);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const [visibleItems, setVisibleItems] = useState<Set<string>>(new Set());
   const [floatingDate, setFloatingDate] = useState<string | null>(null);
   const [showFloatingDate, setShowFloatingDate] = useState(false);
@@ -86,6 +97,42 @@ export default function ChatScreen() {
 
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // ── Search effects ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (searchText.trim() === "") {
+      setSearchResults([]);
+      return;
+    }
+    const found = messages.filter(m =>
+      m.text?.toLowerCase().includes(searchText.toLowerCase())
+    );
+    setSearchResults(found);
+    setCurrentSearchIndex(0);
+  }, [searchText, messages]);
+
+  useEffect(() => {
+    if (searchResults.length > 0) {
+      scrollToMessage(searchResults[currentSearchIndex]?.message_id);
+    }
+  }, [searchResults, currentSearchIndex]);
+
+  const searchByDate = (date: Date) => {
+    const start = new Date(date); start.setHours(0, 0, 0, 0);
+    const end   = new Date(date); end.setHours(23, 59, 59, 999);
+    const found = messages.filter(m => {
+      const d = new Date(m.created_at);
+      return d >= start && d <= end;
+    });
+    if (found.length > 0) {
+      setSearchResults(found);
+      setCurrentSearchIndex(0);
+      scrollToMessage(found[0].message_id);
+    } else {
+      if (Platform.OS === 'android') ToastAndroid.show('No messages on that date', ToastAndroid.SHORT);
+    }
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   const isScrolledUpRef = useRef(false);
   const hasInitiallyScrolled = useRef(false);
@@ -135,39 +182,62 @@ export default function ChatScreen() {
   // Handle incoming message creations and updates in real-time
   useEffect(() => {
     if (lastUpdatedMessage && lastUpdatedMessage.channel_id === channelId) {
+      let isNewMessage = false;
+
       setMessages(prev => {
         const exists = prev.some(m => m.message_id === lastUpdatedMessage.message_id);
-        
+
         let updated;
         if (exists) {
-          // Update existing
+          // Update existing message in-place
           updated = prev.map(m => {
             if (m.message_id === lastUpdatedMessage.message_id) {
               if (lastUpdatedMessage.is_deleted) {
-                return { ...m, is_deleted: true, text: "This message was deleted", attachments: [] };
+                return { ...m, is_deleted: true, text: 'This message was deleted', attachments: [] };
               }
               return lastUpdatedMessage;
             }
             return m;
           });
+        } else if (lastUpdatedMessage.sender_email?.toLowerCase() === currentUserEmail?.toLowerCase()) {
+          // It's our own message echoed back — swap the 'sending' optimistic bubble in-place
+          // to avoid a duplicate bubble alongside the one handleSend already manages
+          const optimisticIdx = prev.findIndex(
+            m => (m.status === 'sending' || m.status === 'pending') &&
+                 m.sender_email?.toLowerCase() === currentUserEmail?.toLowerCase()
+          );
+          if (optimisticIdx !== -1) {
+            updated = [...prev];
+            updated[optimisticIdx] = { ...lastUpdatedMessage, status: 'sent' };
+            // No scroll/unread — we already scrolled when the optimistic bubble was added
+          } else {
+            // Optimistic bubble already replaced or sent from another device — append normally
+            updated = [...prev, lastUpdatedMessage];
+            isNewMessage = true;
+          }
         } else {
-          // Append new message
+          // Someone else's new message — append normally
           updated = [...prev, lastUpdatedMessage];
-          
-          if (!isScrolledUpRef.current || lastUpdatedMessage.sender_email === currentUserEmail) {
-            setTimeout(() => {
-              scrollToBottom();
-            }, 100);
+          isNewMessage = true;
+          if (!isScrolledUpRef.current) {
+            setTimeout(() => { scrollToBottom(); }, 100);
           } else {
             setUnreadCount(c => c + 1);
           }
-          ConnectsService.markChannelRead(channelId as string, lastUpdatedMessage.message_id);
-          resetUnreadCount(channelId as string);
         }
-        
+
         messageRepository.saveMessagesBatchLocal(updated, channelId as string);
         return updated;
       });
+
+      // Side effects that touch other components' state must run OUTSIDE the updater
+      if (isNewMessage) {
+        // Use setTimeout to ensure this runs after the current render cycle
+        setTimeout(() => {
+          ConnectsService.markChannelRead(channelId as string, lastUpdatedMessage.message_id);
+          resetUnreadCount(channelId as string);
+        }, 0);
+      }
     }
   }, [lastUpdatedMessage, channelId, currentUserEmail, scrollToBottom]);
 
@@ -330,30 +400,79 @@ export default function ChatScreen() {
   };
 
   const handleSend = async (text: string, attachments?: any[]) => {
+    const replyId = replyingTo ? replyingTo.message_id : undefined;
+    const replySnapshot = replyingTo; // capture before clearing
+    setReplyingTo(null); // clear instantly for better UX
+
+    // 1. Create a local optimistic message shown immediately
+    const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const optimisticMessage: Message = {
+      message_id: localId,
+      local_id: localId,
+      channel_id: channelId as string,
+      sender_email: currentUserEmail,
+      sender_name: resolvedName,
+      text: text || '',
+      attachments: attachments || [],
+      reactions: [],
+      status: 'sending',
+      created_at: new Date().toISOString(),
+      reply_to: replySnapshot ? {
+        message_id: replySnapshot.message_id,
+        sender_name: replySnapshot.sender_name,
+        text: replySnapshot.text,
+        attachments: replySnapshot.attachments,
+      } : undefined,
+    };
+
+    // 2. Push into UI immediately — visible at once
+    setMessages(prev => [...prev, optimisticMessage]);
+    setTimeout(() => {
+      if (!isScrolledUpRef.current) {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }
+    }, 50);
+
     try {
-      const replyId = replyingTo ? replyingTo.message_id : undefined;
-      setReplyingTo(null); // clear instantly for better UX
-      const response = await ConnectsService.sendMessage(channelId as string, text, attachments, replyId);
-      
+      const response = await ConnectsService.sendMessage(channelId as string, text, attachments, replyId, false, localId);
+
       if (response && response.created_message) {
-        setMessages((prev) => {
-          if (prev.some(m => m.message_id === response?.created_message?.message_id)) {
-            return prev;
+        // 3. Swap the optimistic bubble in-place with the real server message.
+        // Using map (not filter+push) so the list never gains an extra entry,
+        // which eliminates the double-bubble race with lastUpdatedMessage.
+        setMessages(prev => {
+          const serverMsg = { ...response.created_message, status: 'sent' as const };
+
+          // If the server message was already injected by lastUpdatedMessage, just remove optimistic
+          if (prev.some(m => m.message_id === serverMsg.message_id)) {
+            return prev.filter(m => m.message_id !== localId);
           }
-          const updated = [...prev, response.created_message];
-          messageRepository.saveMessagesBatchLocal(updated, channelId as string);
-          return updated;
+
+          // Normal case: replace optimistic slot in-place (preserves position & prevents extra entry)
+          const hasOptimistic = prev.some(m => m.message_id === localId);
+          if (hasOptimistic) {
+            return prev.map(m => m.message_id === localId ? serverMsg : m);
+          }
+
+          // Optimistic was already removed (edge case) — append to avoid losing the message
+          return [...prev, serverMsg];
         });
-        setTimeout(() => {
-          if (!isScrolledUpRef.current) {
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-          }
-        }, 100);
       }
     } catch (error) {
-      console.log("Error sending message:", error);
+      // Network failed — keep the bubble as 'pending' (not failed) and queue for auto-retry
+      console.log("Send failed, queuing for retry:", error);
+      setMessages(prev =>
+        prev.map(m => m.message_id === localId ? { ...m, status: 'pending' } : m)
+      );
+      // Enqueue in backgroundWorker — it retries every 10s and on network restore
+      backgroundWorker.enqueueMessage(localId, channelId as string, {
+        text,
+        attachments,
+        replyId,
+      });
     }
   };
+
 
   const handleTyping = (isTyping: boolean) => {
     if (channelId) {
@@ -611,12 +730,52 @@ export default function ChatScreen() {
           />
         ) : (
           <View>
-            <ChatHeader 
-              name={resolvedName} 
-              status="Active" 
-              imageUrl={resolvedImage}
-              typingUsers={typingUsers}
-            />
+            {!searchMode ? (
+              <ChatHeader
+                name={resolvedName}
+                status="Active"
+                imageUrl={resolvedImage}
+                typingUsers={typingUsers}
+                channelType={channelType as string}
+                channelId={channelId as string}
+                onSearch={() => setSearchMode(true)}
+                onMediaPress={() => router.push({ pathname: '/media', params: { channelId } })}
+                onProfilePress={() => router.push({ pathname: '/contact-info', params: { channelId, name: resolvedName, image: resolvedImage, status: 'Active' } })}
+              />
+            ) : (
+              <SearchHeader
+                value={searchText}
+                onChangeText={setSearchText}
+                onBack={() => {
+                  setSearchMode(false);
+                  setSearchText("");
+                  setSearchResults([]);
+                }}
+                onCalendar={() => setCalendarVisible(true)}
+              />
+            )}
+            {/* Search result counter pill */}
+            {searchMode && searchResults.length > 0 && (
+              <View style={styles.searchCounterPill}>
+                <TouchableOpacity
+                  onPress={() => setCurrentSearchIndex(i => Math.max(0, i - 1))}
+                  disabled={currentSearchIndex === 0}
+                  style={styles.searchNavBtn}
+                >
+                  <Ionicons name="chevron-up" size={18} color={currentSearchIndex === 0 ? '#D1D5DB' : '#F97316'} />
+                </TouchableOpacity>
+                <Text style={styles.searchCounterText}>
+                  {currentSearchIndex + 1} / {searchResults.length}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setCurrentSearchIndex(i => Math.min(searchResults.length - 1, i + 1))}
+                  disabled={currentSearchIndex === searchResults.length - 1}
+                  style={styles.searchNavBtn}
+                >
+                  <Ionicons name="chevron-down" size={18} color={currentSearchIndex === searchResults.length - 1 ? '#D1D5DB' : '#F97316'} />
+                </TouchableOpacity>
+              </View>
+            )}
             {messages.find(m => m.is_pinned) && (
               <TouchableOpacity 
                 style={styles.pinnedBanner} 
@@ -753,6 +912,8 @@ export default function ChatScreen() {
                           isSingleEmoji={item.isSingleEmoji}
                           isMediumEmoji={item.isMediumEmoji}
                           isSmallEmoji={item.isSmallEmoji}
+                          searchText={searchText}
+                          searchEnabled={searchMode}
                           onSwipeReply={() => setReplyingTo(item)}
                           onReplyPress={(replyMessageId) => { scrollToMessage(replyMessageId); }}
                           selected={selectedMessageIds.includes(item.message_id)}
@@ -856,6 +1017,18 @@ export default function ChatScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ── Date-search calendar ── */}
+      <CalendarModal
+        visible={calendarVisible}
+        onDismiss={() => setCalendarVisible(false)}
+        onConfirm={(date) => {
+          setCalendarVisible(false);
+          searchByDate(date);
+        }}
+        initialDate={new Date()}
+      />
+
       </SafeAreaView>
   );
 }

@@ -67,30 +67,32 @@ export class MessageRepository {
     const db = DatabaseService.getDB();
     const reactionId = `${messageId}_${emoji}`;
 
-    await db.withTransactionAsync(async () => {
-      const existing = await db.getFirstAsync<{count: number, user_reacted: number}>(
-        `SELECT count, user_reacted FROM reactions WHERE id = ?`,
-        [reactionId]
-      );
+    await DatabaseService.withWriteLock(async () => {
+      await db.withTransactionAsync(async () => {
+        const existing = await db.getFirstAsync<{count: number, user_reacted: number}>(
+          `SELECT count, user_reacted FROM reactions WHERE id = ?`,
+          [reactionId]
+        );
 
-      if (existing) {
-        let newCount = existing.count + (existing.user_reacted ? -1 : 1);
-        let newUserReacted = existing.user_reacted ? 0 : 1;
-        
-        if (newCount <= 0 && newUserReacted === 0) {
-          await db.runAsync(`DELETE FROM reactions WHERE id = ?`, [reactionId]);
+        if (existing) {
+          let newCount = existing.count + (existing.user_reacted ? -1 : 1);
+          let newUserReacted = existing.user_reacted ? 0 : 1;
+
+          if (newCount <= 0 && newUserReacted === 0) {
+            await db.runAsync(`DELETE FROM reactions WHERE id = ?`, [reactionId]);
+          } else {
+            await db.runAsync(
+              `UPDATE reactions SET count = ?, user_reacted = ? WHERE id = ?`,
+              [newCount, newUserReacted, reactionId]
+            );
+          }
         } else {
           await db.runAsync(
-            `UPDATE reactions SET count = ?, user_reacted = ? WHERE id = ?`,
-            [newCount, newUserReacted, reactionId]
+            `INSERT INTO reactions (id, message_id, emoji, count, user_reacted) VALUES (?, ?, ?, 1, 1)`,
+            [reactionId, messageId, emoji]
           );
         }
-      } else {
-        await db.runAsync(
-          `INSERT INTO reactions (id, message_id, emoji, count, user_reacted) VALUES (?, ?, ?, 1, 1)`,
-          [reactionId, messageId, emoji]
-        );
-      }
+      });
     });
 
     this.notifyObservers(channelId);
@@ -101,16 +103,15 @@ export class MessageRepository {
    */
   async togglePinLocal(messageId: string, isPinned: boolean, channelId: string): Promise<void> {
     const db = DatabaseService.getDB();
-    await db.withTransactionAsync(async () => {
-      if (isPinned) {
-        // Unpin all other messages in the channel first
-        await db.runAsync(`UPDATE messages SET is_pinned = 0 WHERE channel_id = ?`, [channelId]);
-        // Pin the target message
-        await db.runAsync(`UPDATE messages SET is_pinned = 1 WHERE server_id = ? OR local_id = ?`, [messageId, messageId]);
-      } else {
-        // Just unpin the target message
-        await db.runAsync(`UPDATE messages SET is_pinned = 0 WHERE server_id = ? OR local_id = ?`, [messageId, messageId]);
-      }
+    await DatabaseService.withWriteLock(async () => {
+      await db.withTransactionAsync(async () => {
+        if (isPinned) {
+          await db.runAsync(`UPDATE messages SET is_pinned = 0 WHERE channel_id = ?`, [channelId]);
+          await db.runAsync(`UPDATE messages SET is_pinned = 1 WHERE server_id = ? OR local_id = ?`, [messageId, messageId]);
+        } else {
+          await db.runAsync(`UPDATE messages SET is_pinned = 0 WHERE server_id = ? OR local_id = ?`, [messageId, messageId]);
+        }
+      });
     });
     this.notifyObservers(channelId);
   }
@@ -141,47 +142,42 @@ export class MessageRepository {
    */
   async promotePendingMessageLocal(localId: string, serverMessage: Message, channelId: string): Promise<void> {
     const db = DatabaseService.getDB();
-    await db.withTransactionAsync(async () => {
-      // Update core server-assigned fields AND authoritative fields (in case of server-side sanitization/moderation),
-      // while leaving local mutations (is_pinned, is_deleted, reactions) completely untouched
-      await db.runAsync(
-        `UPDATE messages SET 
-          server_id = ?, 
-          status = ?, 
-          created_at = ?,
-          text = COALESCE(?, text),
-          sender_name = COALESCE(?, sender_name)
-         WHERE local_id = ?`,
-        [
-          serverMessage.message_id, 
-          'sent', 
-          serverMessage.created_at,
-          serverMessage.text ?? null,
-          serverMessage.sender_name ?? null,
-          localId
-        ]
-      );
-      
-      // If the server assigned URLs to attachments, we should update those too, but that's safe to INSERT OR REPLACE
-      if (serverMessage.attachments && serverMessage.attachments.length > 0) {
-        for (const att of serverMessage.attachments) {
-          const attId = att.id || `${localId}_${att.name}`;
-          await db.runAsync(`
-            INSERT OR REPLACE INTO attachments
-            (id, message_id, type, name, url, file_url, size, duration)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          `, [
-            attId,
-            localId,
-            att.type || 'file',
-            att.name || '',
-            att.url || '',
-            att.file_url || '',
-            att.size || 0,
-            att.duration || 0
-          ]);
+    await DatabaseService.withWriteLock(async () => {
+      await db.withTransactionAsync(async () => {
+        await db.runAsync(
+          `UPDATE messages SET
+            server_id = ?,
+            status = ?,
+            created_at = ?,
+            text = COALESCE(?, text),
+            sender_name = COALESCE(?, sender_name)
+           WHERE local_id = ?`,
+          [
+            serverMessage.message_id,
+            'sent',
+            serverMessage.created_at,
+            serverMessage.text ?? null,
+            serverMessage.sender_name ?? null,
+            localId
+          ]
+        );
+
+        if (serverMessage.attachments && serverMessage.attachments.length > 0) {
+          for (const att of serverMessage.attachments) {
+            const attId = att.id || `${localId}_${att.name}`;
+            await db.runAsync(`
+              INSERT OR REPLACE INTO attachments
+              (id, message_id, type, name, url, file_url, size, duration)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+              attId, localId,
+              att.type || 'file', att.name || '',
+              att.url || '', att.file_url || '',
+              att.size || 0, att.duration || 0
+            ]);
+          }
         }
-      }
+      });
     });
 
     this.notifyObservers(channelId);

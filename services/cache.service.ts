@@ -35,5 +35,31 @@ export const CacheService = {
       console.log('Error reading cached channels:', error);
     }
     return null;
+  },
+
+  async savePeople(people: any[]): Promise<void> {
+    try {
+      const path = this.getCachePath('people');
+      await FileSystem.writeAsStringAsync(path, JSON.stringify(people), {
+        encoding: 'utf8',
+      });
+    } catch (error) {
+      console.log('Error caching people:', error);
+    }
+  },
+
+  async getCachedPeople(): Promise<any[] | null> {
+    try {
+      const path = this.getCachePath('people');
+      const fileInfo = await FileSystem.getInfoAsync(path);
+      
+      if (fileInfo.exists) {
+        const data = await FileSystem.readAsStringAsync(path, { encoding: 'utf8' });
+        return JSON.parse(data);
+      }
+    } catch (error) {
+      console.log('Error reading cached people:', error);
+    }
+    return null;
   }
 };

@@ -82,6 +82,34 @@ export const ConnectsService = {
     }
   },
 
+  async createGroup(companyName: string, groupName: string): Promise<any> {
+    try {
+      const response = await mainApi.post("connects/channel/create/", {
+        channel_name: groupName,
+        company_name: companyName,
+        channel_type: "channel",
+        members: []
+      });
+      return response.data;
+    } catch (error) {
+      console.log("Create Group Error:", (error as AxiosError).message);
+      throw error;
+    }
+  },
+
+  async addMember(channelId: string, member: any): Promise<any> {
+    try {
+      const response = await mainApi.post("connects/channel/member/add/", {
+        channel_id: channelId,
+        member: member
+      });
+      return response.data;
+    } catch (error) {
+      console.log("Add Member Error:", (error as AxiosError).message);
+      throw error;
+    }
+  },
+
   async getMessages(channelId: string, after?: string, before?: string, limit: number = 50, offset?: number): Promise<Message[]> {
     try {
       let url = `connects/messages/?channel_id=${channelId}&limit=${limit}&lightweight=true&t=${Date.now()}`;

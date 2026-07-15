@@ -26,6 +26,7 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
   const [showEmojiKeyboard, setShowEmojiKeyboard] = useState(false);
   const typingTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = React.useRef<TextInput>(null);
+  const isSendingRef = React.useRef(false);
 
   const handleTextChange = (newText: string) => {
     setText(newText);
@@ -42,14 +43,22 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
   };
 
   const handleSend = () => {
+    if (isSendingRef.current) return;
     if (!text.trim() && attachments.length === 0) return;
+    
+    isSendingRef.current = true;
     onSend(text, attachments);
     setText("");
     setAttachments([]);
+    
     if (onTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       onTyping(false);
     }
+    
+    setTimeout(() => {
+      isSendingRef.current = false;
+    }, 500);
   };
 
   const handleRemoveAttachment = (index: number) => {

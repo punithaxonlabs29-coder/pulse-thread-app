@@ -19,6 +19,10 @@ interface ChatHeaderProps {
   imageUrl?: string;
   typingUsers?: string[];
   channelId?: string;
+  channelType?: string;
+  onSearch?: () => void;
+  onMediaPress?: () => void;
+  onProfilePress?: () => void;
 }
 
 interface MenuItem {
@@ -36,6 +40,10 @@ export default function ChatHeader({
   imageUrl,
   typingUsers = [],
   channelId,
+  channelType,
+  onSearch,
+  onMediaPress,
+  onProfilePress,
 }: ChatHeaderProps) {
   const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
@@ -54,17 +62,23 @@ export default function ChatHeader({
   const handleMenuAction = (itemId: string) => {
     setMenuVisible(false);
     switch (itemId) {
+      case 'add_people':
+        router.push({ pathname: '/add-people', params: { channelId } });
+        break;
       case 'new_group':
         Alert.alert('New Group', 'Create a new group');
         break;
       case 'view_contact':
-        Alert.alert('View Contact', `Viewing ${name}`);
+        setMenuVisible(false);
+        if (onProfilePress) onProfilePress();
         break;
       case 'search':
-        Alert.alert('Search', 'Search in conversation');
+        setMenuVisible(false);
+        if (onSearch) onSearch();
         break;
       case 'media':
-        Alert.alert('Media, links, and docs', 'Opening media browser');
+        setMenuVisible(false);
+        if (onMediaPress) onMediaPress();
         break;
       case 'mute':
         Alert.alert('Mute Notifications', 'Notification settings');
@@ -88,6 +102,11 @@ export default function ChatHeader({
     { id: 'more', label: 'More', icon: 'ellipsis-horizontal-circle-outline', hasArrow: true },
   ];
 
+  if (channelType === 'channel') {
+    // Insert "Add people" before "More"
+    menuItems.splice(menuItems.length - 1, 0, { id: 'add_people', label: 'Add people', icon: 'person-add-outline' });
+  }
+
   return (
     <>
       <View style={styles.header}>
@@ -95,26 +114,28 @@ export default function ChatHeader({
           <Ionicons name="arrow-back" size={24} color="#F97316" />
         </TouchableOpacity>
 
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.profileImage} />
-        ) : (
-          <View style={[styles.profileImage, styles.avatarPlaceholder]}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
-        )}
-
-        <View style={styles.headerInfo}>
-          <Text style={styles.name} numberOfLines={1}>{name}</Text>
-          {typingUsers.length > 0 ? (
-            <Text style={styles.typingStatus} numberOfLines={1}>
-              {typingUsers.length === 1
-                ? `${typingUsers[0]} is typing...`
-                : `${typingUsers.length} people are typing...`}
-            </Text>
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }} onPress={onProfilePress} activeOpacity={0.7}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.profileImage} />
           ) : (
-            <Text style={styles.status} numberOfLines={1}>{status}</Text>
+            <View style={[styles.profileImage, styles.avatarPlaceholder]}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
           )}
-        </View>
+
+          <View style={styles.headerInfo}>
+            <Text style={styles.name} numberOfLines={1}>{name}</Text>
+            {typingUsers.length > 0 ? (
+              <Text style={styles.typingStatus} numberOfLines={1}>
+                {typingUsers.length === 1
+                  ? `${typingUsers[0]} is typing...`
+                  : `${typingUsers.length} people are typing...`}
+              </Text>
+            ) : (
+              <Text style={styles.status} numberOfLines={1}>{status}</Text>
+            )}
+          </View>
+        </TouchableOpacity>
 
         {/* Action buttons */}
         <View style={menuStyles.actionButtons}>

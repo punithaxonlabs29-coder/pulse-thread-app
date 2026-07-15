@@ -89,6 +89,28 @@ export const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
+  // ── Search counter pill ───────────────────────────────────────────────────
+  searchCounterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF7ED',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#FDE68A',
+    paddingVertical: 6,
+    gap: 16,
+  },
+  searchNavBtn: {
+    padding: 4,
+  },
+  searchCounterText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    minWidth: 52,
+    textAlign: 'center',
+  },
+  // ─────────────────────────────────────────────────────────────────────────
   pinnedBanner: {
     flexDirection: 'row',
     alignItems: 'center',

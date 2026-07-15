@@ -39,6 +39,8 @@ export interface MessageBubbleProps {
   isSingleEmoji?: boolean;
   isMediumEmoji?: boolean;
   isSmallEmoji?: boolean;
+  searchText?: string;
+  searchEnabled?: boolean;
 }
 
 const MessageBubble = React.memo(({ 
@@ -46,7 +48,8 @@ const MessageBubble = React.memo(({
   isVisible = false, reactions, selected = false, showTail = true,
   replyTo, onLongPress, onReactionPress, onSwipeReply, onReplyPress,
   isForwarded = false, isDeleted = false, highlighted = false,
-  isSingleEmoji = false, isMediumEmoji = false, isSmallEmoji = false
+  isSingleEmoji = false, isMediumEmoji = false, isSmallEmoji = false,
+  searchText = '', searchEnabled = false,
 }: MessageBubbleProps) => {
   const bubbleRef = React.useRef<View>(null);
   const swipeableRef = React.useRef<Swipeable>(null);
@@ -168,6 +171,8 @@ const MessageBubble = React.memo(({
                   isSmallEmoji={isSmallEmoji}
                   hasAttachments={hasAttachments ?? false}
                   readStatus={readStatus}
+                  searchText={searchText}
+                  searchEnabled={searchEnabled}
                 />
               ) : null}
 
@@ -201,6 +206,8 @@ const MessageBubble = React.memo(({
          prev.showTail === next.showTail &&
          prev.isForwarded === next.isForwarded &&
          prev.isDeleted === next.isDeleted &&
+         prev.searchText === next.searchText &&
+         prev.searchEnabled === next.searchEnabled &&
          JSON.stringify(prev.reactions) === JSON.stringify(next.reactions);
 });
 
