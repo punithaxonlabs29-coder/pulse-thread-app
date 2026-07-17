@@ -33,7 +33,9 @@ const EMOJI_SIZE = 40;
 const COLUMNS = Math.floor(width / EMOJI_SIZE);
 
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from './EmojiKeyboard.styles';
+import { createStyles } from './EmojiKeyboard.styles';
+import { useColors } from '../design';
+import { AppText } from './ui/AppText';
 
 
 interface EmojiKeyboardProps {
@@ -42,6 +44,8 @@ interface EmojiKeyboardProps {
 }
 
 export default function EmojiKeyboard({ onEmojiSelected, onBackspace }: EmojiKeyboardProps) {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   
   const flatData = useMemo(() => {
     const items: any[] = [];
@@ -59,10 +63,10 @@ export default function EmojiKeyboard({ onEmojiSelected, onBackspace }: EmojiKey
     if (item.type === 'header') {
       return (
         <View style={styles.categoryContainer}>
-          <Text style={styles.categoryTitle}>{item.title}</Text>
+          <AppText style={styles.categoryTitle}>{item.title}</AppText>
           {item.title === 'Smileys & People' && (
             <TouchableOpacity style={styles.backspaceTopButton} onPress={onBackspace} onLongPress={() => onBackspace && onBackspace()}>
-              <Ionicons name="backspace-outline" size={24} color="#6B7280" />
+              <Ionicons name="backspace-outline" size={24} color={colors.text.secondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -78,7 +82,7 @@ export default function EmojiKeyboard({ onEmojiSelected, onBackspace }: EmojiKey
               style={styles.emojiWrapper}
               onPress={() => onEmojiSelected(emoji)}
             >
-              <Text style={styles.emoji}>{emoji}</Text>
+              <AppText style={styles.emoji}>{emoji}</AppText>
             </TouchableOpacity>
           ))}
         </View>

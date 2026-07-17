@@ -1,25 +1,27 @@
 import { StyleSheet, Dimensions } from 'react-native';
+import { Colors, Spacing } from '../design';
+
 const { width, height } = Dimensions.get('window');
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     height: 300,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background.primary, // Usually light gray or primary
     borderTopWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border.primary,
   },
   categoryContainer: {
-    paddingVertical: 8,
+    paddingVertical: Spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingRight: 12,
+    paddingRight: Spacing.md,
   },
   categoryTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
-    paddingHorizontal: 12,
+    color: colors.text.secondary,
+    paddingHorizontal: Spacing.md,
   },
   emojiGrid: {
     flexDirection: 'row',

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
-import { styles } from './ReactionPicker.styles';
+import { createStyles } from './ReactionPicker.styles';
+import { useColors } from '../design';
 
 
 interface ReactionPickerProps {
@@ -13,6 +14,9 @@ interface ReactionPickerProps {
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
 
 export default function ReactionPicker({ visible, onClose, onSelectReaction, position }: ReactionPickerProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   let containerStyle: any = styles.pickerContainer;
   if (position) {
     const isNearTop = position.y < 150;
@@ -50,4 +54,3 @@ export default function ReactionPicker({ visible, onClose, onSelectReaction, pos
     </TouchableWithoutFeedback>
   );
 }
-

@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
+import { Colors } from '../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   micButton: {
     padding: 8,
     justifyContent: "center",
@@ -9,6 +10,6 @@ export const styles = StyleSheet.create({
     borderRadius: 20,
   },
   recordingActive: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.status.error,
   }
 });

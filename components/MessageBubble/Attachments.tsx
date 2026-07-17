@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ImageAttachment from '../ImageAttachment';
 import VideoAttachment from '../VideoAttachment';
 import MediaGalleryModal from '../MediaGalleryModal';
+import { createStyles } from './Attachments.styles';
+import { AppText } from '../ui/AppText';
+import { useColors } from '../../design';
 
 interface AttachmentsProps {
   attachments?: any[];
@@ -24,6 +27,9 @@ export const Attachments = React.memo(({
   showOverlayTime,
   isVisible 
 }: AttachmentsProps) => {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
+
   const [galleryVisible, setGalleryVisible] = useState(false);
   const [initialIndex, setInitialIndex] = useState(0);
 
@@ -90,23 +96,23 @@ export const Attachments = React.memo(({
               {type.startsWith("image/") ? (
                 <ImageAttachment url={url || ""} name={name} messageId={messageId} gridMode={true} isVisible={isVisible} />
               ) : (
-                <VideoAttachment url={url || ""} messageId={messageId} name={name} type="video" gridMode={true} isVisible={isVisible} />
+                <VideoAttachment url={url || ""} messageId={messageId} name={name} type="video" gridMode={true} isVisible={isVisible} isMine={isMine} />
               )}
               {index === 3 && extraCount > 0 && (
                 <View style={styles.extraOverlay}>
-                  <Text style={styles.extraText}>+{extraCount}</Text>
+                  <AppText style={styles.extraText}>+{extraCount}</AppText>
                 </View>
               )}
               
               {/* Shared overlay on bottom right item */}
               {index === displayMedia.length - 1 && showOverlayTime && (
                 <View style={[styles.timeOverlay, (index === 3 && extraCount > 0) ? { zIndex: 20 } : undefined]}>
-                  <Text style={styles.timeText}>{time}</Text>
+                  <AppText style={styles.timeText}>{time}</AppText>
                   {isMine && readStatus && (
                     <Ionicons
                       name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
                       size={14}
-                      color={readStatus === "read" ? "#53BDEB" : "#FFFFFF"}
+                      color={readStatus === "read" ? colors.status.info : "#FFFFFF"}
                       style={styles.tickIcon}
                     />
                   )}
@@ -164,67 +170,4 @@ export const Attachments = React.memo(({
          prev.readStatus === next.readStatus;
 });
 
-const styles = StyleSheet.create({
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: 260, // Fixed width to ensure stable 2x2 wrapping
-    justifyContent: 'space-between',
-    padding: 2,
-    backgroundColor: '#000',
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  gridItem: {
-    width: '49.5%',
-    aspectRatio: 1,
-    marginBottom: '1%',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  extraOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  extraText: {
-    color: '#FFF',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  timeOverlay: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    zIndex: 5,
-  },
-  timeText: {
-    fontSize: 10,
-    color: '#FFFFFF',
-  },
-  tickIcon: {
-    marginLeft: 4,
-  },
-  uploadingCenterOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 30,
-  },
-  uploadingCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(24, 115, 68, 0.8)', // WhatsApp style green circle
-    justifyContent: 'center',
-    alignItems: 'center',
-  }
-});
+

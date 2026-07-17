@@ -1,22 +1,19 @@
 import { StyleSheet } from 'react-native';
+import { Colors, Spacing, Radius, Shadows } from '../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: colors.background.overlay,
   },
   menuContainer: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 20,
-    paddingBottom: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 10,
+    backgroundColor: colors.background.primary,
+    borderTopLeftRadius: Radius.xl, // 16
+    borderTopRightRadius: Radius.xl, // 16
+    padding: Spacing.xl, // 20
+    paddingBottom: Spacing.xxxl, // 40 (approx)
+    ...Shadows.lg,
   },
   row: {
     flexDirection: 'row',
@@ -29,13 +26,13 @@ export const styles = StyleSheet.create({
   iconCircle: {
     width: 50,
     height: 50,
-    borderRadius: 25,
+    borderRadius: Radius.full,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   label: {
     fontSize: 12,
-    color: '#4B5563',
+    color: colors.text.secondary,
   }
 });

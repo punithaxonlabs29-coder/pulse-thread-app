@@ -8,6 +8,8 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useColors, Colors, Radius, Shadows, Spacing } from '../design';
+import { AppText } from './ui/AppText';
 
 interface CalendarModalProps {
   visible: boolean;
@@ -41,6 +43,9 @@ export default function CalendarModal({
   const [viewYear, setViewYear] = useState(initialDate?.getFullYear() ?? today.getFullYear());
   const [viewMonth, setViewMonth] = useState(initialDate?.getMonth() ?? today.getMonth());
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate ?? today);
+
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
 
   const prevMonth = useCallback(() => {
     if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
@@ -103,29 +108,29 @@ export default function CalendarModal({
 
           {/* ── Top header: year + full date ── */}
           <View style={styles.cardHeader}>
-            <Text style={styles.headerYear}>{headerYear}</Text>
-            <Text style={styles.headerDate}>
+            <AppText style={styles.headerYear}>{headerYear}</AppText>
+            <AppText style={styles.headerDate}>
               {headerDayName}, {headerDay} {headerMonthAbb}
-            </Text>
+            </AppText>
           </View>
 
           {/* ── Month navigation ── */}
           <View style={styles.monthNav}>
             <TouchableOpacity onPress={prevMonth} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Ionicons name="chevron-back" size={22} color="#F97316" />
+              <Ionicons name="chevron-back" size={22} color={colors.brand.primary} />
             </TouchableOpacity>
-            <Text style={styles.monthTitle}>
+            <AppText style={styles.monthTitle}>
               {MONTHS[viewMonth]} {viewYear}
-            </Text>
+            </AppText>
             <TouchableOpacity onPress={nextMonth} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Ionicons name="chevron-forward" size={22} color="#F97316" />
+              <Ionicons name="chevron-forward" size={22} color={colors.brand.primary} />
             </TouchableOpacity>
           </View>
 
           {/* ── Day-of-week header ── */}
           <View style={styles.dowRow}>
             {DAYS.map((d, i) => (
-              <Text key={i} style={styles.dowLabel}>{d}</Text>
+              <AppText key={i} style={styles.dowLabel}>{d}</AppText>
             ))}
           </View>
 
@@ -148,13 +153,13 @@ export default function CalendarModal({
                     styles.dayCircle,
                     sel && styles.selectedCircle,
                   ]}>
-                    <Text style={[
+                    <AppText style={[
                       styles.dayText,
                       sel && styles.selectedDayText,
                       tod && styles.todayText,
                     ]}>
                       {day}
-                    </Text>
+                    </AppText>
                   </View>
                 </TouchableOpacity>
               );
@@ -165,11 +170,11 @@ export default function CalendarModal({
           <View style={styles.divider} />
           <View style={styles.actions}>
             <TouchableOpacity style={styles.actionBtn} onPress={onDismiss}>
-              <Text style={styles.actionText}>Cancel</Text>
+              <AppText style={styles.actionText}>Cancel</AppText>
             </TouchableOpacity>
             <View style={styles.actionSep} />
             <TouchableOpacity style={styles.actionBtn} onPress={handleOK}>
-              <Text style={styles.actionText}>OK</Text>
+              <AppText style={styles.actionText}>OK</AppText>
             </TouchableOpacity>
           </View>
 
@@ -181,43 +186,39 @@ export default function CalendarModal({
 
 const CELL_SIZE = 40;
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: colors.background.overlay,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.xl,
   },
   card: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    backgroundColor: colors.background.primary,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 12,
+    ...Shadows.lg,
   },
 
   // Header
   cardHeader: {
-    backgroundColor: '#FFF7ED',
-    paddingTop: 24,
-    paddingBottom: 16,
-    paddingHorizontal: 24,
+    backgroundColor: colors.brand.primaryLight,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
   },
   headerYear: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#F97316',
+    color: colors.brand.primary,
     marginBottom: 2,
   },
   headerDate: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.text.primary,
     letterSpacing: -0.5,
   },
 
@@ -226,19 +227,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
   },
   monthTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
   },
 
   // Day-of-week row
   dowRow: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
+    paddingHorizontal: Spacing.md,
     marginBottom: 4,
   },
   dowLabel: {
@@ -246,7 +247,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: colors.text.muted,
     textTransform: 'uppercase',
   },
 
@@ -254,8 +255,8 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 12,
-    paddingBottom: 12,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
   },
   cell: {
     width: `${100 / 7}%`,
@@ -266,31 +267,31 @@ const styles = StyleSheet.create({
   dayCircle: {
     width: CELL_SIZE,
     height: CELL_SIZE,
-    borderRadius: CELL_SIZE / 2,
+    borderRadius: Radius.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
   selectedCircle: {
-    backgroundColor: '#F97316',
+    backgroundColor: colors.brand.primary,
   },
   dayText: {
     fontSize: 15,
-    color: '#374151',
+    color: colors.text.primary,
     fontWeight: '400',
   },
   selectedDayText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontWeight: '700',
   },
   todayText: {
-    color: '#F97316',
+    color: colors.brand.primary,
     fontWeight: '700',
   },
 
   // Footer
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border.primary,
   },
   actions: {
     flexDirection: 'row',
@@ -303,11 +304,11 @@ const styles = StyleSheet.create({
   },
   actionSep: {
     width: StyleSheet.hairlineWidth,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border.primary,
   },
   actionText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#F97316',
+    color: colors.brand.primary,
   },
 });

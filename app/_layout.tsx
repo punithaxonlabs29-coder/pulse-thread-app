@@ -9,10 +9,12 @@ import NotificationService from "../services/notification.service";
 
 import { DatabaseService } from "../services/database.service";
 import { backgroundWorker } from "../services/background.worker";
+import { useColors } from "../design";
 
 let navigating = false;
 
 export default function RootLayout() {
+  const colors = useColors();
   useEffect(() => {
     // Initialize SQLite Database on startup
     DatabaseService.init().then(() => {
@@ -57,7 +59,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ChatProvider>
         <SafeAreaProvider>
-          <StatusBar style="dark" backgroundColor="#F5F7FA" />
+          <StatusBar style="dark" backgroundColor={colors.background.surface} />
           <Stack
             screenOptions={{
               headerShown: false,

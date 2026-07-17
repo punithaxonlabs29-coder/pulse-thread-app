@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, TextInput, TouchableOpacity, View, Text, Image } from "react-native";
+import { TextInput, TouchableOpacity, View, Text, Image } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -9,7 +9,9 @@ import AudioRecorder from './AudioRecorder';
 import EmojiKeyboard from './EmojiKeyboard';
 import { Keyboard } from 'react-native';
 import { Message } from '../types/connects';
-import { styles } from './MessageInput.styles';
+import { createStyles } from './MessageInput.styles';
+import { useColors } from '../design';
+import { AppText } from './ui/AppText';
 
 
 interface MessageInputProps {
@@ -20,6 +22,9 @@ interface MessageInputProps {
 }
 
 export default function MessageInput({ onSend, onTyping, replyingTo, onCancelReply }: MessageInputProps) {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
+
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -161,14 +166,14 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
         <View style={styles.replyPreviewContainer}>
           <View style={styles.replyPreviewLeftBar} />
           <View style={styles.replyPreviewContent}>
-            <Text style={styles.replyPreviewName}>{replyingTo.sender_name || "Unknown"}</Text>
+            <AppText variant="bodySemibold" style={styles.replyPreviewName}>{replyingTo.sender_name || "Unknown"}</AppText>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               {replyingTo.attachments?.[0]?.type?.startsWith('image/') && (
-                <Ionicons name="image" size={14} color="#8696A0" style={{ marginRight: 4 }} />
+                <Ionicons name="image" size={12} color={colors.text.muted} style={{ marginRight: 4 }} />
               )}
-              <Text style={styles.replyPreviewText} numberOfLines={1}>
+              <AppText variant="caption" style={styles.replyPreviewText} numberOfLines={1}>
                 {replyingTo.text || (replyingTo.attachments?.[0]?.type?.startsWith('image/') ? 'Photo' : 'Attachment')}
-              </Text>
+              </AppText>
             </View>
           </View>
           {(() => {
@@ -180,7 +185,7 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
             return null;
           })()}
           <TouchableOpacity style={styles.replyPreviewClose} onPress={onCancelReply}>
-            <Ionicons name="close" size={20} color="#8696A0" />
+            <Ionicons name="close-circle" size={20} color={colors.text.muted} />
           </TouchableOpacity>
         </View>
       )}
@@ -203,38 +208,39 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
           }}
         >
           {showEmojiKeyboard ? (
-            <MaterialIcons name="keyboard" size={24} color="#6B7280" />
+            <MaterialIcons name="keyboard" size={24} color={colors.text.muted} />
           ) : (
-            <Ionicons name="happy-outline" size={24} color="#6B7280" />
+            <Ionicons name="happy-outline" size={24} color={colors.text.muted} />
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.iconButton} onPress={() => setMenuVisible(true)}>
-          <Ionicons name="attach-outline" size={24} color="#6B7280" />
+        <TouchableOpacity 
+          style={styles.iconButton}
+          onPress={() => setMenuVisible(!menuVisible)}
+        >
+          <Ionicons name="attach" size={24} color={colors.text.muted} />
         </TouchableOpacity>
 
         <TextInput
           ref={inputRef}
           showSoftInputOnFocus={!showEmojiKeyboard}
           placeholder="Type a message..."
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.text.muted}
           style={styles.input}
           value={text}
           onChangeText={handleTextChange}
           onFocus={() => {
-             if (showEmojiKeyboard) {
-               // Do nothing, we want it to stay emoji
-             }
+            setShowEmojiKeyboard(false);
           }}
           multiline
         />
 
-        {text.trim().length === 0 && attachments.length === 0 ? (
-          <AudioRecorder onRecordComplete={handleAudioRecord} />
-        ) : (
+        {text.trim() || attachments.length > 0 ? (
           <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-            <Ionicons name="send" size={16} color="#FFFFFF" style={{ marginLeft: 2 }} />
+            <Ionicons name="send" size={18} color={colors.text.inverse} style={{ marginLeft: 2 }} />
           </TouchableOpacity>
+        ) : (
+          <AudioRecorder onRecordComplete={handleAudioRecord} />
         )}
       </View>
 

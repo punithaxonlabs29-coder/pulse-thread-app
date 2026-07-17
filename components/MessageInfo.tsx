@@ -5,7 +5,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Message } from "../types/connects";
 import { formatDateHeader, formatTimeOnly } from "../utils/date";
 import MessageBubble from "./MessageBubble";
-import { styles } from './MessageInfo.styles';
+import { createStyles } from './MessageInfo.styles';
+import { useColors } from "../design";
+import { AppText } from "./ui/AppText";
 
 
 interface MessageInfoProps {
@@ -15,16 +17,19 @@ interface MessageInfoProps {
 }
 
 export default function MessageInfo({ message, currentUserEmail, onClose }: MessageInfoProps) {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
+
   // Use created_at for dummy receipt times to match UI design perfectly
   const timeString = `${formatDateHeader(message.created_at)}, ${formatTimeOnly(message.created_at)}`;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.inverse} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Message info</Text>
+        <AppText variant="title" style={styles.headerTitle}>Message info</AppText>
       </View>
 
       <View style={styles.content}>
@@ -33,6 +38,7 @@ export default function MessageInfo({ message, currentUserEmail, onClose }: Mess
           source={require('../assets/images/chat_bg.png')} 
           style={styles.halfScreen}
           resizeMode="cover"
+          imageStyle={{ opacity: 0.5 }}
         >
           <ScrollView contentContainerStyle={styles.messagePreviewContainer}>
           <MessageBubble
@@ -54,10 +60,10 @@ export default function MessageInfo({ message, currentUserEmail, onClose }: Mess
           <ScrollView style={styles.receiptsContainer} contentContainerStyle={{ paddingBottom: 40 }}>
             <View style={styles.receiptRow}>
               <View style={styles.receiptLeft}>
-                <Ionicons name="checkmark-done" size={20} color="#53BDEB" style={styles.receiptIcon} />
+                <Ionicons name="checkmark-done" size={20} color={colors.status.info} style={styles.receiptIcon} />
                 <View>
-                  <Text style={styles.receiptTitle}>Seen</Text>
-                  <Text style={styles.receiptTime}>{timeString}</Text>
+                  <AppText style={styles.receiptTitle}>Seen</AppText>
+                  <AppText style={styles.receiptTime}>{timeString}</AppText>
                 </View>
               </View>
             </View>
@@ -66,10 +72,10 @@ export default function MessageInfo({ message, currentUserEmail, onClose }: Mess
 
             <View style={styles.receiptRow}>
               <View style={styles.receiptLeft}>
-                <Ionicons name="checkmark-done" size={20} color="#8696A0" style={styles.receiptIcon} />
+                <Ionicons name="checkmark-done" size={20} color={colors.text.muted} style={styles.receiptIcon} />
                 <View>
-                  <Text style={styles.receiptTitle}>Delivered</Text>
-                  <Text style={styles.receiptTime}>{timeString}</Text>
+                  <AppText style={styles.receiptTitle}>Delivered</AppText>
+                  <AppText style={styles.receiptTime}>{timeString}</AppText>
                 </View>
               </View>
             </View>

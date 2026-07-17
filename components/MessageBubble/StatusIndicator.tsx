@@ -1,7 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import { View } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from './StatusIndicator.styles';
+import { createStyles } from './StatusIndicator.styles';
+import { AppText } from '../ui/AppText';
+import { useColors } from '../../design';
 
 
 interface StatusIndicatorProps {
@@ -12,18 +14,21 @@ interface StatusIndicatorProps {
 }
 
 export const StatusIndicator = React.memo(({ time, readStatus, isMine, isSingleEmoji }: StatusIndicatorProps) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={[
       styles.absoluteFooter,
       isSingleEmoji && (isMine ? styles.singleEmojiTimePillMy : styles.singleEmojiTimePillOther)
     ]}>
-      <Text style={[
+      <AppText style={[
         styles.time, 
         isMine ? styles.myTimeText : styles.otherTimeText,
-        isSingleEmoji && { color: '#6B7280' }
+        isSingleEmoji && { color: colors.text.muted }
       ]}>
         {time}
-      </Text>
+      </AppText>
       {isMine && readStatus && (
         <Ionicons
           name={
@@ -33,9 +38,9 @@ export const StatusIndicator = React.memo(({ time, readStatus, isMine, isSingleE
           }
           size={14}
           color={
-            readStatus === "failed" ? "#EF4444" :
-            readStatus === "read" ? "#53BDEB" : 
-            "#8696A0"
+            readStatus === "failed" ? colors.status.error :
+            readStatus === "read" ? colors.status.info : 
+            colors.text.muted
           }
           style={styles.tickIcon}
         />
@@ -48,4 +53,3 @@ export const StatusIndicator = React.memo(({ time, readStatus, isMine, isSingleE
          prev.isMine === next.isMine &&
          prev.isSingleEmoji === next.isSingleEmoji;
 });
-

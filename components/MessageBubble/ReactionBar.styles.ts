@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
+import { Colors, Shadows, Radius, Spacing } from '../../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   reactionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -10,38 +11,35 @@ export const styles = StyleSheet.create({
   },
   myReactionsContainer: {
     alignSelf: 'flex-end',
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   otherReactionsContainer: {
     alignSelf: 'flex-start',
-    marginLeft: 12,
+    marginLeft: Spacing.md,
   },
   reactionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF', 
-    borderRadius: 12,
-    paddingHorizontal: 6,
+    backgroundColor: colors.background.surface, 
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: 0,
     height: 24,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 2,
+    borderColor: colors.border.primary,
+    ...Shadows.sm,
   },
   reactionPillActive: {
-    backgroundColor: '#F3F4F6', 
+    backgroundColor: colors.brand.primaryLight,
+    borderColor: colors.brand.primary,
   },
   reactionEmoji: {
+    // fontSize: 16, Handled by AppText if possible, or leave as Text
     fontSize: 16,
   },
   reactionCount: {
-    fontSize: 11,
-    marginLeft: 4,
-    color: '#6B7280',
-    fontWeight: '500',
+    // fontSize: 11,
+    marginLeft: Spacing.xs,
+    color: colors.text.muted,
   }
 });

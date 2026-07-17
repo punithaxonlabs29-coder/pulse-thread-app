@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
+import { Colors, Radius, Spacing } from '../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     position: 'relative',
     marginTop: 2,
@@ -9,10 +10,10 @@ export const styles = StyleSheet.create({
   image: {
     width: 250,
     height: 250,
-    borderRadius: 10,
+    borderRadius: Radius.md,
   },
   loadingContainer: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -22,13 +23,13 @@ export const styles = StyleSheet.create({
     right: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.35)', // Keep specific semi-transparent overlay
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: Radius.md,
   },
   timeText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 11,
   },
   tickIcon: {
@@ -41,7 +42,7 @@ export const styles = StyleSheet.create({
     zIndex: 5,
   },
   downloadCircle: {
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.6)', // Specific for download button
     borderRadius: 24,
     padding: 2,
   }

@@ -1,24 +1,25 @@
 import { StyleSheet } from 'react-native';
+import { Colors } from '../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.background.surface,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.background.primary,
     paddingVertical: 18,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: colors.border.primary,
   },
   backButton: {
     marginRight: 16,
   },
   headerTitle: {
-    color: "#111827",
+    color: colors.text.primary,
     fontSize: 22,
     fontWeight: "700",
   },
@@ -28,7 +29,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
   sectionHeader: {
-    color: "#64748B",
+    color: colors.text.secondary,
     fontSize: 14,
     fontWeight: "600",
     paddingHorizontal: 16,
@@ -43,13 +44,13 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: colors.background.surface,
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#FF8C00",
+    backgroundColor: colors.brand.primary,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -60,7 +61,7 @@ export const styles = StyleSheet.create({
     borderRadius: 22,
   },
   avatarText: {
-    color: "#FFFFFF",
+    color: colors.text.inverse,
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -68,13 +69,13 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   channelName: {
-    color: "#111827",
+    color: colors.text.primary,
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 4,
   },
   channelSubtext: {
-    color: "#64748B",
+    color: colors.text.secondary,
     fontSize: 14,
   },
   selectionCircle: {
@@ -82,7 +83,7 @@ export const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: "#CBD5E1",
+    borderColor: colors.border.primary,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -90,25 +91,25 @@ export const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: "#FF8C00",
+    backgroundColor: colors.brand.primary,
   },
   bottomBar: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.background.surface,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    borderTopColor: colors.border.primary,
   },
   previewContainer: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.background.primary,
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border.primary,
   },
   previewText: {
-    color: "#64748B",
+    color: colors.text.secondary,
     fontSize: 14,
     fontStyle: "italic",
   },
@@ -118,7 +119,7 @@ export const styles = StyleSheet.create({
   },
   inputContainer: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.background.primary,
     borderRadius: 24,
     minHeight: 48,
     maxHeight: 120,
@@ -126,10 +127,10 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border.primary,
   },
   textInput: {
-    color: "#111827",
+    color: colors.text.primary,
     fontSize: 16,
     maxHeight: 100,
   },
@@ -137,7 +138,7 @@ export const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#FF8C00",
+    backgroundColor: colors.brand.primary,
     justifyContent: "center",
     alignItems: "center",
   },

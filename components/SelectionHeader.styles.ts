@@ -1,15 +1,16 @@
 import { StyleSheet } from 'react-native';
+import { Colors, Radius, Spacing, Shadows } from '../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 12,
     paddingVertical: 14,
-    backgroundColor: "#f7dac3", // App theme orange
+    backgroundColor: colors.brand.primary, // App theme orange
     borderBottomWidth: 1,
-    borderColor: "#f7dac3",
+    borderColor: colors.brand.primary,
   },
   leftContainer: {
     flexDirection: "row",
@@ -20,13 +21,13 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
   iconButton: {
-    padding: 8,
+    padding: Spacing.sm,
   },
   countText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 20,
     fontWeight: '500',
-    marginLeft: 16,
+    marginLeft: Spacing.lg,
   },
   menuOverlay: {
     flex: 1,
@@ -35,22 +36,18 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     top: 50,
     right: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    paddingVertical: 8,
+    backgroundColor: colors.background.surface,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.sm,
     minWidth: 180,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    ...Shadows.md,
   },
   menuItem: {
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.lg,
   },
   menuItemText: {
     fontSize: 16,
-    color: '#111827',
+    color: colors.text.primary,
   }
 });

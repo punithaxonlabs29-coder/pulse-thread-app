@@ -1,30 +1,27 @@
 import { StyleSheet } from 'react-native';
+import { Colors, Spacing, Shadows } from '../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EBE6DF', // App chat background
+    backgroundColor: colors.background.primary, // App chat background
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f7dac3',
-    paddingTop: 16, // Assuming safe area or header spacing
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    backgroundColor: colors.brand.primary,
+    paddingTop: Spacing.lg, // Assuming safe area or header spacing
+    paddingBottom: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    ...Shadows.md,
   },
   backButton: {
-    marginRight: 16,
+    marginRight: Spacing.lg,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.text.inverse,
   },
   content: {
     flex: 1,
@@ -33,23 +30,23 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   messagePreviewContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 24,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xl,
     alignItems: 'flex-end',
     flexGrow: 1,
   },
   receiptsContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border.primary,
   },
   receiptRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: Spacing.lg,
   },
   receiptLeft: {
     flexDirection: 'row',
@@ -57,21 +54,21 @@ export const styles = StyleSheet.create({
   },
   receiptIcon: {
     marginTop: 2,
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   receiptTitle: {
-    fontSize: 16,
-    color: '#111827',
+    fontSize: 18,
+    color: colors.text.primary,
     fontWeight: '500',
     marginBottom: 4,
   },
   receiptTime: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 16,
+    color: colors.text.secondary,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border.primary,
     marginLeft: 48,
   },
 });

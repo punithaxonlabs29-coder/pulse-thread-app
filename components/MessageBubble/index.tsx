@@ -9,7 +9,9 @@ import { ReplyPreview } from "./ReplyPreview";
 import { Attachments } from "./Attachments";
 import { ReactionBar } from "./ReactionBar";
 import { StatusIndicator } from "./StatusIndicator";
-import { styles } from './index.styles';
+import { createStyles } from './index.styles';
+import { useColors } from "../../design";
+import { AppText } from "../ui/AppText";
 
 
 export interface MessageBubbleProps {
@@ -51,6 +53,8 @@ const MessageBubble = React.memo(({
   isSingleEmoji = false, isMediumEmoji = false, isSmallEmoji = false,
   searchText = '', searchEnabled = false,
 }: MessageBubbleProps) => {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const bubbleRef = React.useRef<View>(null);
   const swipeableRef = React.useRef<Swipeable>(null);
   const highlightAnim = useRef(new Animated.Value(0)).current;
@@ -88,7 +92,7 @@ const MessageBubble = React.memo(({
       <View style={styles.swipeReplyAction}>
         <Animated.View style={{ transform: [{ scale }] }}>
           <View style={styles.replyIconCircle}>
-            <Ionicons name="arrow-undo" size={16} color="#FFFFFF" />
+            <Ionicons name="arrow-undo" size={16} color={colors.text.inverse} />
           </View>
         </Animated.View>
       </View>
@@ -116,7 +120,7 @@ const MessageBubble = React.memo(({
           style={{
             position: 'absolute',
             top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: '#F97316',
+            backgroundColor: colors.brand.primary,
             opacity: Animated.multiply(highlightAnim, new Animated.Value(0.35)),
             zIndex: 10,
             borderRadius: 10,
@@ -138,15 +142,15 @@ const MessageBubble = React.memo(({
 
           {isDeleted ? (
             <View style={styles.deletedContainer}>
-              <Ionicons name="ban-outline" size={16} color="#8F98A0" style={styles.deletedIcon} />
-              <Text style={styles.deletedText}>{text || "This message was deleted"}</Text>
+              <Ionicons name="ban-outline" size={16} color={colors.text.muted} style={styles.deletedIcon} />
+              <AppText variant="body" color={colors.text.muted} style={styles.deletedText}>{text || "This message was deleted"}</AppText>
             </View>
           ) : (
             <>
               {isForwarded && (
                 <View style={styles.forwardedContainer}>
-                  <Ionicons name="arrow-redo" size={14} color="#71828A" style={styles.forwardedIcon} />
-                  <Text style={styles.forwardedText}>Forwarded</Text>
+                  <Ionicons name="arrow-redo" size={14} color={colors.text.muted} style={styles.forwardedIcon} />
+                  <AppText variant="caption" style={styles.forwardedText}>Forwarded</AppText>
                 </View>
               )}
 

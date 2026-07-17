@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View, Modal, Pressable } from "react-native";
-import { styles } from './SelectionHeader.styles';
-
+import React, { useState, useMemo } from "react";
+import { Text, TouchableOpacity, View, Modal, Pressable } from "react-native";
+import { createStyles } from './SelectionHeader.styles';
+import { useColors } from '../design';
+import { AppText } from './ui/AppText';
 
 interface SelectionHeaderProps {
   selectedCount: number;
@@ -31,44 +32,46 @@ export default function SelectionHeader({
   isPinned,
   onPinToggle,
 }: SelectionHeaderProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [menuVisible, setMenuVisible] = useState(false);
 
   return (
     <View style={styles.header}>
       <View style={styles.leftContainer}>
         <TouchableOpacity onPress={onClearSelection} style={styles.iconButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.inverse} />
         </TouchableOpacity>
-        <Text style={styles.countText}>{selectedCount}</Text>
+        <AppText style={styles.countText}>{selectedCount}</AppText>
       </View>
 
       <View style={styles.rightContainer}>
         {selectedCount === 1 && onReply && (
           <TouchableOpacity onPress={onReply} style={styles.iconButton}>
-            <Ionicons name="arrow-undo-outline" size={22} color="#FFFFFF" />
+            <Ionicons name="arrow-undo-outline" size={22} color={colors.text.inverse} />
           </TouchableOpacity>
         )}
         <TouchableOpacity onPress={onStar} style={styles.iconButton}>
-          <Ionicons name="star-outline" size={22} color="#FFFFFF" />
+          <Ionicons name="star-outline" size={22} color={colors.text.inverse} />
         </TouchableOpacity>
         {selectedCount === 1 && onInfo && (
           <TouchableOpacity onPress={onInfo} style={styles.iconButton}>
-            <Ionicons name="information-circle-outline" size={22} color="#FFFFFF" />
+            <Ionicons name="information-circle-outline" size={22} color={colors.text.inverse} />
           </TouchableOpacity>
         )}
         {onDelete && (
           <TouchableOpacity onPress={onDelete} style={styles.iconButton}>
-            <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
+            <Ionicons name="trash-outline" size={22} color={colors.text.inverse} />
           </TouchableOpacity>
         )}
         <TouchableOpacity onPress={onForward} style={styles.iconButton}>
-          <Ionicons name="arrow-redo-outline" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-redo-outline" size={22} color={colors.text.inverse} />
         </TouchableOpacity>
         <TouchableOpacity onPress={onCopy} style={styles.iconButton}>
-          <Ionicons name="copy-outline" size={22} color="#FFFFFF" />
+          <Ionicons name="copy-outline" size={22} color={colors.text.inverse} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.iconButton}>
-          <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
+          <Ionicons name="ellipsis-vertical" size={22} color={colors.text.inverse} />
         </TouchableOpacity>
       </View>
 
@@ -83,7 +86,7 @@ export default function SelectionHeader({
                 if (onShare) onShare();
               }}
             >
-              <Text style={styles.menuItemText}>Share</Text>
+              <AppText style={styles.menuItemText}>Share</AppText>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.menuItem} 
@@ -92,7 +95,16 @@ export default function SelectionHeader({
                 if (onPinToggle) onPinToggle();
               }}
             >
-              <Text style={styles.menuItemText}>{isPinned ? 'Unpin' : 'Pin'}</Text>
+              <AppText style={styles.menuItemText}>{isPinned ? 'Unpin' : 'Pin'}</AppText>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => {
+                setMenuVisible(false);
+                onClearSelection();
+              }}
+            >
+              <AppText style={styles.menuItemText}>Clear selection</AppText>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -100,4 +112,3 @@ export default function SelectionHeader({
     </View>
   );
 }
-

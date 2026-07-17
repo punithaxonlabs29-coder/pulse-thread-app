@@ -5,7 +5,6 @@ import {
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
-    Text,
     TextInput,
     TouchableOpacity,
     View,
@@ -15,10 +14,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 import { AuthService } from "../../services/auth.service";
-import { styles } from './login.styles';
-
+import { createStyles } from './login.styles';
+import { useColors } from '../../design';
+import { AppText } from '../../components/ui/AppText';
 
 export default function LoginScreen() {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -86,13 +88,13 @@ export default function LoginScreen() {
         style={styles.logo}
       />
 
-      <Text style={styles.title}>
+      <AppText style={styles.title}>
         Welcome Back!
-      </Text>
+      </AppText>
 
-      <Text style={styles.subtitle}>
+      <AppText style={styles.subtitle}>
         Sign in to continue to Pulse Threads
-      </Text>
+      </AppText>
 
       {/* Email */}
 
@@ -100,14 +102,14 @@ export default function LoginScreen() {
         <Ionicons
           name="mail-outline"
           size={22}
-          color="#8A8A8A"
+          color={colors.text.muted}
         />
 
         <TextInput
           value={email}
           onChangeText={setEmail}
           placeholder="Email Address"
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.text.muted}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -121,14 +123,14 @@ export default function LoginScreen() {
         <Ionicons
           name="lock-closed-outline"
           size={22}
-          color="#8A8A8A"
+          color={colors.text.muted}
         />
 
         <TextInput
           value={pin}
           onChangeText={setPin}
           placeholder="PIN"
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.text.muted}
           keyboardType="number-pad"
           secureTextEntry={!showPin}
           maxLength={6}
@@ -147,15 +149,15 @@ export default function LoginScreen() {
                 : "eye-outline"
             }
             size={22}
-            color="#8A8A8A"
+            color={colors.text.muted}
           />
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity>
-        <Text style={styles.forgot}>
+        <AppText style={styles.forgot}>
           Forgot PIN?
-        </Text>
+        </AppText>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -168,13 +170,12 @@ export default function LoginScreen() {
         disabled={loading}
         onPress={handleLogin}
       >
-        <Text style={styles.buttonText}>
+        <AppText style={styles.buttonText}>
           {loading
             ? "Signing In..."
             : "Login"}
-        </Text>
+        </AppText>
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
-

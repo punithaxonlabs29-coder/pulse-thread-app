@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
-import { styles } from './AudioRecorder.styles';
+import { createStyles } from './AudioRecorder.styles';
+import { useColors } from '../design';
 
 
 interface Props {
@@ -10,6 +11,8 @@ interface Props {
 }
 
 export default function AudioRecorder({ onRecordComplete }: Props) {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
 
@@ -55,8 +58,7 @@ export default function AudioRecorder({ onRecordComplete }: Props) {
       onPressOut={stopRecording}
       activeOpacity={0.7}
     >
-      <Ionicons name="mic" size={24} color={isRecording ? "#FFF" : "#6B7280"} />
+      <Ionicons name="mic" size={24} color={isRecording ? colors.text.inverse : colors.text.muted} />
     </TouchableOpacity>
   );
 }
-

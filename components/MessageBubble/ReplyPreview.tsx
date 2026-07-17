@@ -1,7 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from './ReplyPreview.styles';
+import { createStyles } from './ReplyPreview.styles';
+import { AppText } from '../ui/AppText';
+import { useColors } from '../../design';
 
 
 interface ReplyPreviewProps {
@@ -15,6 +17,9 @@ interface ReplyPreviewProps {
 }
 
 export const ReplyPreview = React.memo(({ replyTo, onReplyPress }: ReplyPreviewProps) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (!replyTo) return null;
 
   const isPhoto = replyTo.attachments?.[0]?.type?.startsWith('image/');
@@ -26,22 +31,22 @@ export const ReplyPreview = React.memo(({ replyTo, onReplyPress }: ReplyPreviewP
       onPress={() => onReplyPress && onReplyPress(replyTo.message_id)}
     >
       <View style={styles.replySnippetContainer}>
-        <View style={[styles.replySnippetLeftBar, { backgroundColor: '#FF8C00' }]} />
-        <View style={[styles.replySnippetContent, { backgroundColor: '#FFF3E0' }]}>
-          <Text style={[styles.replySnippetName, { color: '#FF8C00' }]} numberOfLines={1}>
+        <View style={styles.replySnippetLeftBar} />
+        <View style={styles.replySnippetContent}>
+          <AppText variant="bodySemibold" style={styles.replySnippetName} numberOfLines={1}>
             {replyTo.sender_name || "Unknown"}
-          </Text>
+          </AppText>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {isPhoto && (
-              <Ionicons name="image" size={12} color="#4A6572" style={{ marginRight: 4 }} />
+              <Ionicons name="image" size={12} color={colors.text.muted} style={{ marginRight: 4 }} />
             )}
-            <Text style={styles.replySnippetText} numberOfLines={1}>
+            <AppText variant="caption" style={styles.replySnippetText} numberOfLines={1}>
               {replyTo.text || (isPhoto ? 'Photo' : 'Attachment')}
-            </Text>
+            </AppText>
           </View>
         </View>
         {isPhoto && url && (
-          <View style={[styles.replySnippetContent, { backgroundColor: '#FFF3E0', flex: 0 }]}>
+          <View style={[styles.replySnippetContent, { flex: 0 }]}>
             <Image source={{ uri: url }} style={styles.replySnippetThumbnail} />
           </View>
         )}
@@ -51,4 +56,3 @@ export const ReplyPreview = React.memo(({ replyTo, onReplyPress }: ReplyPreviewP
 }, (prev, next) => {
   return JSON.stringify(prev.replyTo) === JSON.stringify(next.replyTo);
 });
-

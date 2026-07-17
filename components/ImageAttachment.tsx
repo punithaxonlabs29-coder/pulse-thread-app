@@ -4,7 +4,9 @@ import { Image } from 'expo-image';
 import { Ionicons } from "@expo/vector-icons";
 import { ConnectsService } from '../services/connects.service';
 import DownloadButton from './ui/DownloadButton';
-import { styles } from './ImageAttachment.styles';
+import { createStyles } from './ImageAttachment.styles';
+import { useColors } from '../design';
+import { AppText } from './ui/AppText';
 
 
 interface ImageAttachmentProps {
@@ -19,6 +21,8 @@ interface ImageAttachmentProps {
 }
 
 export default function ImageAttachment({ url, name, messageId, time, readStatus, isMine, gridMode, isVisible = true }: ImageAttachmentProps) {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [source, setSource] = useState<string | null>(url || null);
 
   useEffect(() => {
@@ -38,7 +42,7 @@ export default function ImageAttachment({ url, name, messageId, time, readStatus
   if (!source || (!isVisible && gridMode)) {
     return (
       <View style={[styles.image, styles.loadingContainer, gridMode && { width: '100%', height: '100%', borderRadius: 0 }]}>
-        {isVisible && <ActivityIndicator color="#F97316" />}
+        {isVisible && <ActivityIndicator color={colors.brand.primary} />}
       </View>
     );
   }
@@ -57,12 +61,12 @@ export default function ImageAttachment({ url, name, messageId, time, readStatus
       />
       {!gridMode && time && (
         <View style={styles.timeOverlay}>
-          <Text style={styles.timeText}>{time}</Text>
+          <AppText style={styles.timeText}>{time}</AppText>
           {isMine && readStatus && (
             <Ionicons
               name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
               size={14}
-              color={readStatus === "read" ? "#53BDEB" : "#FFFFFF"}
+              color={readStatus === "read" ? colors.status.info : colors.text.inverse}
               style={styles.tickIcon}
             />
           )}

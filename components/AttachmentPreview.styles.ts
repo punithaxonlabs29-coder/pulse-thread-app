@@ -1,11 +1,12 @@
 import { StyleSheet } from 'react-native';
+import { Colors, Spacing, Radius } from '../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background.surface,
     borderTopWidth: 1,
-    borderColor: '#E5E7EB',
-    paddingVertical: 8,
+    borderColor: colors.border.primary,
+    paddingVertical: Spacing.sm,
   },
   scrollContent: {
     paddingHorizontal: 10,
@@ -17,8 +18,8 @@ export const styles = StyleSheet.create({
   preview: {
     width: 60,
     height: 60,
-    borderRadius: 8,
-    backgroundColor: '#E5E7EB',
+    borderRadius: Radius.md,
+    backgroundColor: colors.background.primary,
   },
   iconContainer: {
     justifyContent: 'center',
@@ -28,13 +29,13 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -6,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.status.error,
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: Radius.full,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FFFFFF',
+    borderColor: colors.background.surface,
   },
 });

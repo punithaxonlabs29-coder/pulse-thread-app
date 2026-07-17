@@ -20,10 +20,14 @@ import { ConnectsService } from "../services/connects.service";
 import { SessionService } from "../services/session.service";
 import { messageRepository } from "../services/message.repository";
 import { Channel, Message } from "../types/connects";
-import { styles } from './_forward.styles';
+import { createStyles } from './_forward.styles';
+import { useColors } from '../design';
+import { AppText } from '../components/ui/AppText';
 
 
 export default function ForwardScreen() {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { sourceChannelId, messageIds } = useLocalSearchParams();
 
@@ -153,17 +157,17 @@ export default function ForwardScreen() {
           {item.channel_image ? (
             <Image source={{ uri: item.channel_image }} style={styles.avatarImage} />
           ) : (
-            <Text style={styles.avatarText}>{getInitials(channelName)}</Text>
+            <AppText style={styles.avatarText}>{getInitials(channelName)}</AppText>
           )}
         </View>
 
         <View style={styles.channelInfo}>
-          <Text style={styles.channelName} numberOfLines={1}>
+          <AppText style={styles.channelName} numberOfLines={1}>
             {channelName}
-          </Text>
-          <Text style={styles.channelSubtext} numberOfLines={1}>
+          </AppText>
+          <AppText style={styles.channelSubtext} numberOfLines={1}>
             {item.channel_type === 'direct' ? 'Available' : `${item.members.length} members`}
-          </Text>
+          </AppText>
         </View>
 
         <View style={styles.selectionCircle}>
@@ -180,15 +184,15 @@ export default function ForwardScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Forward to...</Text>
+        <AppText style={styles.headerTitle}>Forward to...</AppText>
       </View>
 
       {/* Loading State */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF8C00" />
+          <ActivityIndicator size="large" color={colors.brand.primary} />
         </View>
       ) : (
         <FlatList
@@ -196,7 +200,7 @@ export default function ForwardScreen() {
           keyExtractor={(item) => item.channel_id}
           renderItem={renderItem}
           ListHeaderComponent={
-            <Text style={styles.sectionHeader}>Recent chats</Text>
+            <AppText style={styles.sectionHeader}>Recent chats</AppText>
           }
           contentContainerStyle={styles.listContent}
         />
@@ -210,11 +214,11 @@ export default function ForwardScreen() {
           <View style={styles.bottomBar}>
             {/* Selected Count / Preview */}
             <View style={styles.previewContainer}>
-              <Text style={styles.previewText} numberOfLines={1}>
+              <AppText style={styles.previewText} numberOfLines={1}>
                 {messagesToForward.length === 1 
                   ? messagesToForward[0].text || 'Attachment' 
                   : `${messagesToForward.length} messages selected`}
-              </Text>
+              </AppText>
             </View>
             
             <View style={styles.inputRow}>
@@ -222,7 +226,7 @@ export default function ForwardScreen() {
                 <TextInput
                   style={styles.textInput}
                   placeholder="Add a message..."
-                  placeholderTextColor="#8F98A0"
+                  placeholderTextColor={colors.text.muted}
                   value={optionalMessage}
                   onChangeText={setOptionalMessage}
                   multiline
@@ -234,9 +238,9 @@ export default function ForwardScreen() {
                 disabled={sending}
               >
                 {sending ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={colors.text.inverse} />
                 ) : (
-                  <Ionicons name="send" size={20} color="#FFFFFF" />
+                  <Ionicons name="send" size={20} color={colors.text.inverse} />
                 )}
               </TouchableOpacity>
             </View>

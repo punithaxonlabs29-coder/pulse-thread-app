@@ -1,9 +1,10 @@
 import { StyleSheet } from 'react-native';
+import { Colors } from '../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.background.surface,
   },
   header: {
     flexDirection: "row",
@@ -11,7 +12,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: colors.border.primary,
   },
   backButton: {
     marginRight: 16,
@@ -19,7 +20,7 @@ export const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#111827",
+    color: colors.text.primary,
   },
   loader: {
     flex: 1,
@@ -34,13 +35,13 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: colors.background.primary,
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: colors.background.primary,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
@@ -48,7 +49,7 @@ export const styles = StyleSheet.create({
   avatarText: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#475569",
+    color: colors.text.primary,
   },
   personInfo: {
     flex: 1,
@@ -56,16 +57,16 @@ export const styles = StyleSheet.create({
   personName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1E293B",
+    color: colors.text.primary,
     marginBottom: 4,
   },
   personEmail: {
     fontSize: 14,
-    color: "#64748B",
+    color: colors.text.secondary,
   },
   emptyText: {
     textAlign: "center",
-    color: "#64748B",
+    color: colors.text.secondary,
     marginTop: 32,
   },
 });

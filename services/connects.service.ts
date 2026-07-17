@@ -110,6 +110,18 @@ export const ConnectsService = {
     }
   },
 
+  async deleteChannel(channelId: string): Promise<any> {
+    try {
+      const response = await mainApi.post("connects/channel/delete/", {
+        channel_id: channelId,
+      });
+      return response.data;
+    } catch (error) {
+      console.log("Delete Channel Error:", (error as AxiosError).message);
+      throw error;
+    }
+  },
+
   async getMessages(channelId: string, after?: string, before?: string, limit: number = 50, offset?: number): Promise<Message[]> {
     try {
       let url = `connects/messages/?channel_id=${channelId}&limit=${limit}&lightweight=true&t=${Date.now()}`;

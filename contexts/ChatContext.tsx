@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import { CONFIG } from "../constants/config";
 import { Message } from "../types/connects";
 import { SessionService } from '../services/session.service';
-import { syncEngine } from '../services/sync.engine';
+import { syncEngine, syncEventBus } from '../services/sync.engine';
 import { backgroundWorker } from '../services/background.worker';
 import { connectionManager } from "../services/connection.manager";
 import { typingManager } from "../services/typing.manager";
@@ -84,6 +84,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           sender_name: "",
           created_at: new Date().toISOString()
         });
+      } else if (data.event === "channel_updated" && data.channel) {
+        syncEventBus.emit('channel_updated', data.channel);
       }
     });
 

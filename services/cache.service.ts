@@ -61,5 +61,31 @@ export const CacheService = {
       console.log('Error reading cached people:', error);
     }
     return null;
+  },
+
+  async saveArchivedChannelIds(ids: string[]): Promise<void> {
+    try {
+      const path = this.getCachePath('archivedChannels');
+      await FileSystem.writeAsStringAsync(path, JSON.stringify(ids), {
+        encoding: 'utf8',
+      });
+    } catch (error) {
+      console.log('Error caching archived channel ids:', error);
+    }
+  },
+
+  async getArchivedChannelIds(): Promise<string[]> {
+    try {
+      const path = this.getCachePath('archivedChannels');
+      const fileInfo = await FileSystem.getInfoAsync(path);
+      
+      if (fileInfo.exists) {
+        const data = await FileSystem.readAsStringAsync(path, { encoding: 'utf8' });
+        return JSON.parse(data) as string[];
+      }
+    } catch (error) {
+      console.log('Error reading cached archived channel ids:', error);
+    }
+    return [];
   }
 };

@@ -12,8 +12,13 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ConnectsService } from '../services/connects.service';
+import { useColors } from '../design';
+import { AppText } from '../components/ui/AppText';
+import { createStyles } from './add-people.styles';
 
 export default function AddPeopleScreen() {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { channelId } = useLocalSearchParams();
   const [people, setPeople] = useState<any[]>([]);
@@ -83,19 +88,19 @@ export default function AddPeopleScreen() {
             <Image source={{ uri: item.profile_image_url }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.placeholderAvatar]}>
-              <Text style={styles.placeholderText}>{initials}</Text>
+              <AppText style={styles.placeholderText}>{initials}</AppText>
             </View>
           )}
         </View>
         <View style={styles.personInfo}>
-          <Text style={styles.personName} numberOfLines={1}>{name}</Text>
-          <Text style={styles.personEmail} numberOfLines={1}>{email}</Text>
+          <AppText style={styles.personName} numberOfLines={1}>{name}</AppText>
+          <AppText style={styles.personEmail} numberOfLines={1}>{email}</AppText>
         </View>
         <View style={styles.checkboxContainer}>
           {isSelected ? (
-            <Ionicons name="checkmark-circle" size={24} color="#F97316" />
+            <Ionicons name="checkmark-circle" size={24} color={colors.brand.primary} />
           ) : (
-            <Ionicons name="ellipse-outline" size={24} color="#D1D5DB" />
+            <Ionicons name="ellipse-outline" size={24} color={colors.text.muted} />
           )}
         </View>
       </TouchableOpacity>
@@ -106,26 +111,26 @@ export default function AddPeopleScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add People</Text>
+        <AppText style={styles.headerTitle}>Add People</AppText>
         <TouchableOpacity 
           onPress={handleAddPeople} 
           disabled={adding || selectedEmails.size === 0}
         >
           {adding ? (
-            <ActivityIndicator color="#F97316" size="small" />
+            <ActivityIndicator color={colors.brand.primary} size="small" />
           ) : (
-            <Text style={[styles.addButtonText, selectedEmails.size === 0 && styles.disabledText]}>
+            <AppText style={[styles.addButtonText, selectedEmails.size === 0 && styles.disabledText]}>
               Add {selectedEmails.size > 0 ? `(${selectedEmails.size})` : ''}
-            </Text>
+            </AppText>
           )}
         </TouchableOpacity>
       </View>
 
       {loading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#F97316" />
+          <ActivityIndicator size="large" color={colors.brand.primary} />
         </View>
       ) : (
         <FlatList
@@ -136,7 +141,7 @@ export default function AddPeopleScreen() {
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
             <View style={styles.centerContainer}>
-              <Text style={styles.emptyText}>No people found.</Text>
+              <AppText style={styles.emptyText}>No people found.</AppText>
             </View>
           }
         />
@@ -144,95 +149,3 @@ export default function AddPeopleScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  backButton: {
-    padding: 8,
-    marginLeft: -8,
-  },
-  headerTitle: {
-    color: '#111827',
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  addButtonText: {
-    color: '#F97316',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  disabledText: {
-    color: '#9CA3AF',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: '#6B7280',
-    fontSize: 16,
-  },
-  listContainer: {
-    paddingVertical: 8,
-  },
-  personRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-  },
-  avatarContainer: {
-    marginRight: 16,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-  },
-  placeholderAvatar: {
-    backgroundColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: {
-    color: '#4B5563',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  personInfo: {
-    flex: 1,
-  },
-  personName: {
-    color: '#111827',
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  personEmail: {
-    color: '#6B7280',
-    fontSize: 14,
-  },
-  checkboxContainer: {
-    marginLeft: 16,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#F3F4F6',
-    marginLeft: 80,
-  }
-});

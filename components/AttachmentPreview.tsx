@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, ScrollView, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from './AttachmentPreview.styles';
+import { createStyles } from './AttachmentPreview.styles';
+import { useColors } from '../design';
 
 
 export interface PendingAttachment {
@@ -18,6 +19,8 @@ interface Props {
 }
 
 export default function AttachmentPreview({ attachments, onRemove }: Props) {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   if (!attachments || attachments.length === 0) return null;
 
   return (
@@ -32,17 +35,17 @@ export default function AttachmentPreview({ attachments, onRemove }: Props) {
               {isImage ? (
                 <Image source={{ uri: att.uri }} style={styles.preview} />
               ) : isVideo ? (
-                <View style={[styles.preview, styles.iconContainer, { backgroundColor: '#4B5563' }]}>
-                  <Ionicons name="videocam" size={24} color="#FFFFFF" />
+                <View style={[styles.preview, styles.iconContainer, { backgroundColor: colors.text.secondary }]}>
+                  <Ionicons name="videocam" size={24} color={colors.text.inverse} />
                 </View>
               ) : (
-                <View style={[styles.preview, styles.iconContainer, { backgroundColor: '#F97316' }]}>
-                  <Ionicons name="document-text" size={24} color="#FFFFFF" />
+                <View style={[styles.preview, styles.iconContainer, { backgroundColor: colors.brand.primary }]}>
+                  <Ionicons name="document-text" size={24} color={colors.text.inverse} />
                 </View>
               )}
               
               <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove(index)}>
-                <Ionicons name="close" size={14} color="#FFFFFF" />
+                <Ionicons name="close" size={14} color={colors.text.inverse} />
               </TouchableOpacity>
             </View>
           );
@@ -51,4 +54,3 @@ export default function AttachmentPreview({ attachments, onRemove }: Props) {
     </View>
   );
 }
-

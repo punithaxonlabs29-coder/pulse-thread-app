@@ -1,36 +1,45 @@
 import { StyleSheet } from 'react-native';
+import { Colors, Spacing, Radius, Shadows } from '../../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   bubbleWrapper: {
     width: "100%",
     paddingVertical: 1, 
-    marginBottom: 8, 
+    // marginBottom: 8,
+    marginBottom: Spacing.sm, 
   },
   selectedWrapper: {
-    backgroundColor: "rgba(0,0,0,0.08)", 
+    // backgroundColor: "rgba(0,0,0,0.08)", 
+    backgroundColor: colors.background.selected,
   },
   messageContainer: {
     maxWidth: "80%",
     marginVertical: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    // paddingHorizontal: 8,
+    paddingHorizontal: Spacing.sm,
+    // paddingVertical: 4,
+    paddingVertical: Spacing.xs,
+    // borderRadius: 8,
+    borderRadius: Radius.md,
     position: "relative",
   },
   myMessage: {
     alignSelf: "flex-end",
-    backgroundColor: "#F8A871", 
+    // backgroundColor: "#F8A871", 
+    backgroundColor: colors.brand.bubble,
     borderTopRightRadius: 0,
   },
   otherMessage: {
     alignSelf: "flex-start",
-    backgroundColor: "#FFFFFF",
+    // backgroundColor: "#FFFFFF",
+    backgroundColor: colors.background.surface,
     borderTopLeftRadius: 0,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
+    // elevation: 1,
+    // shadowColor: "#000",
+    // shadowOffset: { width: 0, height: 1 },
+    // shadowOpacity: 0.1,
+    // shadowRadius: 1,
+    ...Shadows.sm, // Assuming sm is close to this (elevation 2)
   },
   transparentMessage: {
     backgroundColor: 'transparent',
@@ -40,10 +49,12 @@ export const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   myMessageNoTail: {
-    borderTopRightRadius: 8,
+    // borderTopRightRadius: 8,
+    borderTopRightRadius: Radius.md,
   },
   otherMessageNoTail: {
-    borderTopLeftRadius: 8,
+    // borderTopLeftRadius: 8,
+    borderTopLeftRadius: Radius.md,
   },
   myTail: {
     position: "absolute",
@@ -52,7 +63,8 @@ export const styles = StyleSheet.create({
     width: 0,
     height: 0,
     borderTopWidth: 16,
-    borderTopColor: "#F8A871",
+    // borderTopColor: "#F8A871",
+    borderTopColor: colors.brand.bubble,
     borderRightWidth: 10,
     borderRightColor: "transparent",
     borderBottomWidth: 0,
@@ -65,7 +77,8 @@ export const styles = StyleSheet.create({
     width: 0,
     height: 0,
     borderTopWidth: 16,
-    borderTopColor: "#FFFFFF",
+    // borderTopColor: "#FFFFFF",
+    borderTopColor: colors.background.surface,
     borderLeftWidth: 10,
     borderLeftColor: "transparent",
     borderBottomWidth: 0,
@@ -81,36 +94,40 @@ export const styles = StyleSheet.create({
     marginRight: 4,
   },
   forwardedText: {
-    fontSize: 13,
-    color: '#71828A',
+    // fontSize: 13,
+    // color: '#71828A',
+    // fontStyle: 'italic',
+    // MOVED to AppText
     fontStyle: 'italic',
   },
   swipeReplyAction: {
     justifyContent: 'center',
     alignItems: 'flex-start',
-    paddingLeft: 16,
+    // paddingLeft: 16,
+    paddingLeft: Spacing.lg,
     width: 80, 
   },
   replyIconCircle: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FF8C00',
+    // borderRadius: 16,
+    borderRadius: Radius.xl, // 16
+    // backgroundColor: '#FF8C00',
+    backgroundColor: colors.brand.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   deletedContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 2,
-    paddingRight: 10,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
   },
   deletedIcon: {
-    marginRight: 6,
+    marginRight: Spacing.sm,
   },
   deletedText: {
-    fontSize: 15,
-    color: '#8F98A0',
     fontStyle: 'italic',
-  },
+    color: colors.text.muted,
+  }
 });

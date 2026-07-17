@@ -1,13 +1,15 @@
 import { StyleSheet, Dimensions } from 'react-native';
+import { Colors, Radius, Spacing } from '../design';
+
 const { width, height } = Dimensions.get('window');
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   videoContainer: {
     width: 240,
     height: 180,
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    marginTop: 8,
+    backgroundColor: '#1F2937', // Always dark for video letterboxing
+    borderRadius: Radius.lg,
+    marginTop: Spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -16,29 +18,29 @@ export const styles = StyleSheet.create({
   playButtonCircle: {
     width: 60,
     height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: Radius.full,
+    backgroundColor: 'rgba(0,0,0,0.5)', // Video overlay always dark
     justifyContent: 'center',
     alignItems: 'center',
   },
   videoFooter: {
     position: 'absolute',
-    bottom: 8,
-    left: 12,
+    bottom: Spacing.sm,
+    left: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
   },
   videoDuration: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 12,
     fontWeight: '600',
   },
   documentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    padding: 8,
-    borderRadius: 8,
+    marginTop: Spacing.sm,
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
     backgroundColor: 'rgba(0,0,0,0.05)',
     width: 240,
   },
@@ -46,45 +48,45 @@ export const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
   otherDocument: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background.surface,
   },
   iconBox: {
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: Radius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   myIconBox: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background.primary,
   },
   otherIconBox: {
-    backgroundColor: '#F97316',
+    backgroundColor: colors.brand.primary,
   },
   documentInfoOld: {
     flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
+    marginLeft: Spacing.md,
+    marginRight: Spacing.sm,
   },
   fileName: {
-    color: "#1F2937",
+    color: colors.text.primary,
     fontWeight: "500",
     fontSize: 14,
   },
   myFileName: {
-    color: "#FFFFFF",
+    color: colors.text.inverse,
   },
   downloadIcon: {
     padding: 4,
   },
   documentCard: {
     width: 250,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    backgroundColor: colors.background.primary,
+    borderRadius: Radius.md,
     overflow: 'hidden',
-    marginTop: 8,
+    marginTop: Spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    borderColor: colors.border.primary,
     position: 'relative',
   },
   loadingOverlay: {
@@ -96,41 +98,41 @@ export const styles = StyleSheet.create({
   },
   documentCardTop: {
     flexDirection: 'row',
-    padding: 12,
+    padding: Spacing.md,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background.primary,
   },
   myDocumentTop: {
     backgroundColor: 'rgba(255,255,255,0.95)',
   },
   otherDocumentTop: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background.primary,
   },
   pdfIconContainer: {
     width: 40,
     height: 48,
-    backgroundColor: '#EF4444',
-    borderRadius: 6,
+    backgroundColor: colors.status.error,
+    borderRadius: Radius.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   pdfIconText: {
-    color: '#FFF',
+    color: colors.text.inverse,
     fontSize: 11,
     fontWeight: 'bold',
   },
   documentInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: Spacing.md,
   },
   documentCardName: {
-    color: '#111827',
+    color: colors.text.primary,
     fontSize: 15,
     fontWeight: '500',
     marginBottom: 4,
   },
   documentCardMeta: {
-    color: "#6B7280",
+    color: colors.text.secondary,
     marginTop: 2,
   },
   audioContainer: {
@@ -148,14 +150,14 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     right: 2,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.status.success,
     borderRadius: 8,
     width: 16,
     height: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#DCF8C6',
+    borderColor: colors.background.primary,
   },
   audioPlayButton: {
     marginRight: 10,
@@ -172,40 +174,40 @@ export const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.brand.primary, // Or info
     marginRight: 4,
   },
   waveformBar: {
     width: 3,
-    backgroundColor: '#9CA3AF',
+    backgroundColor: colors.text.muted,
     borderRadius: 2,
     marginHorizontal: 1.5,
   },
   audioDurationText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.secondary,
   },
   documentCardBottom: {
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
+    borderTopColor: colors.border.primary,
     alignItems: 'center',
   },
   myDocumentBottom: {
     backgroundColor: 'rgba(252, 178, 125, 0.3)',
   },
   otherDocumentBottom: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background.surface,
   },
   documentActionText: {
     fontSize: 14,
     fontWeight: '600',
   },
   myActionText: {
-    color: '#C2410C',
+    color: colors.brand.primary,
   },
   otherActionText: {
-    color: '#374151',
+    color: colors.text.primary,
   },
   modalContainer: {
     flex: 1,
@@ -226,25 +228,25 @@ export const styles = StyleSheet.create({
   pdfHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
+    backgroundColor: colors.background.primary,
+    padding: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border.primary,
   },
   pdfCloseButton: {
-    marginRight: 16,
+    marginRight: Spacing.lg,
   },
   pdfTitle: {
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
   },
   pdfViewer: {
     flex: 1,
     width: width,
     height: height,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background.surface,
   },
   timeOverlay: {
     position: 'absolute',
@@ -255,10 +257,10 @@ export const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.35)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: Radius.md,
   },
   timeText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 11,
   },
   docTimeOverlay: {
@@ -269,7 +271,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   docTimeText: {
-    color: '#8696A0',
+    color: colors.text.muted,
     fontSize: 11,
   },
   tickIcon: {

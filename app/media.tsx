@@ -7,6 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { useColors } from '../design';
+import { AppText } from '../components/ui/AppText';
+import { createStyles } from './media.styles';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,7 +86,7 @@ function extConfig(ext = '') {
 import { Image } from 'expo-image';
 import { MediaCacheManager } from '../services/MediaCacheManager';
 
-function MediaThumbnail({ item }: { item: MediaItem }) {
+function MediaThumbnail({ item, styles: s }: { item: MediaItem, styles: any }) {
   const [url, setUrl] = useState<string | null>(item.uri || null);
 
   React.useEffect(() => {
@@ -144,7 +147,7 @@ function MediaThumbnail({ item }: { item: MediaItem }) {
           </View>
           {!!item.duration && (
             <View style={s.durationBadge}>
-              <Text style={s.durationText}>{item.duration}</Text>
+              <AppText style={s.durationText}>{item.duration}</AppText>
             </View>
           )}
         </>
@@ -153,7 +156,7 @@ function MediaThumbnail({ item }: { item: MediaItem }) {
   );
 }
 
-function MediaCell({ item }: { item: MediaItem }) {
+function MediaCell({ item, styles: s }: { item: MediaItem, styles: any }) {
   if (item.type === 'doc') {
     const cfg = extConfig(item.fileExt);
     return (
@@ -162,13 +165,13 @@ function MediaCell({ item }: { item: MediaItem }) {
           <View style={[s.docIconBig, { backgroundColor: cfg.color + '18' }]}>
             <MaterialCommunityIcons name={cfg.icon as any} size={36} color={cfg.color} />
           </View>
-          <Text style={s.docCellName} numberOfLines={2}>{item.fileName}</Text>
+          <AppText style={s.docCellName} numberOfLines={2}>{item.fileName}</AppText>
         </View>
         <View style={[s.docCellFooter, { borderTopColor: cfg.color + '30' }]}>
           <MaterialCommunityIcons name={cfg.icon as any} size={18} color={cfg.color} />
           <View style={{ marginLeft: 6 }}>
-            <Text style={s.docCellFileName} numberOfLines={1}>{item.fileName}</Text>
-            <Text style={s.docCellMeta}>{item.fileSize} • {item.fileExt}</Text>
+            <AppText style={s.docCellFileName} numberOfLines={1}>{item.fileName}</AppText>
+            <AppText style={s.docCellMeta}>{item.fileSize} • {item.fileExt}</AppText>
           </View>
         </View>
       </TouchableOpacity>
@@ -177,23 +180,23 @@ function MediaCell({ item }: { item: MediaItem }) {
 
   return (
     <TouchableOpacity style={s.cell} activeOpacity={0.85}>
-      <MediaThumbnail item={item} />
+      <MediaThumbnail item={item} styles={s} />
     </TouchableOpacity>
   );
 }
 
-function SectionHeader({ title }: { title: string }) {
-  return <Text style={s.sectionLabel}>{title}</Text>;
+function SectionHeader({ title, styles: s }: { title: string, styles: any }) {
+  return <AppText style={s.sectionLabel}>{title}</AppText>;
 }
 
-function Grid({ items }: { items: MediaItem[] }) {
+function Grid({ items, styles: s }: { items: MediaItem[], styles: any }) {
   const rows: MediaItem[][] = [];
   for (let i = 0; i < items.length; i += 3) rows.push(items.slice(i, i + 3));
   return (
     <View style={s.grid}>
       {rows.map((row, ri) => (
         <View key={ri} style={s.gridRow}>
-          {row.map(item => <MediaCell key={item.id} item={item} />)}
+          {row.map(item => <MediaCell key={item.id} item={item} styles={s} />)}
           {/* fill empty slots so partial rows stay left-aligned */}
           {row.length === 2 && <View style={[s.cell, { backgroundColor: 'transparent' }]} />}
           {row.length === 1 && <>
@@ -206,31 +209,31 @@ function Grid({ items }: { items: MediaItem[] }) {
   );
 }
 
-function DocRow({ item }: { item: MediaItem }) {
+function DocRow({ item, styles: s }: { item: MediaItem, styles: any }) {
   const cfg = extConfig(item.fileExt);
   return (
     <TouchableOpacity style={s.docRow} activeOpacity={0.7}>
       <MaterialCommunityIcons name={cfg.icon as any} size={36} color={cfg.color} />
       <View style={s.docRowInfo}>
-        <Text style={s.docRowName}>{item.fileName}</Text>
-        <Text style={s.docRowMeta}>{item.fileSize} • {item.fileExt}</Text>
+        <AppText style={s.docRowName}>{item.fileName}</AppText>
+        <AppText style={s.docRowMeta}>{item.fileSize} • {item.fileExt}</AppText>
       </View>
-      <Text style={s.docRowDate}>{formatDate(item.createdAt)}</Text>
+      <AppText style={s.docRowDate}>{formatDate(item.createdAt)}</AppText>
     </TouchableOpacity>
   );
 }
 
-function LinkRow({ item }: { item: LinkItem }) {
+function LinkRow({ item, styles: s, colors }: { item: LinkItem, styles: any, colors: any }) {
   return (
     <TouchableOpacity style={s.linkRow} activeOpacity={0.7}>
       <View style={s.linkIcon}>
-        <Ionicons name="link" size={20} color="#F97316" />
+        <Ionicons name="link" size={20} color={colors.brand.primary} />
       </View>
       <View style={s.linkInfo}>
-        <Text style={s.linkTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={s.linkDomain}>{item.domain}</Text>
+        <AppText style={s.linkTitle} numberOfLines={1}>{item.title}</AppText>
+        <AppText style={s.linkDomain}>{item.domain}</AppText>
       </View>
-      <Text style={s.docRowDate}>{formatDate(item.createdAt)}</Text>
+      <AppText style={s.docRowDate}>{formatDate(item.createdAt)}</AppText>
     </TouchableOpacity>
   );
 }
@@ -238,6 +241,8 @@ function LinkRow({ item }: { item: LinkItem }) {
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function MediaScreen() {
+  const colors = useColors();
+  const s = React.useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { channelId } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>('media');
@@ -361,14 +366,14 @@ export default function MediaScreen() {
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top', 'left', 'right']}>
-      <StatusBar style="dark" backgroundColor="#FAFAFA" />
+      <StatusBar style="dark" backgroundColor={colors.background.surface} />
 
       {/* ── Header ── */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#F97316" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>All media</Text>
+        <AppText style={s.headerTitle}>All media</AppText>
       </View>
 
       {/* ── Tabs ── */}
@@ -379,9 +384,9 @@ export default function MediaScreen() {
             style={s.tabItem}
             onPress={() => setActiveTab(tab)}
           >
-            <Text style={[s.tabLabel, activeTab === tab && s.tabLabelActive]}>
+            <AppText style={[s.tabLabel, activeTab === tab && s.tabLabelActive]}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </Text>
+            </AppText>
             {activeTab === tab && <View style={s.tabUnderline} />}
           </TouchableOpacity>
         ))}
@@ -395,26 +400,26 @@ export default function MediaScreen() {
           <>
             {mediaGroups.recent.length > 0 && (
               <>
-                <SectionHeader title="RECENT" />
-                <Grid items={mediaGroups.recent} />
+                <SectionHeader title="RECENT" styles={s} />
+                <Grid items={mediaGroups.recent} styles={s} />
               </>
             )}
             {mediaGroups.lastMonth.length > 0 && (
               <>
-                <SectionHeader title="LAST MONTH" />
-                <Grid items={mediaGroups.lastMonth} />
+                <SectionHeader title="LAST MONTH" styles={s} />
+                <Grid items={mediaGroups.lastMonth} styles={s} />
               </>
             )}
             {mediaGroups.older.length > 0 && (
               <>
-                <SectionHeader title="OLDER" />
-                <Grid items={mediaGroups.older} />
+                <SectionHeader title="OLDER" styles={s} />
+                <Grid items={mediaGroups.older} styles={s} />
               </>
             )}
             {mediaItems.length === 0 && (
               <View style={s.empty}>
-                <Ionicons name="images-outline" size={48} color="#D1D5DB" />
-                <Text style={s.emptyText}>No media shared yet</Text>
+                <Ionicons name="images-outline" size={48} color={colors.text.muted} />
+                <AppText style={s.emptyText}>No media shared yet</AppText>
               </View>
             )}
           </>
@@ -425,26 +430,26 @@ export default function MediaScreen() {
           <>
             {docGroups.recent.length > 0 && (
               <>
-                <SectionHeader title="RECENT" />
-                {docGroups.recent.map(item => <DocRow key={item.id} item={item} />)}
+                <SectionHeader title="RECENT" styles={s} />
+                {docGroups.recent.map(item => <DocRow key={item.id} item={item} styles={s} />)}
               </>
             )}
             {docGroups.lastMonth.length > 0 && (
               <>
-                <SectionHeader title="LAST MONTH" />
-                {docGroups.lastMonth.map(item => <DocRow key={item.id} item={item} />)}
+                <SectionHeader title="LAST MONTH" styles={s} />
+                {docGroups.lastMonth.map(item => <DocRow key={item.id} item={item} styles={s} />)}
               </>
             )}
             {docGroups.older.length > 0 && (
               <>
-                <SectionHeader title="OLDER" />
-                {docGroups.older.map(item => <DocRow key={item.id} item={item} />)}
+                <SectionHeader title="OLDER" styles={s} />
+                {docGroups.older.map(item => <DocRow key={item.id} item={item} styles={s} />)}
               </>
             )}
             {docItems.length === 0 && (
               <View style={s.empty}>
-                <Ionicons name="document-outline" size={48} color="#D1D5DB" />
-                <Text style={s.emptyText}>No documents shared yet</Text>
+                <Ionicons name="document-outline" size={48} color={colors.text.muted} />
+                <AppText style={s.emptyText}>No documents shared yet</AppText>
               </View>
             )}
           </>
@@ -455,26 +460,26 @@ export default function MediaScreen() {
           <>
             {linkGroups.recent.length > 0 && (
               <>
-                <SectionHeader title="RECENT" />
-                {linkGroups.recent.map(item => <LinkRow key={item.id} item={item} />)}
+                <SectionHeader title="RECENT" styles={s} />
+                {linkGroups.recent.map(item => <LinkRow key={item.id} item={item} styles={s} colors={colors} />)}
               </>
             )}
             {linkGroups.lastMonth.length > 0 && (
               <>
-                <SectionHeader title="LAST MONTH" />
-                {linkGroups.lastMonth.map(item => <LinkRow key={item.id} item={item} />)}
+                <SectionHeader title="LAST MONTH" styles={s} />
+                {linkGroups.lastMonth.map(item => <LinkRow key={item.id} item={item} styles={s} colors={colors} />)}
               </>
             )}
             {linkGroups.older.length > 0 && (
               <>
-                <SectionHeader title="OLDER" />
-                {linkGroups.older.map(item => <LinkRow key={item.id} item={item} />)}
+                <SectionHeader title="OLDER" styles={s} />
+                {linkGroups.older.map(item => <LinkRow key={item.id} item={item} styles={s} colors={colors} />)}
               </>
             )}
             {linkItems.length === 0 && (
               <View style={s.empty}>
-                <Ionicons name="link-outline" size={48} color="#D1D5DB" />
-                <Text style={s.emptyText}>No links shared yet</Text>
+                <Ionicons name="link-outline" size={48} color={colors.text.muted} />
+                <AppText style={s.emptyText}>No links shared yet</AppText>
               </View>
             )}
           </>
@@ -484,154 +489,4 @@ export default function MediaScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAFAFA' },
-
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#FAFAFA',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  backBtn: { marginRight: 16 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
-
-  // Tabs
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#FAFAFA',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-    position: 'relative',
-  },
-  tabLabel: { fontSize: 15, fontWeight: '500', color: '#6B7280' },
-  tabLabelActive: { color: '#F97316', fontWeight: '700' },
-  tabUnderline: {
-    position: 'absolute',
-    bottom: 0,
-    left: '15%',
-    right: '15%',
-    height: 2.5,
-    backgroundColor: '#F97316',
-    borderRadius: 2,
-  },
-
-  scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 32 },
-
-  // Section header
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    color: '#9CA3AF',
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 8,
-  },
-
-  // Grid
-  grid: { paddingHorizontal: 1 },
-  gridRow: { flexDirection: 'row', marginBottom: 2 },
-  cell: {
-    width: CELL,
-    height: CELL,
-    marginHorizontal: 1,
-    backgroundColor: '#E5E7EB',
-    overflow: 'hidden',
-    borderRadius: 6,
-  },
-  cellImage: { width: '100%', height: '100%' },
-
-  // Video overlay
-  playCircle: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    marginTop: -22,
-    marginLeft: -22,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  durationBadge: {
-    position: 'absolute',
-    bottom: 6,
-    left: 8,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-  durationText: { fontSize: 11, color: '#fff', fontWeight: '600' },
-
-  // Doc cell (in 3-col grid)
-  docCell: { backgroundColor: '#fff', borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: '#E5E7EB' },
-  docPreview: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 8 },
-  docIconBig: { width: 48, height: 48, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
-  docCellName: { fontSize: 10, color: '#374151', fontWeight: '600', textAlign: 'center' },
-  docCellFooter: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 6,
-    paddingVertical: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  docCellFileName: { fontSize: 9, fontWeight: '700', color: '#111827' },
-  docCellMeta: { fontSize: 8, color: '#9CA3AF' },
-
-  // Doc list row
-  docRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  docRowInfo: { flex: 1, marginLeft: 12 },
-  docRowName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  docRowMeta: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
-  docRowDate: { fontSize: 11, color: '#9CA3AF' },
-
-  // Link row
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  linkIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#FFF7ED',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  linkInfo: { flex: 1, marginLeft: 12 },
-  linkTitle: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  linkDomain: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
-
-  // Empty state
-  empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
-  emptyText: { fontSize: 15, color: '#9CA3AF' },
-});

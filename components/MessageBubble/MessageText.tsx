@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Linking } from 'react-native';
-import { styles } from './MessageText.styles';
+import { createStyles } from './MessageText.styles';
+import { AppText } from '../ui/AppText';
+import { useColors } from '../../design';
 
 
 interface MessageTextProps {
@@ -26,6 +28,8 @@ export const MessageText = React.memo(({
   searchText = '',
   searchEnabled = false,
 }: MessageTextProps) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [isExpanded, setIsExpanded] = useState(false);
   const TEXT_LIMIT = 300;
 
@@ -59,7 +63,7 @@ export const MessageText = React.memo(({
         return (
           <Text
             key={`url-${i}`}
-            style={{ color: isMine ? '#111827' : '#3B82F6', textDecorationLine: 'underline' }}
+            style={[styles.urlText, isMine ? styles.myUrlText : styles.otherUrlText]}
             onPress={() => Linking.openURL(part)}
           >
             {part}
@@ -75,11 +79,7 @@ export const MessageText = React.memo(({
             seg.isMatch ? (
               <Text
                 key={j}
-                style={{
-                  backgroundColor: '#FDE68A',
-                  color: '#111827',
-                  borderRadius: 2,
-                }}
+                style={styles.searchHighlight}
               >
                 {seg.part}
               </Text>
@@ -94,7 +94,8 @@ export const MessageText = React.memo(({
 
   return (
     <View style={[hasAttachments ? { marginTop: 4 } : {}, { position: 'relative' }]}>
-      <Text
+      <AppText
+        variant="body"
         style={[
           styles.messageText,
           isMine ? styles.myMessageText : styles.otherMessageText,
@@ -105,13 +106,13 @@ export const MessageText = React.memo(({
       >
         {renderText(displayedText)}
         <View style={{ width: isMine && readStatus ? 75 : 60, height: 10 }} />
-      </Text>
+      </AppText>
 
       {shouldTruncate && (
         <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
-          <Text style={[styles.readMoreText, isMine ? styles.myReadMoreText : styles.otherReadMoreText]}>
+          <AppText style={[styles.readMoreText, isMine ? styles.myReadMoreText : styles.otherReadMoreText]}>
             {isExpanded ? "Read Less" : "Read More"}
-          </Text>
+          </AppText>
         </TouchableOpacity>
       )}
     </View>

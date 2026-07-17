@@ -11,7 +11,9 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { styles } from './ChatHeader.styles';
+import { createStyles, createMenuStyles } from './ChatHeader.styles';
+import { AppText } from "./ui/AppText";
+import { useColors } from "../design";
 
 interface ChatHeaderProps {
   name: string;
@@ -23,6 +25,7 @@ interface ChatHeaderProps {
   onSearch?: () => void;
   onMediaPress?: () => void;
   onProfilePress?: () => void;
+  onClearChat?: () => void;
 }
 
 interface MenuItem {
@@ -44,9 +47,14 @@ export default function ChatHeader({
   onSearch,
   onMediaPress,
   onProfilePress,
+  onClearChat,
 }: ChatHeaderProps) {
   const router = useRouter();
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const menuStyles = React.useMemo(() => createMenuStyles(colors), [colors]);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [isSubMenu, setIsSubMenu] = useState(false);
 
   const initials = (name || "U")
     .split(" ")
@@ -56,11 +64,19 @@ export default function ChatHeader({
     .toUpperCase();
 
   const openMenu = () => {
+    setIsSubMenu(false);
     setMenuVisible(true);
   };
 
   const handleMenuAction = (itemId: string) => {
+    if (itemId === 'more') {
+      setIsSubMenu(true);
+      return;
+    }
+
     setMenuVisible(false);
+    setIsSubMenu(false);
+    
     switch (itemId) {
       case 'add_people':
         router.push({ pathname: '/add-people', params: { channelId } });
@@ -69,15 +85,12 @@ export default function ChatHeader({
         Alert.alert('New Group', 'Create a new group');
         break;
       case 'view_contact':
-        setMenuVisible(false);
         if (onProfilePress) onProfilePress();
         break;
       case 'search':
-        setMenuVisible(false);
         if (onSearch) onSearch();
         break;
       case 'media':
-        setMenuVisible(false);
         if (onMediaPress) onMediaPress();
         break;
       case 'mute':
@@ -89,50 +102,79 @@ export default function ChatHeader({
       case 'chat_theme':
         Alert.alert('Chat Theme', 'Choose a chat theme');
         break;
-      case 'more':
-        Alert.alert('More', 'More options');
+      case 'clear_chat':
+        if (onClearChat) {
+          onClearChat();
+        } else {
+          Alert.alert('Clear Chat', 'Clear chat functionality coming soon');
+        }
         break;
     }
   };
 
-  const menuItems: MenuItem[] = [
-    { id: 'view_contact', label: 'View contact', icon: 'person-outline' },
-    { id: 'search', label: 'Search', icon: 'search-outline' },
-    { id: 'media', label: 'Media, links, and docs', icon: 'image-outline' },
-    { id: 'more', label: 'More', icon: 'ellipsis-horizontal-circle-outline', hasArrow: true },
-  ];
+  const getMenuItems = (): MenuItem[] => {
+    if (isSubMenu) {
+      return [
+        { id: 'clear_chat', label: 'Clear chat', icon: 'trash-outline' }
+      ];
+    }
 
-  if (channelType === 'channel') {
-    // Insert "Add people" before "More"
-    menuItems.splice(menuItems.length - 1, 0, { id: 'add_people', label: 'Add people', icon: 'person-add-outline' });
-  }
+    const items: MenuItem[] = [
+      { id: 'view_contact', label: 'View contact', icon: 'person-outline' },
+      { id: 'search', label: 'Search', icon: 'search-outline' },
+      { id: 'media', label: 'Media, links, and docs', icon: 'image-outline' },
+      { id: 'more', label: 'More', icon: 'ellipsis-horizontal-circle-outline', hasArrow: true },
+    ];
+
+    if (channelType === 'channel') {
+      items.splice(items.length - 1, 0, { id: 'add_people', label: 'Add people', icon: 'person-add-outline' });
+    }
+
+    return items;
+  };
+
+  const menuItems = getMenuItems();
 
   return (
     <>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#F97316" />
+        {/* Back Button */}
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }} onPress={onProfilePress} activeOpacity={0.7}>
+        {/* Profile Info */}
+        <TouchableOpacity
+          style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+          onPress={() => {
+            if (onProfilePress) onProfilePress();
+          }}
+          activeOpacity={0.7}
+        >
           {imageUrl ? (
             <Image source={{ uri: imageUrl }} style={styles.profileImage} />
           ) : (
             <View style={[styles.profileImage, styles.avatarPlaceholder]}>
-              <Text style={styles.avatarText}>{initials}</Text>
+              <AppText variant="h2" color={colors.text.inverse}>
+                {initials}
+              </AppText>
             </View>
           )}
 
           <View style={styles.headerInfo}>
-            <Text style={styles.name} numberOfLines={1}>{name}</Text>
+            <AppText variant="title" numberOfLines={1}>{name}</AppText>
             {typingUsers.length > 0 ? (
-              <Text style={styles.typingStatus} numberOfLines={1}>
+              <AppText variant="body" color={colors.brand.primary} style={styles.typingStatus} numberOfLines={1}>
                 {typingUsers.length === 1
                   ? `${typingUsers[0]} is typing...`
                   : `${typingUsers.length} people are typing...`}
-              </Text>
+              </AppText>
             ) : (
-              <Text style={styles.status} numberOfLines={1}>{status}</Text>
+              <AppText variant="body" color={colors.status.success} numberOfLines={1}>{status}</AppText>
             )}
           </View>
         </TouchableOpacity>
@@ -144,7 +186,7 @@ export default function ChatHeader({
             style={[styles.menuButton, menuStyles.actionBtn]}
             onPress={openMenu}
           >
-            <Ionicons name="ellipsis-vertical" size={22} color="#374151" />
+            <Ionicons name="ellipsis-vertical" size={22} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -154,9 +196,15 @@ export default function ChatHeader({
         visible={menuVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
+        onRequestClose={() => {
+          setMenuVisible(false);
+          setIsSubMenu(false);
+        }}
       >
-        <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+        <TouchableWithoutFeedback onPress={() => {
+          setMenuVisible(false);
+          setIsSubMenu(false);
+        }}>
           <View style={menuStyles.overlay}>
             <TouchableWithoutFeedback>
               <View style={[menuStyles.dropdown, { top: 130, right: 8 }]}>
@@ -174,12 +222,12 @@ export default function ChatHeader({
                       <Ionicons
                         name={item.icon as any}
                         size={18}
-                        color="#6B7280"
+                        color={colors.text.secondary}
                         style={menuStyles.menuIcon}
                       />
-                      <Text style={menuStyles.menuLabel}>{item.label}</Text>
+                      <AppText variant="body" style={menuStyles.menuLabel}>{item.label}</AppText>
                       {item.hasArrow && (
-                        <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+                        <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
                       )}
                     </TouchableOpacity>
                     {index < menuItems.length - 1 && (
@@ -195,55 +243,3 @@ export default function ChatHeader({
     </>
   );
 }
-
-const menuStyles = StyleSheet.create({
-  actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  actionBtn: {
-    padding: 7,
-    marginLeft: 2,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  dropdown: {
-    position: 'absolute',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    minWidth: 230,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 10,
-    overflow: 'hidden',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
-  },
-  menuItemLast: {
-    borderBottomWidth: 0,
-  },
-  menuIcon: {
-    marginRight: 14,
-    width: 20,
-  },
-  menuLabel: {
-    flex: 1,
-    fontSize: 15,
-    color: '#111827',
-    fontWeight: '400',
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#F3F4F6',
-    marginHorizontal: 16,
-  },
-});

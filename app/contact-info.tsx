@@ -1,21 +1,53 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Modal, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
+import { CacheService } from '../services/cache.service';
+import { SessionService } from '../services/session.service';
+import { mainApi } from '../services/api';
+import { createStyles } from './contact-info.styles';
+import { useColors } from '../design';
+import { AppText } from '../components/ui/AppText';
 
 export default function ContactInfoScreen() {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { channelId, name, image, status } = useLocalSearchParams();
   
-  const displayName = (name as string) || 'User';
-  const displayStatus = (status as string) || 'Offline';
+  const [channel, setChannel] = useState<any>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [localImage, setLocalImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const init = async () => {
+      const user = await SessionService.getUser();
+      setCurrentUserEmail(user?.email_id || "");
+      
+      const cachedChannels = await CacheService.getCachedChannels();
+      const found = cachedChannels?.find(c => c.channel_id === channelId);
+      if (found) {
+        setChannel(found);
+      }
+    };
+    init();
+  }, [channelId]);
+
+  const isGroup = channel?.channel_type === 'channel';
+  const isAdmin = isGroup && channel?.members?.some((m: any) => m.email === currentUserEmail && m.role === 'admin');
+
+  const displayName = isGroup ? (channel?.channel_name || name) : (name as string || 'User');
+  const displayStatus = isGroup ? `${channel?.members?.length || 0} members` : (status as string || 'Offline');
+  const displayImage = localImage || (isGroup ? channel?.channel_image : image);
   
   const initials = displayName
     .split(' ')
-    .map(word => word[0])
+    .map((word: string) => word[0])
     .join('')
     .substring(0, 2)
     .toUpperCase();
@@ -24,144 +56,237 @@ export default function ContactInfoScreen() {
   const [disappearing, setDisappearing] = useState(false);
   const [isImageFullScreen, setIsImageFullScreen] = useState(false);
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar style="dark" backgroundColor="#F3F4F6" />
+  const handlePickImage = async () => {
+    if (!isAdmin) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+    
+    if (!result.canceled) {
+      uploadImage(result.assets[0].uri, result.assets[0].mimeType || 'image/jpeg');
+    }
+  };
 
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+  const uploadImage = async (uri: string, mimeType: string) => {
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('channel_id', channelId as string);
+      
+      const filename = uri.split('/').pop() || 'image.jpg';
+      formData.append('channel_image', {
+        uri,
+        name: filename,
+        type: mimeType
+      } as any);
+
+      const response = await mainApi.post('/connects/channel/update-image/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        }
+      });
+      
+      if (response.data.status) {
+        setLocalImage(response.data.channel_image);
+      } else {
+        Alert.alert("Error", response.data.message || "Failed to upload image");
+      }
+    } catch (err) {
+      Alert.alert("Error", "Could not upload image");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const renderHeader = () => (
+    <View>
+      <View style={styles.profileSection}>
+        <TouchableOpacity 
+          activeOpacity={isAdmin ? 0.8 : (displayImage ? 0.8 : 1)} 
+          onPress={() => { 
+            if (isAdmin) {
+              handlePickImage();
+            } else if (displayImage) {
+              setIsImageFullScreen(true); 
+            }
+          }}
+          style={styles.avatarContainer}
+        >
+          {displayImage ? (
+            <Image source={{ uri: displayImage as string }} style={styles.profileImage} contentFit="cover" />
+          ) : (
+            <View style={[styles.profileImage, styles.avatarPlaceholder]}>
+              <AppText style={styles.avatarText}>{initials}</AppText>
+            </View>
+          )}
+          {isAdmin && (
+            <View style={styles.cameraBadge}>
+              <Ionicons name="camera" size={16} color={colors.text.inverse} />
+            </View>
+          )}
+          {uploading && (
+            <View style={styles.uploadOverlay}>
+              <ActivityIndicator color="#FFFFFF" />
+            </View>
+          )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-vertical" size={22} color="#111827" />
+        <AppText style={styles.nameText}>{displayName}</AppText>
+        <AppText style={styles.statusText}>{displayStatus}</AppText>
+      </View>
+
+      <View style={styles.actionRow}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => router.back()}>
+          <Ionicons name="chatbubble-outline" size={24} color={colors.brand.primary} />
+          <AppText style={styles.actionLabel}>Message</AppText>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton}>
+          <Ionicons name="search-outline" size={24} color={colors.brand.primary} />
+          <AppText style={styles.actionLabel}>Search</AppText>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* ── Profile Header ── */}
-        <View style={styles.profileSection}>
-          <TouchableOpacity 
-            activeOpacity={0.8} 
-            onPress={() => { if (image) setIsImageFullScreen(true); }}
-          >
-            {image ? (
-              <Image source={{ uri: image as string }} style={styles.profileImage} contentFit="cover" />
-            ) : (
-              <View style={[styles.profileImage, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <Text style={styles.nameText}>{displayName}</Text>
-          <Text style={styles.statusText}>{displayStatus}</Text>
-        </View>
+      <View style={styles.card}>
+        <AppText style={styles.sectionTitle}>About</AppText>
+        <AppText style={styles.aboutText}>Hey there! I am using Pulse.</AppText>
+        <AppText style={styles.dateText}>12 January 2026</AppText>
+      </View>
 
-        {/* ── Actions Row ── */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.actionButton} onPress={() => router.back()}>
-            <Ionicons name="chatbubble-outline" size={24} color="#F97316" />
-            <Text style={styles.actionLabel}>Message</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="search-outline" size={24} color="#F97316" />
-            <Text style={styles.actionLabel}>Search</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Information Cards ── */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>About</Text>
-          <Text style={styles.aboutText}>Hey there! I am using Pulse.</Text>
-          <Text style={styles.dateText}>12 January 2026</Text>
-        </View>
-
-        <View style={styles.card}>
-          <TouchableOpacity 
-            style={styles.menuRow}
-            onPress={() => router.push({ pathname: '/media', params: { channelId } })}
-          >
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="images-outline" size={22} color="#6B7280" />
-            </View>
-            <Text style={styles.menuText}>Media, links, and docs</Text>
-            <Text style={styles.menuBadge}>24</Text>
-            <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.menuRow}>
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="notifications-outline" size={22} color="#6B7280" />
-            </View>
-            <Text style={styles.menuText}>Mute notifications</Text>
-            <Switch
-              value={muted}
-              onValueChange={setMuted}
-              trackColor={{ false: '#D1D5DB', true: '#FDBA74' }}
-              thumbColor={muted ? '#F97316' : '#FFFFFF'}
-            />
+      <View style={styles.card}>
+        <TouchableOpacity 
+          style={styles.menuRow}
+          onPress={() => router.push({ pathname: '/media', params: { channelId } })}
+        >
+          <View style={styles.menuIconContainer}>
+            <Ionicons name="images-outline" size={22} color={colors.text.secondary} />
           </View>
-          
-          <View style={styles.divider} />
-          
-          <TouchableOpacity style={styles.menuRow}>
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="musical-notes-outline" size={22} color="#6B7280" />
-            </View>
-            <Text style={styles.menuText}>Custom notifications</Text>
-          </TouchableOpacity>
+          <AppText style={styles.menuText}>Media, links, and docs</AppText>
+          <AppText style={styles.menuBadge}>24</AppText>
+          <Ionicons name="chevron-forward" size={20} color={colors.border.primary} />
+        </TouchableOpacity>
+      </View>
 
-          <View style={styles.divider} />
-
-          <TouchableOpacity style={styles.menuRow}>
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="image-outline" size={22} color="#6B7280" />
-            </View>
-            <Text style={styles.menuText}>Media visibility</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.menuRow}>
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="timer-outline" size={22} color="#6B7280" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.menuText}>Disappearing messages</Text>
-              <Text style={styles.menuSubText}>{disappearing ? 'On' : 'Off'}</Text>
-            </View>
-            <Switch
-              value={disappearing}
-              onValueChange={setDisappearing}
-              trackColor={{ false: '#D1D5DB', true: '#FDBA74' }}
-              thumbColor={disappearing ? '#F97316' : '#FFFFFF'}
-            />
+      <View style={styles.card}>
+        <View style={styles.menuRow}>
+          <View style={styles.menuIconContainer}>
+            <Ionicons name="notifications-outline" size={22} color={colors.text.secondary} />
           </View>
+          <AppText style={styles.menuText}>Mute notifications</AppText>
+          <Switch
+            value={muted}
+            onValueChange={setMuted}
+            trackColor={{ false: colors.border.primary, true: colors.brand.primaryLight }}
+            thumbColor={muted ? colors.brand.primary : colors.text.inverse}
+          />
         </View>
+        <View style={styles.divider} />
+        <TouchableOpacity style={styles.menuRow}>
+          <View style={styles.menuIconContainer}>
+            <Ionicons name="musical-notes-outline" size={22} color={colors.text.secondary} />
+          </View>
+          <AppText style={styles.menuText}>Custom notifications</AppText>
+        </TouchableOpacity>
+        <View style={styles.divider} />
+        <TouchableOpacity style={styles.menuRow}>
+          <View style={styles.menuIconContainer}>
+            <Ionicons name="image-outline" size={22} color={colors.text.secondary} />
+          </View>
+          <AppText style={styles.menuText}>Media visibility</AppText>
+        </TouchableOpacity>
+      </View>
 
+      <View style={styles.card}>
+        <View style={styles.menuRow}>
+          <View style={styles.menuIconContainer}>
+            <Ionicons name="timer-outline" size={22} color={colors.text.secondary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppText style={styles.menuText}>Disappearing messages</AppText>
+            <AppText style={styles.menuSubText}>{disappearing ? 'On' : 'Off'}</AppText>
+          </View>
+          <Switch
+            value={disappearing}
+            onValueChange={setDisappearing}
+            trackColor={{ false: colors.border.primary, true: colors.brand.primaryLight }}
+            thumbColor={disappearing ? colors.brand.primary : colors.text.inverse}
+          />
+        </View>
+      </View>
+
+      {!isGroup && (
         <View style={styles.card}>
           <TouchableOpacity style={styles.menuRow}>
             <View style={styles.menuIconContainer}>
-              <Ionicons name="ban-outline" size={22} color="#EF4444" />
+              <Ionicons name="ban-outline" size={22} color={colors.status.error} />
             </View>
-            <Text style={[styles.menuText, { color: '#EF4444' }]}>Block {displayName}</Text>
+            <AppText style={[styles.menuText, { color: colors.status.error }]}>Block {displayName}</AppText>
           </TouchableOpacity>
-
           <View style={styles.divider} />
-
           <TouchableOpacity style={styles.menuRow}>
             <View style={styles.menuIconContainer}>
-              <Ionicons name="thumbs-down-outline" size={22} color="#EF4444" />
+              <Ionicons name="thumbs-down-outline" size={22} color={colors.status.error} />
             </View>
-            <Text style={[styles.menuText, { color: '#EF4444' }]}>Report {displayName}</Text>
+            <AppText style={[styles.menuText, { color: colors.status.error }]}>Report {displayName}</AppText>
           </TouchableOpacity>
         </View>
+      )}
 
-      </ScrollView>
+      {isGroup && (
+        <View style={styles.membersHeaderCard}>
+           <AppText style={styles.membersHeaderTitle}>{channel.members?.length || 0} participants</AppText>
+        </View>
+      )}
+    </View>
+  );
 
-      {/* ── Full Screen Image Modal ── */}
+  const renderMember = ({ item }: { item: any }) => {
+    const memberInitials = (item.name || item.email || "User").substring(0, 2).toUpperCase();
+    return (
+      <View style={styles.memberItem}>
+        {item.profile_image_url ? (
+           <Image source={{ uri: item.profile_image_url }} style={styles.memberAvatar} />
+        ) : (
+           <View style={[styles.memberAvatar, styles.avatarPlaceholder]}>
+             <AppText style={styles.memberAvatarText}>{memberInitials}</AppText>
+           </View>
+        )}
+        <View style={styles.memberInfo}>
+          <AppText style={styles.memberName}>{item.name || item.email}</AppText>
+          <AppText style={styles.memberEmail}>{item.email}</AppText>
+        </View>
+        {item.role === 'admin' && (
+          <View style={styles.adminBadge}>
+            <AppText style={styles.adminBadgeText}>Group Admin</AppText>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar style="dark" backgroundColor={colors.background.surface} />
+
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.menuButton}>
+          <Ionicons name="ellipsis-vertical" size={22} color={colors.text.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={isGroup ? channel?.members : []}
+        keyExtractor={(item, index) => item.email || String(index)}
+        ListHeaderComponent={renderHeader}
+        renderItem={renderMember}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      />
+
       <Modal
         visible={isImageFullScreen}
         transparent={false}
@@ -177,11 +302,11 @@ export default function ContactInfoScreen() {
             >
               <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={styles.fullScreenName}>{displayName}</Text>
+            <AppText style={styles.fullScreenName}>{displayName}</AppText>
           </View>
           <View style={styles.fullScreenImageWrapper}>
             <Image 
-              source={{ uri: image as string }} 
+              source={{ uri: displayImage as string }} 
               style={styles.fullScreenImage} 
               contentFit="contain" 
             />
@@ -192,172 +317,3 @@ export default function ContactInfoScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#F3F4F6',
-  },
-  backButton: {
-    padding: 4,
-  },
-  menuButton: {
-    padding: 4,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  profileSection: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  profileImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    marginBottom: 16,
-  },
-  avatarPlaceholder: {
-    backgroundColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 48,
-    fontWeight: '600',
-    color: '#9CA3AF',
-  },
-  nameText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  statusText: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 32,
-    marginBottom: 24,
-  },
-  actionButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  actionLabel: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#F97316',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 16,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    marginBottom: 4,
-  },
-  aboutText: {
-    fontSize: 16,
-    color: '#374151',
-    paddingHorizontal: 16,
-    marginBottom: 4,
-  },
-  dateText: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  menuIconContainer: {
-    width: 32,
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  menuText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111827',
-  },
-  menuSubText: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  menuBadge: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginRight: 8,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E5E7EB',
-    marginLeft: 60,
-  },
-  fullScreenContainer: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  fullScreenHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  fullScreenBackButton: {
-    padding: 8,
-    marginRight: 16,
-  },
-  fullScreenName: {
-    fontSize: 20,
-    fontWeight: '500',
-    color: '#FFFFFF',
-  },
-  fullScreenImageWrapper: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fullScreenImage: {
-    width: '100%',
-    height: '100%',
-  },
-});

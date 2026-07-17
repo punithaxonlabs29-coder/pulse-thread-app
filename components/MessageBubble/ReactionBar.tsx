@@ -1,7 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Reaction } from '../../types/connects';
-import { styles } from './ReactionBar.styles';
+import { createStyles } from './ReactionBar.styles';
+import { AppText } from '../ui/AppText';
+import { useColors } from '../../design';
 
 
 interface ReactionBarProps {
@@ -11,6 +13,9 @@ interface ReactionBarProps {
 }
 
 export const ReactionBar = React.memo(({ reactions, isMine, onReactionPress }: ReactionBarProps) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (!reactions || reactions.length === 0) return null;
 
   return (
@@ -22,7 +27,7 @@ export const ReactionBar = React.memo(({ reactions, isMine, onReactionPress }: R
           onPress={() => onReactionPress && onReactionPress(reaction.emoji)}
         >
           <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
-          {reaction.count > 1 && <Text style={styles.reactionCount}>{reaction.count}</Text>}
+          {reaction.count > 1 && <AppText variant="caption" style={styles.reactionCount}>{reaction.count}</AppText>}
         </TouchableOpacity>
       ))}
     </View>
@@ -31,4 +36,3 @@ export const ReactionBar = React.memo(({ reactions, isMine, onReactionPress }: R
   return JSON.stringify(prevProps.reactions) === JSON.stringify(nextProps.reactions) &&
          prevProps.isMine === nextProps.isMine;
 });
-

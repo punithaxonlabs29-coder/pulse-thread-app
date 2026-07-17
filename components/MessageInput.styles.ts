@@ -1,8 +1,9 @@
 import { StyleSheet } from 'react-native';
+import { Colors, Radius, Spacing } from '../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.background.surface,
   },
   inputContainer: {
     flexDirection: "row",
@@ -10,9 +11,9 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 10,
     paddingBottom: 4,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.background.surface,
     borderTopWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border.primary,
   },
   iconButton: {
     padding: 8,
@@ -23,21 +24,21 @@ export const styles = StyleSheet.create({
   input: {
     flex: 1,
     marginHorizontal: 8,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 20,
-    paddingHorizontal: 16,
+    backgroundColor: colors.background.primary,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.lg,
     paddingTop: 10,
     paddingBottom: 10,
     minHeight: 40,
     maxHeight: 120,
     fontSize: 16,
-    color: "#111827",
+    color: colors.text.primary,
   },
   sendButton: {
-    backgroundColor: "#F97316",
+    backgroundColor: colors.brand.primary,
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: Radius.full,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 4,
@@ -45,43 +46,43 @@ export const styles = StyleSheet.create({
   },
   replyPreviewContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFF3E0',
-    marginHorizontal: 12,
-    marginTop: 8,
-    borderRadius: 8,
+    backgroundColor: colors.brand.primaryLight,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    borderRadius: Radius.md,
     overflow: 'hidden',
     alignItems: 'center',
   },
   replyPreviewLeftBar: {
     width: 6,
     height: '100%',
-    backgroundColor: '#FF8C00',
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
+    backgroundColor: colors.brand.primary,
+    borderTopLeftRadius: Radius.md,
+    borderBottomLeftRadius: Radius.md,
   },
   replyPreviewContent: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     justifyContent: 'center',
   },
   replyPreviewName: {
     fontSize: 13,
     fontWeight: 'bold',
-    color: '#FF8C00',
+    color: colors.brand.accent,
     marginBottom: 2,
   },
   replyPreviewText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   replyPreviewThumbnail: {
     width: 36,
     height: 36,
-    borderRadius: 4,
-    marginRight: 8,
+    borderRadius: Radius.sm,
+    marginRight: Spacing.sm,
   },
   replyPreviewClose: {
-    padding: 12,
+    padding: Spacing.md,
   },
 });

@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
+import { Colors, Radius, Spacing, Shadows } from '../design';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0)', // Invisible overlay to capture taps outside, or subtle tint
@@ -9,18 +10,14 @@ export const styles = StyleSheet.create({
   },
   pickerContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 30,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    backgroundColor: colors.background.surface,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    ...Shadows.lg,
   },
   emojiButton: {
-    paddingHorizontal: 8,
+    paddingHorizontal: Spacing.sm,
   },
   emojiText: {
     fontSize: 28,

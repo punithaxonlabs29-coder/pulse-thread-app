@@ -5,6 +5,8 @@ import { Image } from 'expo-image';
 import { FlatList } from 'react-native';
 import { ResizeMode, Video } from 'expo-av';
 import DownloadButton from './ui/DownloadButton';
+import { useColors, Colors } from '../design';
+import { AppText } from './ui/AppText';
 
 const { width, height } = Dimensions.get('window');
 
@@ -17,6 +19,8 @@ interface MediaGalleryModalProps {
 }
 
 export default function MediaGalleryModal({ visible, media, initialIndex, messageId, onClose }: MediaGalleryModalProps) {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
   const renderItem = ({ item, index }: { item: any, index: number }) => {
@@ -56,11 +60,11 @@ export default function MediaGalleryModal({ visible, media, initialIndex, messag
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={28} color={colors.text.inverse} />
           </TouchableOpacity>
-          <Text style={styles.titleText}>
+          <AppText style={styles.titleText}>
             {currentIndex + 1} of {media.length}
-          </Text>
+          </AppText>
           <View style={styles.headerRight}>
              {currentUrl ? <DownloadButton url={currentUrl} filename={currentName} /> : null}
           </View>
@@ -85,10 +89,10 @@ export default function MediaGalleryModal({ visible, media, initialIndex, messag
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#000000', // Media viewer should always have a black background, regardless of theme
   },
   header: {
     position: 'absolute',
@@ -105,13 +109,13 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
 
     zIndex: 100,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.45)', // Overlay should also be theme agnostic for media viewer
   },
   closeButton: {
     padding: 8,
   },
   titleText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },

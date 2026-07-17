@@ -1,7 +1,6 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Image,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -10,8 +9,10 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { Channel } from "../types/connects";
 import { formatMessageTime } from "../utils/date";
-import { styles } from './ThreadCard.styles';
+import { createStyles } from './ThreadCard.styles';
 import { useTyping } from "../hooks/useTyping";
+import { AppText } from "./ui/AppText";
+import { useColors } from "../design";
 
 interface ThreadCardProps {
   channel: Channel;
@@ -20,18 +21,25 @@ interface ThreadCardProps {
   displayAttachments?: any[];
   displayTime?: string;
   displayUnreadCount?: number;
+  isSelected?: boolean;
+  onLongPress?: () => void;
   onPress: () => void;
 }
 
-export default function ThreadCard({
+export default React.memo(function ThreadCard({
   channel,
   currentUserEmail,
   displayMessage,
   displayAttachments = [],
   displayTime,
   displayUnreadCount,
+  isSelected,
+  onLongPress,
   onPress,
 }: ThreadCardProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const typingUsersSet = useTyping(channel.channel_id);
   const typingUsers = Array.from(typingUsersSet);
 
@@ -50,7 +58,7 @@ export default function ThreadCard({
   const image =
     channel.channel_type === "direct"
       ? otherMember?.profile_image_url
-      : "";
+      : channel.channel_image || "";
 
   const initials = (title || "U")
     .split(" ")
@@ -74,11 +82,13 @@ export default function ThreadCard({
 
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={[styles.container, isSelected && styles.selectedContainer]}
       activeOpacity={0.8}
       onPress={onPress}
+      onLongPress={onLongPress}
     >
-      {image ? (
+      <View style={styles.avatarContainer}>
+        {image ? (
         <Image
           source={{ uri: image }}
           style={styles.avatar}
@@ -89,59 +99,66 @@ export default function ThreadCard({
             <Ionicons
               name="people"
               size={28}
-              color="#FFFFFF"
+              color={colors.text.inverse}
             />
           ) : (
-            <Text style={styles.initials}>
+            <AppText variant="h2" color={colors.text.inverse}>
               {initials}
-            </Text>
+            </AppText>
           )}
         </View>
       )}
+      {isSelected && (
+        <View style={styles.checkmark}>
+          <Ionicons name="checkmark-circle" size={20} color={colors.brand.primary} />
+        </View>
+      )}
+      </View>
 
       <View style={styles.center}>
-        <Text
+        <AppText
+          variant="title"
           numberOfLines={1}
-          style={styles.title}
         >
           {title}
-        </Text>
+        </AppText>
 
         {typingUsers.length > 0 ? (
-          <Text numberOfLines={1} style={styles.typingSubtitle}>
+          <AppText variant="bodySemibold" color={colors.status.success} numberOfLines={1} style={styles.typingSubtitle}>
             {typingUsers.length === 1 
               ? `${typingUsers[0]} is typing...` 
               : `${typingUsers.length} people are typing...`}
-          </Text>
+          </AppText>
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {attachmentInfo && (
-              <Ionicons name={attachmentInfo.icon as any} size={14} color="#6B7280" style={{ marginRight: 4, marginTop: 2 }} />
+              <Ionicons name={attachmentInfo.icon as any} size={14} color={colors.text.secondary} style={{ marginRight: 4, marginTop: 2 }} />
             )}
-            <Text
+            <AppText
+              variant="body"
+              color={colors.text.secondary}
               numberOfLines={1}
               style={[styles.subtitle, { flex: 1 }]}
             >
               {showText}
-            </Text>
+            </AppText>
           </View>
         )}
       </View>
 
       <View style={styles.right}>
-        <Text style={styles.time}>
+        <AppText variant="caption" color={colors.text.secondary} style={styles.time}>
           {formatMessageTime(displayTime ?? channel.last_message?.created_at)}
-        </Text>
+        </AppText>
 
         {(displayUnreadCount !== undefined ? displayUnreadCount : channel.unread_count) > 0 && (
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>
+            <AppText variant="badge" color={colors.text.inverse}>
               {displayUnreadCount !== undefined ? displayUnreadCount : channel.unread_count}
-            </Text>
+            </AppText>
           </View>
         )}
       </View>
     </TouchableOpacity>
   );
-}
-
+});

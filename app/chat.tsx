@@ -31,7 +31,9 @@ import { Message } from "../types/connects";
 import { formatDateHeader, formatTimeOnly } from "../utils/date";
 
 import { useChatContext } from "../contexts/ChatContext";
-import { styles } from "./_chat.styles";
+import { createStyles } from "./_chat.styles";
+import { useColors } from "../design";
+import { AppText } from "../components/ui/AppText";
 
 import { typingManager } from "../services/typing.manager";
 import { messageRepository } from "../services/message.repository";
@@ -54,6 +56,9 @@ export default function ChatScreen() {
   const { lastUpdatedMessage, lastPinnedEvent, resetUnreadCount, readReceipts, broadcastDeleteEvent } = useChatContext();
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const insets = useSafeAreaInsets();
+
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     if (!channelId) return;
@@ -762,7 +767,7 @@ export default function ChatScreen() {
                   disabled={currentSearchIndex === 0}
                   style={styles.searchNavBtn}
                 >
-                  <Ionicons name="chevron-up" size={18} color={currentSearchIndex === 0 ? '#D1D5DB' : '#F97316'} />
+                  <Ionicons name="chevron-up" size={18} color={currentSearchIndex === 0 ? colors.text.muted : colors.brand.primary} />
                 </TouchableOpacity>
                 <Text style={styles.searchCounterText}>
                   {currentSearchIndex + 1} / {searchResults.length}
@@ -772,7 +777,7 @@ export default function ChatScreen() {
                   disabled={currentSearchIndex === searchResults.length - 1}
                   style={styles.searchNavBtn}
                 >
-                  <Ionicons name="chevron-down" size={18} color={currentSearchIndex === searchResults.length - 1 ? '#D1D5DB' : '#F97316'} />
+                  <Ionicons name="chevron-down" size={18} color={currentSearchIndex === searchResults.length - 1 ? colors.text.muted : colors.brand.primary} />
                 </TouchableOpacity>
               </View>
             )}
@@ -787,14 +792,14 @@ export default function ChatScreen() {
                   }
                 }}
               >
-                <Ionicons name="pin" size={16} color="#8696A0" style={styles.pinnedIcon} />
+                <Ionicons name="pin" size={16} color={colors.text.secondary} style={styles.pinnedIcon} />
                 <View style={styles.pinnedTextContainer}>
                   {(() => {
                     const pinnedMsg = messages.find(m => m.is_pinned);
                     const isPhoto = pinnedMsg?.attachments?.[0]?.type?.startsWith('image/');
                     return (
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        {isPhoto && <Ionicons name="image-outline" size={16} color="#4A6572" style={{ marginRight: 6 }} />}
+                        {isPhoto && <Ionicons name="image-outline" size={16} color={colors.text.secondary} style={{ marginRight: 6 }} />}
                         <Text style={styles.pinnedSubtitle} numberOfLines={1}>
                           {pinnedMsg?.text ? pinnedMsg.text : (isPhoto ? "Photo" : "Attachment")}
                         </Text>
@@ -825,18 +830,19 @@ export default function ChatScreen() {
             source={require('../assets/images/chat_bg.png')} 
             style={styles.backgroundImage}
             resizeMode="cover"
+            imageStyle={{ opacity: 0.5 }}
           >
             {showFloatingDate && floatingDate && (
               <View style={styles.floatingDateContainer}>
                 <View style={styles.floatingDatePill}>
-                  <Text style={styles.floatingDateText}>{floatingDate}</Text>
+                  <AppText style={styles.floatingDateText}>{floatingDate}</AppText>
                 </View>
               </View>
             )}
 
             {loading ? (
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#F97316" />
+              <View style={styles.loader}>
+                <ActivityIndicator size="large" color={colors.brand.primary} />
               </View>
             ) : (
               <FlashList<any>
@@ -862,19 +868,19 @@ export default function ChatScreen() {
                       paddingBottom: 14,
                     }}>
                       <View style={{
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: colors.background.primary,
                         width: 34,
                         height: 34,
                         borderRadius: 17,
                         justifyContent: 'center',
                         alignItems: 'center',
                         elevation: 4,
-                        shadowColor: '#000',
+                        shadowColor: colors.text.primary,
                         shadowOffset: { width: 0, height: 2 },
                         shadowOpacity: 0.18,
                         shadowRadius: 2.5,
                       }}>
-                        <ActivityIndicator size="small" color="#F97316" />
+                        <ActivityIndicator size="small" color={colors.brand.primary} />
                       </View>
                     </View>
                   ) : null
@@ -945,17 +951,17 @@ export default function ChatScreen() {
 
             {isScrolledUp && (
               <TouchableOpacity style={styles.floatingPill} onPress={scrollToBottom}>
-                <Ionicons name="chevron-down" size={20} color="#FFFFFF" />
+                <Ionicons name="chevron-down" size={20} color={colors.text.inverse} />
                 {unreadCount > 0 && (
                   <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+                    <AppText style={styles.unreadBadgeText}>{unreadCount}</AppText>
                   </View>
                 )}
               </TouchableOpacity>
             )}
           </ImageBackground>
   
-          <View style={{ backgroundColor: '#F5F7FA' }}>
+          <View style={{ backgroundColor: colors.background.surface }}>
             <MessageInput 
               onSend={handleSend} 
               onTyping={handleTyping} 
@@ -990,14 +996,14 @@ export default function ChatScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.deleteModalContainer}>
-            <Text style={styles.deleteModalTitle}>Delete message?</Text>
+            <AppText variant="bodySemibold" style={styles.deleteModalTitle}>Delete message?</AppText>
             
             {allSelectedAreMine && (
               <TouchableOpacity 
                 style={styles.deleteModalButton}
                 onPress={() => handleDeleteMessages(true)}
               >
-                <Text style={styles.deleteModalButtonText}>Delete for everyone</Text>
+                <AppText style={styles.deleteModalButtonText}>Delete for everyone</AppText>
               </TouchableOpacity>
             )}
 
@@ -1005,14 +1011,14 @@ export default function ChatScreen() {
               style={styles.deleteModalButton}
               onPress={() => handleDeleteMessages(false)}
             >
-              <Text style={styles.deleteModalButtonText}>Delete for me</Text>
+              <AppText style={styles.deleteModalButtonText}>Delete for me</AppText>
             </TouchableOpacity>
 
             <TouchableOpacity 
               style={styles.deleteModalButton}
               onPress={() => setDeleteModalVisible(false)}
             >
-              <Text style={styles.deleteModalButtonText}>Cancel</Text>
+              <AppText style={styles.deleteModalButtonText}>Cancel</AppText>
             </TouchableOpacity>
           </View>
         </View>

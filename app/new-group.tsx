@@ -13,8 +13,13 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ConnectsService } from '../services/connects.service';
+import { useColors } from '../design';
+import { AppText } from '../components/ui/AppText';
+import { createStyles } from './new-group.styles';
 
 export default function NewGroupScreen() {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const [companyName, setCompanyName] = useState('');
   const [groupName, setGroupName] = useState('');
@@ -53,34 +58,34 @@ export default function NewGroupScreen() {
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Group</Text>
+        <AppText style={styles.headerTitle}>New Group</AppText>
         <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.description}>
+        <AppText style={styles.description}>
           Create a new group to collaborate with your team. Enter your company and group name below.
-        </Text>
+        </AppText>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Company Name</Text>
+          <AppText style={styles.label}>Company Name</AppText>
           <TextInput
             style={styles.input}
             placeholder="Enter company name"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.text.muted}
             value={companyName}
             onChangeText={setCompanyName}
           />
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Group Name</Text>
+          <AppText style={styles.label}>Group Name</AppText>
           <TextInput
             style={styles.input}
             placeholder="Enter group name"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.text.muted}
             value={groupName}
             onChangeText={setGroupName}
           />
@@ -92,9 +97,9 @@ export default function NewGroupScreen() {
           disabled={loading || !companyName.trim() || !groupName.trim()}
         >
           {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={colors.text.inverse} />
           ) : (
-            <Text style={styles.createButtonText}>Create Group</Text>
+            <AppText style={styles.createButtonText}>Create Group</AppText>
           )}
         </TouchableOpacity>
       </View>
@@ -102,73 +107,3 @@ export default function NewGroupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  backButton: {
-    padding: 8,
-    marginLeft: -8,
-  },
-  headerTitle: {
-    color: '#111827',
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-  },
-  description: {
-    color: '#4B5563',
-    fontSize: 14,
-    marginBottom: 32,
-    lineHeight: 20,
-  },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  label: {
-    color: '#374151',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    color: '#111827',
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-  },
-  createButton: {
-    backgroundColor: '#F97316', // Orange accent
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  createButtonDisabled: {
-    backgroundColor: '#FDBA74', // Lighter orange
-    opacity: 0.7,
-  },
-  createButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

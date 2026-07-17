@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import DownloadButton from './ui/DownloadButton';
 import { Pressable, Text, StyleSheet, View, ActivityIndicator, Modal, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from 'expo-file-system/legacy';
@@ -12,7 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ConnectsService } from '../services/connects.service';
 import { MediaCacheManager } from '../services/MediaCacheManager';
-import { styles } from './VideoAttachment.styles';
+import { createStyles } from './VideoAttachment.styles';
+import { useColors } from '../design';
+import { AppText } from './ui/AppText';
 
 
 const { width, height } = Dimensions.get('window');
@@ -34,6 +37,8 @@ interface VideoAttachmentProps {
 }
 
 export default function VideoAttachment({ url, name, messageId, isMine, type = 'video', isVisible = false, time, readStatus, gridMode = false }: VideoAttachmentProps) {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(false);
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [isVideoModalVisible, setVideoModalVisible] = useState(false);
@@ -247,41 +252,59 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
             </View>
           ) : null}
           {!gridMode && time && (
-            <View style={styles.timeOverlay}>
-              <Text style={styles.timeText}>{time}</Text>
-              {isMine && readStatus && (
-                <Ionicons
-                  name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
-                  size={14}
-                  color={readStatus === "read" ? "#53BDEB" : "#FFFFFF"}
-                  style={styles.tickIcon}
-                />
-              )}
-            </View>
+        <View style={styles.timeOverlay}>
+          <AppText style={styles.timeText}>{time}</AppText>
+          {isMine && readStatus && (
+            <Ionicons
+              name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
+              size={14}
+              color={readStatus === "read" ? colors.status.info : colors.text.inverse}
+              style={styles.tickIcon}
+            />
           )}
+        </View>
+      )}
         </Pressable>
 
-        <Modal visible={isVideoModalVisible} animationType="slide" transparent={false} onRequestClose={() => setVideoModalVisible(false)}>
-          <SafeAreaView style={styles.modalContainer}>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setVideoModalVisible(false)}>
-              <Ionicons name="close" size={32} color="#FFFFFF" />
+        <Modal visible={isVideoModalVisible} transparent={false} animationType="fade" onRequestClose={() => setVideoModalVisible(false)}>
+        <SafeAreaView style={styles.modalContainer}>
+          <TouchableOpacity onPress={() => setVideoModalVisible(false)} style={styles.closeButton}>
+            <Ionicons name="close" size={28} color={colors.text.inverse} />
+          </TouchableOpacity>
+          {localUri && (
+            <Video
+              source={{ uri: localUri }}
+              style={styles.fullScreenVideo}
+              resizeMode={ResizeMode.CONTAIN}
+              useNativeControls
+              shouldPlay
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
+
+      {/* PDF Modal */}
+      <Modal visible={isPdfModalVisible} transparent={false} animationType="slide" onRequestClose={() => setPdfModalVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
+          <View style={styles.pdfHeader}>
+            <TouchableOpacity onPress={() => setPdfModalVisible(false)} style={styles.pdfCloseButton}>
+              <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
             </TouchableOpacity>
-            {localUri && (
-              <Video
-                style={styles.fullScreenVideo}
-                source={{ uri: localUri }}
-                useNativeControls
-                resizeMode={ResizeMode.CONTAIN}
-                shouldPlay
-              />
-            )}
-          </SafeAreaView>
-        </Modal>
+            <AppText style={styles.pdfTitle} numberOfLines={1}>{name}</AppText>
+          </View>
+          {localUri && (
+            <Pdf
+              source={{ uri: localUri, cache: true }}
+              style={styles.pdfViewer}
+              onError={(error) => console.log('PDF Viewer Error:', error)}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
       </>
     );
   }
 
-  let iconName = "document-text";
   if (type === 'audio') {
     return (
       <View style={styles.audioContainer}>
@@ -299,16 +322,22 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
             <Ionicons name={isPlayingAudio ? "pause" : "play"} size={28} color="#111" />
           )}
         </Pressable>
-        
-        <View style={styles.audioWaveformContainer}>
-          <View style={styles.audioWaveform}>
-            <View style={styles.audioDot} />
-            {[...Array(14)].map((_, i) => (
-               <View key={i} style={[styles.waveformBar, { height: i % 2 === 0 ? 12 : i % 3 === 0 ? 16 : 8 }]} />
-            ))}
+                <View style={styles.audioWaveformContainer}>
+            <View style={styles.audioWaveform}>
+              <View style={[styles.audioDot, isPlayingAudio && { backgroundColor: colors.brand.primary }]} />
+              {[...Array(20)].map((_, i) => (
+                <View 
+                  key={i} 
+                  style={[
+                    styles.waveformBar, 
+                    { height: Math.max(4, Math.random() * 16) },
+                    isPlayingAudio && { backgroundColor: colors.brand.primary }
+                  ]} 
+                />
+              ))}
+            </View>
+            <AppText style={styles.audioDurationText}>0:00</AppText>
           </View>
-          <Text style={styles.audioDurationText}>0:02</Text>
-        </View>
       </View>
     );
   }
@@ -327,12 +356,14 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
           </View>
         )}
         <View style={[styles.documentCardTop, isMine ? styles.myDocumentTop : styles.otherDocumentTop]}>
-          <View style={[styles.pdfIconContainer, isLink && { backgroundColor: '#3B82F6' }]}>
-            <Text style={styles.pdfIconText}>{displayExt}</Text>
+          <View style={[styles.iconBox, isMine ? styles.myIconBox : styles.otherIconBox]}>
+            <Ionicons name="document-text" size={24} color={isMine ? colors.brand.primary : colors.text.inverse} />
           </View>
           <View style={styles.documentInfo}>
-             <Text style={styles.documentCardName} numberOfLines={1}>{name}</Text>
-             <Text style={styles.documentCardMeta}>{isLink ? 'Web Link' : `1 page • ${ext} • 141 kB`}</Text>
+            <AppText style={[styles.documentCardName, isMine ? styles.myFileName : undefined]} numberOfLines={1}>
+              {name}
+            </AppText>
+            <AppText style={styles.documentCardMeta}>{isLink ? 'Web Link' : `1 page • ${ext} • 141 kB`}</AppText>
           </View>
         </View>
         {time && !isLink && (

@@ -13,10 +13,14 @@ import { ConnectsService } from "../services/connects.service";
 import { SessionService } from "../services/session.service";
 import { CacheService } from "../services/cache.service";
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from './_new-chat.styles';
+import { createStyles } from './_new-chat.styles';
+import { useColors } from '../design';
+import { AppText } from '../components/ui/AppText';
 
 
 export default function NewChatScreen() {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [people, setPeople] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserEmail, setCurrentUserEmail] = useState("");
@@ -120,14 +124,14 @@ export default function NewChatScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.title}>New Chat</Text>
+        <AppText style={styles.title}>New Chat</AppText>
       </View>
 
       {loading ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#F97316" />
+          <ActivityIndicator size="large" color={colors.brand.primary} />
         </View>
       ) : (
         <FlatList
@@ -136,20 +140,20 @@ export default function NewChatScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.personCard} onPress={() => startChat(item)}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
+                <AppText style={styles.avatarText}>
                   {(item.name || item.employee_name || "U").charAt(0).toUpperCase()}
-                </Text>
+                </AppText>
               </View>
               <View style={styles.personInfo}>
-                <Text style={styles.personName}>{item.name || item.employee_name}</Text>
-                <Text style={styles.personEmail}>{item.email || item.email_id}</Text>
+                <AppText style={styles.personName}>{item.name || item.employee_name}</AppText>
+                <AppText style={styles.personEmail}>{item.email || item.email_id}</AppText>
               </View>
             </TouchableOpacity>
           )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No other users found.</Text>
+            <AppText style={styles.emptyText}>No other users found.</AppText>
           }
         />
       )}

@@ -3,6 +3,8 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  BackHandler,
   FlatList,
   ScrollView,
   Text,
@@ -19,10 +21,13 @@ import { ConnectsService } from "../../services/connects.service";
 import { SessionService } from "../../services/session.service";
 import { syncEventBus } from "../../services/sync.engine";
 import { Channel, Message } from "../../types/connects";
-import { styles } from './index.styles';
-
+import { createStyles } from './index.styles';
+import { AppText } from "../../components/ui/AppText";
+import { useColors } from "../../design";
 
 export default function ChatsScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserEmail, setCurrentUserEmail] = useState("");
@@ -30,6 +35,8 @@ export default function ChatsScreen() {
   const [activeFilter, setActiveFilter] = useState<'All' | 'Unread' | 'Groups'>('All');
   const { connectChannels, registerMembers, unreadCounts } = useChatContext();
   const [menuVisible, setMenuVisible] = useState(false);
+  const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+  const [archivedChannelIds, setArchivedChannelIds] = useState<string[]>([]);
 
   const router = useRouter();
   const lastFetchTime = React.useRef(0);
@@ -45,6 +52,20 @@ export default function ChatsScreen() {
     }, [])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (selectedChannels.length > 0) {
+          setSelectedChannels([]);
+          return true; // prevent default back behavior
+        }
+        return false;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [selectedChannels])
+  );
+
   useEffect(() => {
     const handleNewMessage = (event: string, data: { channelId: string, message: Message }) => {
       setChannels(prev => {
@@ -58,11 +79,36 @@ export default function ChatsScreen() {
         };
         return next;
       });
+
+      // Un-archive if needed
+      setArchivedChannelIds(prev => {
+        if (prev.includes(data.channelId)) {
+          const next = prev.filter(id => id !== data.channelId);
+          CacheService.saveArchivedChannelIds(next);
+          return next;
+        }
+        return prev;
+      });
+    };
+
+    const handleChannelUpdated = (event: string, updatedChannel: Channel) => {
+      setChannels(prev => {
+        const idx = prev.findIndex(c => c.channel_id === updatedChannel.channel_id);
+        if (idx === -1) return prev;
+        const next = [...prev];
+        next[idx] = {
+          ...next[idx],
+          ...updatedChannel
+        };
+        return next;
+      });
     };
 
     syncEventBus.on('new_message', handleNewMessage);
+    syncEventBus.on('channel_updated', handleChannelUpdated);
     return () => {
       syncEventBus.off('new_message', handleNewMessage);
+      syncEventBus.off('channel_updated', handleChannelUpdated);
     };
   }, []);
 
@@ -72,6 +118,9 @@ export default function ChatsScreen() {
       if (user) {
         setCurrentUserEmail(user.email_id);
       }
+
+      const cachedArchivedIds = await CacheService.getArchivedChannelIds();
+      setArchivedChannelIds(cachedArchivedIds);
 
       // 1. Instant Load from Cache
       const cachedChannels = await CacheService.getCachedChannels();
@@ -100,7 +149,22 @@ export default function ChatsScreen() {
     }
   };
 
-  const openChat = (channel: Channel) => {
+  const handleLongPress = (channelId: string) => {
+    setSelectedChannels(prev => {
+      if (prev.includes(channelId)) {
+        return prev.filter(id => id !== channelId);
+      } else {
+        return [...prev, channelId];
+      }
+    });
+  };
+
+  const handlePress = (channel: Channel) => {
+    if (selectedChannels.length > 0) {
+      handleLongPress(channel.channel_id);
+      return;
+    }
+
     console.log("Navigating to Chat:", channel.channel_id);
 
     const otherMember = channel.channel_type === "direct"
@@ -118,6 +182,69 @@ export default function ChatsScreen() {
         channelType: channel.channel_type
       }
     });
+  };
+
+  const handleComingSoon = (action: string) => {
+    Alert.alert("Coming Soon", `${action} functionality will be available in a future update.`);
+  };
+
+  const handleDeleteSelected = () => {
+    Alert.alert(
+      `Delete ${selectedChannels.length} chat${selectedChannels.length > 1 ? 's' : ''}?`,
+      "Are you sure you want to delete the selected chats?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const results = await Promise.allSettled(
+              selectedChannels.map(id => ConnectsService.deleteChannel(id))
+            );
+            
+            const failures = results.filter(r => r.status === 'rejected');
+            if (failures.length > 0) {
+              Alert.alert("Error", `Failed to delete ${failures.length} chat(s). Please try again.`);
+            }
+
+            // Only keep the failed ones selected
+            if (failures.length > 0) {
+              const failedIndexes = results.map((r, idx) => r.status === 'rejected' ? idx : -1).filter(idx => idx !== -1);
+              setSelectedChannels(failedIndexes.map(idx => selectedChannels[idx]));
+            } else {
+              setSelectedChannels([]);
+            }
+            
+            loadData();
+          }
+        }
+      ]
+    );
+  };
+
+  const handleArchiveSelected = async () => {
+    const nextArchived = Array.from(new Set([...archivedChannelIds, ...selectedChannels]));
+    setArchivedChannelIds(nextArchived);
+    await CacheService.saveArchivedChannelIds(nextArchived);
+    setSelectedChannels([]);
+  };
+
+  const handleLogout = () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          await SessionService.clearSession();
+          console.log("Logged out successfully");
+          router.replace("/(auth)/login");
+        },
+      },
+    ]);
   };
 
   const sortedChannels = useMemo(() => {
@@ -142,20 +269,20 @@ export default function ChatsScreen() {
       filtered = filtered.filter(c => c.channel_type === 'channel');
     }
 
-    return filtered.sort((a, b) => {
+    return filtered.filter(c => !archivedChannelIds.includes(c.channel_id)).sort((a, b) => {
       const timeA = a.last_message ? new Date(a.last_message.created_at).getTime() : new Date(a.updated_at).getTime();
       const timeB = b.last_message ? new Date(b.last_message.created_at).getTime() : new Date(b.updated_at).getTime();
       return timeB - timeA;
     });
-  }, [channels, searchQuery, activeFilter, unreadCounts, currentUserEmail]);
+  }, [channels, searchQuery, activeFilter, unreadCounts, currentUserEmail, archivedChannelIds]);
 
   const totalUnreadCount = useMemo(() => {
-    return channels.filter(c => (unreadCounts[c.channel_id] ?? c.unread_count) > 0).length;
-  }, [channels, unreadCounts]);
+    return channels.filter(c => !archivedChannelIds.includes(c.channel_id) && (unreadCounts[c.channel_id] ?? c.unread_count) > 0).length;
+  }, [channels, unreadCounts, archivedChannelIds]);
 
   const totalGroupsCount = useMemo(() => {
-    return channels.filter(c => c.channel_type === 'channel').length;
-  }, [channels]);
+    return channels.filter(c => !archivedChannelIds.includes(c.channel_id) && c.channel_type === 'channel').length;
+  }, [channels, archivedChannelIds]);
 
   if (loading) {
     return (
@@ -170,27 +297,47 @@ export default function ChatsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Pulse Threads</Text>
+      {selectedChannels.length > 0 ? (
+        <View style={styles.actionBar}>
+          <TouchableOpacity onPress={() => setSelectedChannels([])} style={{ padding: 8, marginLeft: -8 }}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.inverse} />
+          </TouchableOpacity>
+          <AppText variant="h2" color={colors.text.inverse} style={styles.actionBarCount}>{selectedChannels.length}</AppText>
+          <View style={styles.actionIcons}>
+            <TouchableOpacity style={styles.actionIconButton} onPress={handleDeleteSelected}>
+              <Ionicons name="trash" size={22} color={colors.text.inverse} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionIconButton} onPress={handleArchiveSelected}>
+              <Ionicons name="archive" size={22} color={colors.text.inverse} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionIconButton} onPress={() => handleComingSoon("More")}>
+              <Ionicons name="ellipsis-vertical" size={22} color={colors.text.inverse} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.header}>
+          <AppText variant="h1">Pulse Threads</AppText>
 
-        <TouchableOpacity
-          onPress={() => setMenuVisible(true)}
-          hitSlop={10}
-        >
-          <Ionicons
-            name="ellipsis-vertical"
-            size={22}
-            color="#374151"
-          />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            onPress={() => setMenuVisible(true)}
+            hitSlop={10}
+          >
+            <Ionicons
+              name="ellipsis-vertical"
+              size={22}
+              color={colors.text.primary}
+            />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#9CA3AF" />
+        <Ionicons name="search" size={20} color={colors.text.secondary} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.text.secondary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -212,10 +359,9 @@ export default function ChatsScreen() {
           router.push("/new-group");
         }}
       >
-
-        <Text style={styles.menuText}>
+        <AppText variant="body" style={styles.menuText}>
           New Group
-        </Text>
+        </AppText>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -225,10 +371,20 @@ export default function ChatsScreen() {
           router.push("/profile");
         }}
       >
-
-        <Text style={styles.menuText}>
+        <AppText variant="body" style={styles.menuText}>
           Settings
-        </Text>
+        </AppText>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.menuItem}
+        onPress={() => {
+          setMenuVisible(false);
+          handleLogout();
+        }}
+      >
+        <AppText variant="body" style={styles.menuText}>
+          Logout
+        </AppText>
       </TouchableOpacity>
     </View>
   </>
@@ -236,39 +392,52 @@ export default function ChatsScreen() {
 
       <FlatList
         ListHeaderComponent={
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ flexGrow: 0 }}
-            contentContainerStyle={styles.filtersScrollContainer}
-          >
-            <TouchableOpacity
-              style={[styles.filterChip, activeFilter === 'All' && styles.filterChipActive]}
-              onPress={() => setActiveFilter('All')}
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ flexGrow: 0 }}
+              contentContainerStyle={styles.filtersScrollContainer}
             >
-              <Text style={[styles.filterChipText, activeFilter === 'All' && styles.filterChipTextActive]}>
-                All
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterChip, activeFilter === 'All' && styles.filterChipActive]}
+                onPress={() => setActiveFilter('All')}
+              >
+                <AppText variant="bodySemibold" color={activeFilter === 'All' ? colors.text.inverse : colors.brand.primary}>
+                  All
+                </AppText>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.filterChip, activeFilter === 'Unread' && styles.filterChipActive]}
-              onPress={() => setActiveFilter('Unread')}
-            >
-              <Text style={[styles.filterChipText, activeFilter === 'Unread' && styles.filterChipTextActive]}>
-                Unread {totalUnreadCount > 0 ? totalUnreadCount : ''}
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterChip, activeFilter === 'Unread' && styles.filterChipActive]}
+                onPress={() => setActiveFilter('Unread')}
+              >
+                <AppText variant="bodySemibold" color={activeFilter === 'Unread' ? colors.text.inverse : colors.brand.primary}>
+                  Unread {totalUnreadCount > 0 ? totalUnreadCount : ''}
+                </AppText>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.filterChip, activeFilter === 'Groups' && styles.filterChipActive]}
-              onPress={() => setActiveFilter('Groups')}
-            >
-              <Text style={[styles.filterChipText, activeFilter === 'Groups' && styles.filterChipTextActive]}>
-                Groups {totalGroupsCount > 0 ? totalGroupsCount : ''}
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
+              <TouchableOpacity
+                style={[styles.filterChip, activeFilter === 'Groups' && styles.filterChipActive]}
+                onPress={() => setActiveFilter('Groups')}
+              >
+                <AppText variant="bodySemibold" color={activeFilter === 'Groups' ? colors.text.inverse : colors.brand.primary}>
+                  Groups {totalGroupsCount > 0 ? totalGroupsCount : ''}
+                </AppText>
+              </TouchableOpacity>
+            </ScrollView>
+            
+            {archivedChannelIds.length > 0 && (
+              <TouchableOpacity 
+                style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 0.5, borderBottomColor: colors.border.primary }}
+                onPress={() => router.push("/archived")}
+              >
+                <Ionicons name="archive-outline" size={24} color={colors.text.secondary} />
+                <AppText variant="bodySemibold" style={{ marginLeft: 20, flex: 1 }}>Archived</AppText>
+                <AppText variant="bodySemibold" color={colors.brand.primary}>{archivedChannelIds.length}</AppText>
+              </TouchableOpacity>
+            )}
+          </>
         }
         data={sortedChannels}
         keyExtractor={(item) => item.channel_id}
@@ -299,17 +468,9 @@ export default function ChatsScreen() {
               displayAttachments={displayAttachments}
               displayTime={displayTime}
               displayUnreadCount={displayUnreadCount}
-              onPress={() => {
-                router.push({
-                  pathname: "/chat",
-                  params: {
-                    channelId: item.channel_id,
-                    channelName: resolvedChannelName,
-                    channelImage: resolvedChannelImage,
-                    channelType: item.channel_type,
-                  },
-                });
-              }}
+              isSelected={selectedChannels.includes(item.channel_id)}
+              onLongPress={() => handleLongPress(item.channel_id)}
+              onPress={() => handlePress(item)}
             />
           );
         }}
@@ -321,7 +482,7 @@ export default function ChatsScreen() {
         style={styles.fab}
         onPress={() => router.push("/new-chat")}
       >
-        <Ionicons name="chatbubble-ellipses" size={24} color="#FFFFFF" />
+        <Ionicons name="chatbubble-ellipses" size={24} color={colors.text.inverse} />
       </TouchableOpacity>
     </SafeAreaView>
   );

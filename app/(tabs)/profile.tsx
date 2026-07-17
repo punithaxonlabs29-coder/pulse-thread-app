@@ -16,24 +16,30 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import authApi from "../../services/api";
 import { SessionService } from "../../services/session.service";
-import { styles } from './profile.styles';
+import { createStyles } from './profile.styles';
+import { useColors } from "../../design";
+import { AppText } from "../../components/ui/AppText";
 
 
 const MenuItem = ({
   icon,
   title,
+  styles,
+  colors,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
+  styles: any;
+  colors: any;
 }) => (
   <View style={styles.menuItem}>
     <View style={styles.menuLeft}>
       <Ionicons
         name={icon}
         size={22}
-        color="#F97316"
+        color={colors.brand.primary}
       />
-      <Text style={styles.menuText}>{title}</Text>
+      <AppText style={styles.menuText}>{title}</AppText>
     </View>
   </View>
 );
@@ -43,31 +49,38 @@ const ProfileInput = ({
   value, 
   onChangeText, 
   editable = true,
-  isSaving = false
+  isSaving = false,
+  styles,
+  colors,
 }: { 
   label: string, 
   value: string, 
   onChangeText?: (text: string) => void,
   editable?: boolean,
-  isSaving?: boolean
+  isSaving?: boolean,
+  styles: any,
+  colors: any,
 }) => (
   <View style={styles.inputGroup}>
-    <Text style={styles.inputLabel}>{label}</Text>
+    <AppText style={styles.inputLabel}>{label}</AppText>
     <View style={[styles.inputContainer, !editable && styles.disabledInputContainer]}>
       <TextInput
         style={[styles.inputField, !editable && styles.disabledInputField]}
         value={value}
         onChangeText={onChangeText}
         editable={editable && !isSaving}
+        placeholderTextColor={colors.text.muted}
       />
       {!editable && (
-        <Ionicons name="lock-closed" size={16} color="#9CA3AF" style={styles.lockIcon} />
+        <Ionicons name="lock-closed" size={16} color={colors.text.muted} style={styles.lockIcon} />
       )}
     </View>
   </View>
 );
 
 export default function ProfileScreen() {
+  const colors = useColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [user, setUser] = useState<any>(null);
   
   // Edit Mode States
@@ -229,11 +242,11 @@ export default function ProfileScreen() {
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={29} color="#111827" />
+            <Ionicons name="arrow-back" size={29} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
         
-        <Text style={styles.headerTitle}>{isEditMode ? "Edit Profile" : "My Profile"}</Text>
+        <AppText style={styles.headerTitle}>{isEditMode ? "Edit Profile" : "My Profile"}</AppText>
         
         <View style={styles.headerRight}>
           {isEditMode ? (
@@ -241,11 +254,11 @@ export default function ProfileScreen() {
               setForm(originalForm); // revert changes
               setIsEditMode(false);
             }}>
-              <Text style={styles.headerActionText}>Cancel</Text>
+              <AppText style={styles.headerActionTextCancel}>Cancel</AppText>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity onPress={() => setIsEditMode(true)}>
-              <Text style={styles.headerActionText}>Edit</Text>
+              <AppText style={styles.headerActionTextEdit}>Edit</AppText>
             </TouchableOpacity>
           )}
         </View>
@@ -268,31 +281,31 @@ export default function ProfileScreen() {
                 />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarText}>
+                  <AppText style={styles.avatarText}>
                     {form.employee_name
                       ?.split(" ")
                       .map((n: string) => n[0])
                       .join("")
                       .substring(0, 2)
                       .toUpperCase() ?? "NA"}
-                  </Text>
+                  </AppText>
                 </View>
               )}
               {isEditMode && (
                 <View style={styles.cameraBadge}>
-                  <Ionicons name="camera" size={16} color="#3B82F6" />
+                  <Ionicons name="camera" size={16} color={colors.brand.primary} />
                 </View>
               )}
             </View>
             
-            {isEditMode && <Text style={styles.changePhotoText}>Change Photo</Text>}
+            {isEditMode && <AppText style={styles.changePhotoText}>Change Photo</AppText>}
           </TouchableOpacity>
 
           {!isEditMode && (
             <>
-              <Text style={styles.name}>{form.employee_name || ""}</Text>
-              <Text style={styles.designation}>{form.designation || ""}</Text>
-              <Text style={styles.email}>{user?.email_id || ""}</Text>
+              <AppText style={styles.name}>{form.employee_name || ""}</AppText>
+              <AppText style={styles.designation}>{form.designation || ""}</AppText>
+              <AppText style={styles.email}>{user?.email_id || ""}</AppText>
             </>
           )}
         </View>
@@ -305,31 +318,37 @@ export default function ProfileScreen() {
                value={form.employee_name} 
                onChangeText={(t) => setForm(p => ({ ...p, employee_name: t }))} 
                isSaving={isSaving}
+               styles={styles}
+               colors={colors}
              />
              <ProfileInput 
                label="Phone Number" 
                value={form.phone_number} 
                onChangeText={(t) => setForm(p => ({ ...p, phone_number: t }))} 
                isSaving={isSaving}
+               styles={styles}
+               colors={colors}
              />
              <ProfileInput 
                label="Designation" 
                value={form.designation} 
                onChangeText={(t) => setForm(p => ({ ...p, designation: t }))} 
                isSaving={isSaving}
+               styles={styles}
+               colors={colors}
              />
              
              <View style={{ marginVertical: 10 }}>
-               <Text style={[styles.sectionTitle, { paddingHorizontal: 18, marginBottom: 10 }]}>Locked Details</Text>
+               <AppText style={[styles.sectionTitle, { paddingHorizontal: 18, marginBottom: 10 }]}>Locked Details</AppText>
              </View>
              
-             <ProfileInput label="Department" value={user?.department || ""} editable={false} />
-             <ProfileInput label="Role" value={user?.role_of_user || ""} editable={false} />
-             <ProfileInput label="Employee ID" value={user?.user_unique_id || ""} editable={false} />
-             <ProfileInput label="Email" value={user?.email_id || ""} editable={false} />
-             <ProfileInput label="Organization" value={user?.organization_full_name || ""} editable={false} />
-             <ProfileInput label="GST Number" value={user?.gst_number_or_company_registration_number || ""} editable={false} />
-             <ProfileInput label="PAN Number" value={user?.organization_pan_number || ""} editable={false} />
+             <ProfileInput label="Department" value={user?.department || ""} editable={false} styles={styles} colors={colors} />
+             <ProfileInput label="Role" value={user?.role_of_user || ""} editable={false} styles={styles} colors={colors} />
+             <ProfileInput label="Employee ID" value={user?.user_unique_id || ""} editable={false} styles={styles} colors={colors} />
+             <ProfileInput label="Email" value={user?.email_id || ""} editable={false} styles={styles} colors={colors} />
+             <ProfileInput label="Organization" value={user?.organization_full_name || ""} editable={false} styles={styles} colors={colors} />
+             <ProfileInput label="GST Number" value={user?.gst_number_or_company_registration_number || ""} editable={false} styles={styles} colors={colors} />
+             <ProfileInput label="PAN Number" value={user?.organization_pan_number || ""} editable={false} styles={styles} colors={colors} />
              
              <TouchableOpacity
                style={[styles.saveButton, (!hasChanges || isSaving) && styles.saveButtonDisabled]}
@@ -338,11 +357,11 @@ export default function ProfileScreen() {
                disabled={!hasChanges || isSaving}
              >
                {isSaving ? (
-                 <ActivityIndicator color="#FFFFFF" />
+                 <ActivityIndicator color={colors.text.inverse} />
                ) : (
                  <>
-                   <Ionicons name="save-outline" size={20} color="#FFFFFF" />
-                   <Text style={styles.saveText}>Save Changes</Text>
+                   <Ionicons name="save-outline" size={20} color={colors.text.inverse} />
+                   <AppText style={styles.saveText}>Save Changes</AppText>
                  </>
                )}
              </TouchableOpacity>
@@ -351,24 +370,24 @@ export default function ProfileScreen() {
           /* VIEW MODE */
           <View>
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Employee Details</Text>
-              <MenuItem icon="business-outline" title={`Department : ${user?.department ?? ""}`} />
-              <MenuItem icon="briefcase-outline" title={`Designation : ${form.designation ?? ""}`} />
-              <MenuItem icon="person-circle-outline" title={`Role : ${user?.role_of_user ?? ""}`} />
-              <MenuItem icon="id-card-outline" title={`Employee ID : ${user?.user_unique_id ?? ""}`} />
+              <AppText style={styles.sectionTitle}>Employee Details</AppText>
+              <MenuItem icon="business-outline" title={`Department : ${user?.department ?? ""}`} styles={styles} colors={colors} />
+              <MenuItem icon="briefcase-outline" title={`Designation : ${form.designation ?? ""}`} styles={styles} colors={colors} />
+              <MenuItem icon="person-circle-outline" title={`Role : ${user?.role_of_user ?? ""}`} styles={styles} colors={colors} />
+              <MenuItem icon="id-card-outline" title={`Employee ID : ${user?.user_unique_id ?? ""}`} styles={styles} colors={colors} />
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Contact</Text>
-              <MenuItem icon="mail-outline" title={user?.email_id ?? ""} />
-              <MenuItem icon="call-outline" title={form.phone_number ?? ""} />
+              <AppText style={styles.sectionTitle}>Contact</AppText>
+              <MenuItem icon="mail-outline" title={user?.email_id ?? ""} styles={styles} colors={colors} />
+              <MenuItem icon="call-outline" title={form.phone_number ?? ""} styles={styles} colors={colors} />
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Organization</Text>
-              <MenuItem icon="business" title={user?.organization_full_name ?? ""} />
-              <MenuItem icon="document-outline" title={`GST : ${user?.gst_number_or_company_registration_number ?? ""}`} />
-              <MenuItem icon="document-text-outline" title={`PAN : ${user?.organization_pan_number ?? ""}`} />
+              <AppText style={styles.sectionTitle}>Organization</AppText>
+              <MenuItem icon="business" title={user?.organization_full_name ?? ""} styles={styles} colors={colors} />
+              <MenuItem icon="document-outline" title={`GST : ${user?.gst_number_or_company_registration_number ?? ""}`} styles={styles} colors={colors} />
+              <MenuItem icon="document-text-outline" title={`PAN : ${user?.organization_pan_number ?? ""}`} styles={styles} colors={colors} />
             </View>
 
             <TouchableOpacity
@@ -376,11 +395,12 @@ export default function ProfileScreen() {
               activeOpacity={0.8}
               onPress={handleLogout}
             >
-              <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
-              <Text style={styles.logoutText}>Logout</Text>
+              <Ionicons name="log-out-outline" size={20} color={colors.text.inverse} />
+              <AppText style={styles.logoutText}>Logout</AppText>
             </TouchableOpacity>
+            
 
-            <Text style={styles.version}>Version 1.0.0</Text>
+            <AppText style={styles.version}>Version 1.0.0</AppText>
           </View>
         )}
       </ScrollView>
