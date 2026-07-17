@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "pulse-thread",
-    "slug": "pulse-thread",
+    "name": "pulse thread",
+    "slug": "pulse thread",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/pulse_thread.png",
+    "icon": "./assets/images/pulse_threads_app_icon.png",
     "scheme": "pulsethread",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -15,7 +15,7 @@
       "backgroundColor": "#F5F7FA",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/images/pulse_thread.png",
+        "foregroundImage": "./assets/images/pulse_threads_app_icon.png",
         "backgroundImage": "./assets/images/pulse_thread.png",
         "monochromeImage": "./assets/images/pulse_thread.png"
       },

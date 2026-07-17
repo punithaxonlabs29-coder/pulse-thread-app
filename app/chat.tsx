@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { ActivityIndicator, Alert, Image, ImageBackground, Keyboard, KeyboardAvoidingView, Platform, Text, ToastAndroid, TouchableOpacity, View, Modal, Share } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import type { FlashListRef } from "@shopify/flash-list";
 import { FlashList } from "@shopify/flash-list";
-import type { FlashListRef, FlashListProps } from "@shopify/flash-list";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Image, ImageBackground, Keyboard, KeyboardAvoidingView, Modal, Platform, Share, Text, ToastAndroid, TouchableOpacity, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Augment the FlashListProps to fix the missing estimatedItemSize type in v2.3.2
 declare module "@shopify/flash-list" {
@@ -15,29 +15,29 @@ declare module "@shopify/flash-list" {
 
 import * as Clipboard from 'expo-clipboard';
 
-import ChatHeader from "../components/ChatHeader";
-import SearchHeader from "../components/SearchHeader";
 import CalendarModal from "../components/CalendarModal";
+import ChatHeader from "../components/ChatHeader";
 import MessageBubble from "../components/MessageBubble";
+import MessageInfo from "../components/MessageInfo";
 import MessageInput from "../components/MessageInput";
 import ReactionPicker from "../components/ReactionPicker";
+import SearchHeader from "../components/SearchHeader";
 import SelectionHeader from "../components/SelectionHeader";
-import MessageInfo from "../components/MessageInfo";
 import { CacheService } from "../services/cache.service";
 import { ConnectsService } from "../services/connects.service";
-import { SessionService } from "../services/session.service";
 import NotificationService from "../services/notification.service";
+import { SessionService } from "../services/session.service";
 import { Message } from "../types/connects";
 import { formatDateHeader, formatTimeOnly } from "../utils/date";
 
-import { useChatContext } from "../contexts/ChatContext";
-import { createStyles } from "./_chat.styles";
-import { useColors } from "../design";
 import { AppText } from "../components/ui/AppText";
+import { useChatContext } from "../contexts/ChatContext";
+import { useColors } from "../design";
+import { createStyles } from "./_chat.styles";
 
-import { typingManager } from "../services/typing.manager";
-import { messageRepository } from "../services/message.repository";
 import { backgroundWorker } from "../services/background.worker";
+import { messageRepository } from "../services/message.repository";
+import { typingManager } from "../services/typing.manager";
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -566,7 +566,7 @@ export default function ChatScreen() {
     setLoadingMore(true);
     try {
       const oldestMessage = messages[0];
-      const olderMessages = await ConnectsService.getMessages(channelId as string, undefined, oldestMessage.created_at, 30);
+      const olderMessages = await ConnectsService.getMessages(channelId as string, undefined, oldestMessage.created_at, 60);
       if (olderMessages.length > 0) {
         setMessages(prev => {
           const messageMap = new Map<string, Message>();

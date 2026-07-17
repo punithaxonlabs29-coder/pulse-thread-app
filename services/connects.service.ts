@@ -1,7 +1,7 @@
 import { AxiosError } from "axios";
-import { mainApi } from "./api";
-import { Channel, Message, Reaction } from "../types/connects";
 import * as FileSystem from 'expo-file-system/legacy';
+import { Channel, Message, Reaction } from "../types/connects";
+import { mainApi } from "./api";
 import { SessionService } from "./session.service";
 
 interface GetChannelsResponse {
@@ -122,7 +122,7 @@ export const ConnectsService = {
     }
   },
 
-  async getMessages(channelId: string, after?: string, before?: string, limit: number = 50, offset?: number): Promise<Message[]> {
+  async getMessages(channelId: string, after?: string, before?: string, limit: number = 100, offset?: number): Promise<Message[]> {
     try {
       let url = `connects/messages/?channel_id=${channelId}&limit=${limit}&lightweight=true&t=${Date.now()}`;
       if (after) {
