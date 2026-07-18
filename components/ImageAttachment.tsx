@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, View, ActivityIndicator, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from "@expo/vector-icons";
@@ -25,19 +25,35 @@ export default function ImageAttachment({ url, name, messageId, time, readStatus
   const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [source, setSource] = useState<string | null>(url || null);
 
+  const fetchedRef = useRef(false);
+
   useEffect(() => {
     // In gridMode, defer loading until it becomes visible
     if (!isVisible && gridMode) return;
 
-    if (!url) {
-      ConnectsService.getMessageAttachment(messageId).then((attachments) => {
-        if (attachments && attachments.length > 0) {
-           const att = attachments.find((a: any) => a.name === name) || attachments[0];
-           setSource(att?.url || att?.file_url || "");
-        }
-      }).catch(err => console.log("Failed to load image base64", err));
+    if (fetchedRef.current) return;
+
+    if (url) {
+      setSource(url);
+      return;
     }
-  }, [url, messageId, name, isVisible, gridMode]);
+
+    if (!messageId || !messageId.startsWith('MSG_')) {
+      return;
+    }
+
+    fetchedRef.current = true;
+
+    ConnectsService.getMessageAttachment(messageId).then((attachments) => {
+      if (attachments && attachments.length > 0) {
+         const att = attachments.find((a: any) => a.name === name) || attachments[0];
+         setSource(att?.url || att?.file_url || "");
+      }
+    }).catch(err => {
+      console.log("Failed to load image base64", err);
+      fetchedRef.current = false;
+    });
+  }, [messageId, isVisible, gridMode]);
 
   if (!source || (!isVisible && gridMode)) {
     return (

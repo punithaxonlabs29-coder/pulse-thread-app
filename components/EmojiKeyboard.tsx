@@ -1,6 +1,11 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions } from 'react-native';
 
+import { Ionicons } from '@expo/vector-icons';
+import { createStyles } from './EmojiKeyboard.styles';
+import { useColors } from '../design';
+import { AppText } from './ui/AppText';
+
 const EMOJI_CATEGORIES = [
   {
     title: 'Smileys & People',
@@ -31,11 +36,6 @@ const EMOJI_CATEGORIES = [
 const { width } = Dimensions.get('window');
 const EMOJI_SIZE = 40;
 const COLUMNS = Math.floor(width / EMOJI_SIZE);
-
-import { Ionicons } from '@expo/vector-icons';
-import { createStyles } from './EmojiKeyboard.styles';
-import { useColors } from '../design';
-import { AppText } from './ui/AppText';
 
 
 interface EmojiKeyboardProps {

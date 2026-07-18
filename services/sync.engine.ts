@@ -50,15 +50,8 @@ class SyncEngine {
   }
 
   async handleMessageDelete(channelId: string, messageId: string) {
-    // Update local DB to mark as deleted
     try {
-      const messages = await messageRepository.getMessages(channelId, 1, 0); // Need a better way to fetch single message, but we can just use SQLite direct for now
-      const db = DatabaseService.getDB();
-      await db.runAsync(
-        `UPDATE messages SET is_deleted = 1, text = 'This message was deleted' WHERE server_id = ? OR local_id = ?`,
-        [messageId, messageId]
-      );
-      await db.runAsync(`DELETE FROM attachments WHERE message_id = ?`, [messageId]);
+      await messageRepository.markMessageDeletedLocal(messageId, channelId);
     } catch (e) {
       console.log("Error deleting message locally", e);
     }

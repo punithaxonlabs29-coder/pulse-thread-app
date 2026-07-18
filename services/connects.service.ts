@@ -4,6 +4,8 @@ import { Channel, Message, Reaction } from "../types/connects";
 import { mainApi } from "./api";
 import { SessionService } from "./session.service";
 
+const pendingDownloads = new Map<string, Promise<any[]>>();
+
 interface GetChannelsResponse {
   status: boolean;
   collection: string;
@@ -253,22 +255,39 @@ export const ConnectsService = {
   },
 
   async getMessageAttachment(messageId: string): Promise<any[]> {
-    try {
-      const response = await mainApi.get(
-        `connects/message/attachment/?message_id=${messageId}`,
-        {
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        }
-      );
-      return response.data.attachments || [];
-    } catch (error) {
-      console.log("Get Attachment Error:", (error as AxiosError).message);
+    // Prevent pointless requests for optimistic local messages
+    if (!messageId || !messageId.startsWith('MSG_')) {
       return [];
     }
+
+    // Request deduplication
+    if (pendingDownloads.has(messageId)) {
+      return pendingDownloads.get(messageId)!;
+    }
+
+    const promise = (async () => {
+      try {
+        const response = await mainApi.get(
+          `connects/message/attachment/?message_id=${messageId}`,
+          {
+            headers: {
+              'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          }
+        );
+        return response.data.attachments || [];
+      } catch (error) {
+        console.log("Get Attachment Error:", (error as AxiosError).message);
+        return [];
+      } finally {
+        pendingDownloads.delete(messageId);
+      }
+    })();
+
+    pendingDownloads.set(messageId, promise);
+    return promise;
   },
 
   async sendMessage(
@@ -277,7 +296,8 @@ export const ConnectsService = {
     attachments: any[] = [],
     replyToMessageId?: string,
     isForwarded?: boolean,
-    localId?: string
+    localId?: string,
+    mentions?: any[]
   ): Promise<any> {
     try {
       const processedAttachments = await Promise.all(
@@ -301,6 +321,7 @@ export const ConnectsService = {
             type: att.type || "application/octet-stream",
             size: att.size || 0,
             url: base64Url,
+            ...(att.duration !== undefined && { duration: att.duration })
           };
         })
       );
@@ -314,6 +335,7 @@ export const ConnectsService = {
           ...(replyToMessageId && { reply_to_message_id: replyToMessageId }),
           ...(isForwarded && { is_forwarded: true }),
           ...(localId && { local_id: localId }),
+          ...(mentions && mentions.length > 0 && { mentions }),
         }
       );
 
@@ -379,5 +401,22 @@ export const ConnectsService = {
       return false;
     }
   },
+
+  /* clear chat functionality */
+  async clearChat(channelId: string): Promise<boolean> {
+  try {
+    const response = await mainApi.post("connects/clear-chat/", {
+      channel_id: channelId,
+    });
+
+    return response.data.status;
+  } catch (error) {
+    console.log(
+      "Clear Chat Error:",
+      (error as AxiosError).message
+    );
+    return false;
+  }
+},
 
 };

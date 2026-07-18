@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { TextInput, TouchableOpacity, View, Text, Image } from "react-native";
+import { TextInput, TouchableOpacity, View, Text, Image , Keyboard } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -7,7 +7,7 @@ import AttachmentPreview, { PendingAttachment } from './AttachmentPreview';
 import AttachmentMenu from './AttachmentMenu';
 import AudioRecorder from './AudioRecorder';
 import EmojiKeyboard from './EmojiKeyboard';
-import { Keyboard } from 'react-native';
+
 import { Message } from '../types/connects';
 import { createStyles } from './MessageInput.styles';
 import { useColors } from '../design';

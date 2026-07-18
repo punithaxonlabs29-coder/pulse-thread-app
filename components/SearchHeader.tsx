@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Platform,
 } from "react-native";
+import { AppTextInput } from "./ui/AppTextInput";
 import { Ionicons } from "@expo/vector-icons";
 import { createStyles } from "./SearchHeader.styles";
 import { useColors } from "../design";
@@ -47,7 +48,7 @@ export default function SearchHeader({
       {/* Search bar pill */}
       <View style={styles.searchPill}>
         <Ionicons name="search-outline" size={18} color={colors.text.muted} style={styles.searchIcon} />
-        <TextInput
+        <AppTextInput
           ref={inputRef}
           id="search-header-input"
           style={styles.input}

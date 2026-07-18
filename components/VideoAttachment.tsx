@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DownloadButton from './ui/DownloadButton';
-import { Pressable, Text, StyleSheet, View, ActivityIndicator, Modal, TouchableOpacity, Dimensions, Image } from 'react-native';
+import { Pressable, Text, StyleSheet, View, ActivityIndicator, Modal, TouchableOpacity, Dimensions, Image , Linking } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { Linking } from 'react-native';
+
 import { Video, ResizeMode, Audio } from 'expo-av';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import Pdf from 'react-native-pdf';

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ImageAttachment from '../ImageAttachment';
 import VideoAttachment from '../VideoAttachment';
+import AudioAttachment from '../AudioAttachment';
 import MediaGalleryModal from '../MediaGalleryModal';
 import { createStyles } from './Attachments.styles';
 import { AppText } from '../ui/AppText';
@@ -144,7 +145,8 @@ export const Attachments = React.memo(({
         const name = file.name || "Attachment";
         
         if (type.startsWith("audio/")) {
-          return <VideoAttachment key={`other-${index}`} url={url || ""} messageId={messageId} name={name} type="audio" isVisible={isVisible} {...mediaProps} readStatus={mediaProps.readStatus as any} />;
+          const duration = file.duration || file.durationMillis || 0;
+          return <AudioAttachment key={`other-${index}`} url={url || ""} messageId={messageId} name={name} durationMillis={duration} isVisible={isVisible} {...mediaProps} readStatus={mediaProps.readStatus as any} />;
         }
         if (type.toLowerCase() === "link" || file.file_type === "Link") {
           return null;

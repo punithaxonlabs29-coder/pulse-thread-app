@@ -11,6 +11,11 @@ import { useColors } from '../design';
 import { AppText } from '../components/ui/AppText';
 import { createStyles } from './media.styles';
 
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+import { Image } from 'expo-image';
+import { MediaCacheManager } from '../services/MediaCacheManager';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type MediaType = 'image' | 'video' | 'doc';
@@ -80,11 +85,6 @@ const EXT_CONFIG: Record<string, { color: string; icon: string }> = {
 function extConfig(ext = '') {
   return EXT_CONFIG[ext.toUpperCase()] ?? { color: '#607D8B', icon: 'file-outline' };
 }
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-import { Image } from 'expo-image';
-import { MediaCacheManager } from '../services/MediaCacheManager';
 
 function MediaThumbnail({ item, styles: s }: { item: MediaItem, styles: any }) {
   const [url, setUrl] = useState<string | null>(item.uri || null);

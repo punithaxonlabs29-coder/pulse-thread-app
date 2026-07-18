@@ -4,6 +4,23 @@ export interface Reaction {
     user_reacted: boolean;
 }
 
+export interface Mention {
+    id?: string;
+    user_id: string;
+    display_name: string;
+    start_index: number;
+    end_index: number;
+    mention_type?: string;
+}
+
+export interface ConversationSnapshot {
+    messages: Message[];
+    mentions: Mention[];
+    attachments: any[];
+    reactions: Reaction[];
+    channelMetadata?: Channel | null;
+}
+
 export interface Member {
     email: string;
     name: string;
@@ -46,6 +63,7 @@ export interface Message {
     status?: "pending" | "sending" | "sent" | "delivered" | "read" | "failed";
     attachments?: any[];
     reactions?: Reaction[];
+    mentions?: Mention[];
     reply_to?: {
         message_id: string;
         sender_name: string;
@@ -57,4 +75,5 @@ export interface Message {
     is_edited?: boolean;
     is_deleted?: boolean;
     deleted_by?: string;
+    is_starred?: boolean;
 }

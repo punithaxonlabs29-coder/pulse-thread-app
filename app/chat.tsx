@@ -6,13 +6,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, Alert, Image, ImageBackground, Keyboard, KeyboardAvoidingView, Modal, Platform, Share, Text, ToastAndroid, TouchableOpacity, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Augment the FlashListProps to fix the missing estimatedItemSize type in v2.3.2
-declare module "@shopify/flash-list" {
-  interface FlashListProps<TItem> {
-    estimatedItemSize?: number;
-  }
-}
-
 import * as Clipboard from 'expo-clipboard';
 
 import CalendarModal from "../components/CalendarModal";
@@ -38,6 +31,13 @@ import { createStyles } from "./_chat.styles";
 import { backgroundWorker } from "../services/background.worker";
 import { messageRepository } from "../services/message.repository";
 import { typingManager } from "../services/typing.manager";
+
+// Augment the FlashListProps to fix the missing estimatedItemSize type in v2.3.2
+declare module "@shopify/flash-list" {
+  interface FlashListProps<TItem> {
+    estimatedItemSize?: number;
+  }
+}
 
 export default function ChatScreen() {
   const router = useRouter();

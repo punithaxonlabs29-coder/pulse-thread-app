@@ -96,6 +96,7 @@ export const MessageText = React.memo(({
     <View style={[hasAttachments ? { marginTop: 4 } : {}, { position: 'relative' }]}>
       <AppText
         variant="body"
+        maxFontSizeMultiplier={undefined}
         style={[
           styles.messageText,
           isMine ? styles.myMessageText : styles.otherMessageText,

@@ -4,6 +4,7 @@ import {
     TextInput,
     View,
 } from "react-native";
+import { AppTextInput } from "../ui/AppTextInput";
 
 import { Feather } from "@expo/vector-icons";
 
@@ -30,7 +31,7 @@ export default function InputField({
         color={Colors.placeholder}
       />
 
-      <TextInput
+      <AppTextInput
         placeholder={placeholder}
         placeholderTextColor={Colors.placeholder}
         style={styles.input}

@@ -5,7 +5,7 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    height: 56,
+    minHeight: 56,
     paddingHorizontal: Spacing.md,
     backgroundColor: colors.background.surface,
     borderBottomWidth: 1,
@@ -21,7 +21,7 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     backgroundColor: colors.background.primary,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.md,
-    height: 40,
+    minHeight: 40,
     borderWidth: 1,
     borderColor: colors.border.primary,
     ...Shadows.sm,

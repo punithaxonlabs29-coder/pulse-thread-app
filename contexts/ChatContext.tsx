@@ -73,17 +73,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else if (data.event === "message_deleted") {
         syncEngine.handleMessageDelete(channelId, data.message_id);
-        setLastUpdatedMessage({
-          message_id: data.message_id,
-          channel_id: channelId,
-          is_deleted: true,
-          text: "This message was deleted",
-          attachments: [],
-          reactions: [],
-          sender_email: "",
-          sender_name: "",
-          created_at: new Date().toISOString()
-        });
       } else if (data.event === "channel_updated" && data.channel) {
         syncEventBus.emit('channel_updated', data.channel);
       }

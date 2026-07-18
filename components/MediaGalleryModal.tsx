@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Modal, View, StyleSheet, TouchableOpacity, Text, Dimensions, SafeAreaView } from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, Text, Dimensions, SafeAreaView , FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { FlatList } from 'react-native';
+
 import { ResizeMode, Video } from 'expo-av';
 import DownloadButton from './ui/DownloadButton';
 import { useColors, Colors } from '../design';

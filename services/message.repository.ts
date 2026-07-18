@@ -1,8 +1,8 @@
-import { Message } from '../types/connects';
-import { MessageLocalDataSource } from './message.local.datasource';
-import { MessageRemoteDataSource } from './message.remote.datasource';
+import { Message, ConversationSnapshot } from '../types/connects';
 import { ConnectsService } from './connects.service';
 import { DatabaseService } from './database.service';
+import { MessageLocalDataSource } from './message.local.datasource';
+import { MessageRemoteDataSource } from './message.remote.datasource';
 
 export class MessageRepository {
   private localDataSource: MessageLocalDataSource;
@@ -13,39 +13,94 @@ export class MessageRepository {
     this.remoteDataSource = new MessageRemoteDataSource();
   }
 
-  private listeners = new Map<string, Set<(messages: Message[]) => void>>();
+  private listeners = new Map<string, Set<(snapshot: ConversationSnapshot) => void>>();
+  private starredListeners = new Set<(snapshot: ConversationSnapshot) => void>();
 
   /**
    * Observe changes to a channel's messages in SQLite.
    * Instantly fires with current data, then again on any writes.
    */
-  observe(channelId: string, callback: (messages: Message[]) => void): () => void {
+  observe(channelId: string, callback: (snapshot: ConversationSnapshot) => void): () => void {
     if (!this.listeners.has(channelId)) {
       this.listeners.set(channelId, new Set());
     }
     this.listeners.get(channelId)!.add(callback);
-    
+
     // Initial fetch to populate UI immediately
-    this.getMessages(channelId).then(callback);
+    this.loadConversation(channelId).then(snapshot => {
+        if (snapshot) callback(snapshot);
+    });
 
     // Return unsubscribe function
     return () => {
       const channelListeners = this.listeners.get(channelId);
       if (channelListeners) {
         channelListeners.delete(callback);
+        if (channelListeners.size === 0) {
+          this.listeners.delete(channelId);
+          this.pendingNotifications.delete(channelId);
+        }
       }
     };
   }
 
   /**
+   * Observe all starred messages across all channels.
+   */
+  observeStarred(callback: (snapshot: ConversationSnapshot) => void): () => void {
+    this.starredListeners.add(callback);
+
+    this.getStarredMessagesSnapshot().then(snapshot => {
+      if (snapshot) callback(snapshot);
+    });
+
+    return () => {
+      this.starredListeners.delete(callback);
+    };
+  }
+
+  private pendingNotifications = new Map<string, ReturnType<typeof setTimeout>>();
+  private pendingStarredNotification: ReturnType<typeof setTimeout> | null = null;
+
+  /**
    * Internal method to broadcast SQLite changes to UI components
    */
-  private async notifyObservers(channelId: string) {
-    const channelListeners = this.listeners.get(channelId);
-    if (channelListeners && channelListeners.size > 0) {
-      const latestMessages = await this.getMessages(channelId);
-      channelListeners.forEach(callback => callback(latestMessages));
+  private notifyObservers(channelId: string) {
+    if (this.pendingNotifications.has(channelId)) {
+      clearTimeout(this.pendingNotifications.get(channelId)!);
     }
+
+    const timeout = setTimeout(async () => {
+      const channelListeners = this.listeners.get(channelId);
+      if (channelListeners && channelListeners.size > 0) {
+        const snapshot = await this.loadConversation(channelId);
+        if (snapshot) {
+          channelListeners.forEach(cb => cb(snapshot));
+        }
+      }
+      this.pendingNotifications.delete(channelId);
+    }, 100);
+
+    this.pendingNotifications.set(channelId, timeout);
+
+    // Also notify starred listeners if any data changed, just in case
+    this.notifyStarredObservers();
+  }
+
+  private notifyStarredObservers() {
+    if (this.pendingStarredNotification) {
+      clearTimeout(this.pendingStarredNotification);
+    }
+    
+    this.pendingStarredNotification = setTimeout(async () => {
+      if (this.starredListeners.size > 0) {
+        const snapshot = await this.getStarredMessagesSnapshot();
+        if (snapshot) {
+          this.starredListeners.forEach(cb => cb(snapshot));
+        }
+      }
+      this.pendingStarredNotification = null;
+    }, 100);
   }
 
   /**
@@ -53,10 +108,13 @@ export class MessageRepository {
    */
   async markMessageDeletedLocal(messageId: string, channelId: string): Promise<void> {
     const db = DatabaseService.getDB();
-    await db.runAsync(
-      `UPDATE messages SET is_deleted = 1, text = 'This message was deleted' WHERE server_id = ? OR local_id = ?`,
-      [messageId, messageId]
-    );
+    await DatabaseService.withWriteLock(async () => {
+      await db.runAsync(
+        `UPDATE messages SET is_deleted = 1, text = 'This message was deleted' WHERE server_id = ? OR local_id = ?`,
+        [messageId, messageId]
+      );
+      await db.runAsync(`DELETE FROM attachments WHERE message_id = ?`, [messageId]);
+    });
     this.notifyObservers(channelId);
   }
 
@@ -69,7 +127,7 @@ export class MessageRepository {
 
     await DatabaseService.withWriteLock(async () => {
       await db.withTransactionAsync(async () => {
-        const existing = await db.getFirstAsync<{count: number, user_reacted: number}>(
+        const existing = await db.getFirstAsync<{ count: number, user_reacted: number }>(
           `SELECT count, user_reacted FROM reactions WHERE id = ?`,
           [reactionId]
         );
@@ -137,6 +195,46 @@ export class MessageRepository {
   }
 
   /**
+   * Load the full conversation snapshot for a channel, unifying messages, mentions, and metadata.
+   * Channel metadata is stored in the file-based CacheService, NOT in SQLite.
+   * We always load messages; metadata is optional.
+   */
+  async loadConversation(channelId: string): Promise<ConversationSnapshot | null> {
+    const messages = await this.getMessages(channelId);
+
+    // Try to get channel metadata from SQLite channels table (may be empty).
+    // If not available, we still return the messages so the observer can fire.
+    let channelMetadata: any = null;
+    try {
+      const db = DatabaseService.getDB();
+      const channelRow = await db.getFirstAsync<{ data: string }>(
+        `SELECT data FROM channels WHERE channel_id = ?`,
+        [channelId]
+      );
+      if (channelRow) {
+        channelMetadata = JSON.parse(channelRow.data);
+      }
+    } catch (e) {
+      // Ignore — channel metadata will be unavailable but messages still render
+    }
+
+    return {
+      messages,
+      mentions: messages.flatMap(m => m.mentions || []),
+      attachments: messages.flatMap(m => m.attachments || []),
+      reactions: messages.flatMap(m => m.reactions || []),
+      channelMetadata
+    };
+  }
+
+  /**
+   * Fetch a single message locally by server_id or local_id
+   */
+  async getMessage(messageId: string): Promise<Message | null> {
+    return this.localDataSource.getMessage(messageId);
+  }
+
+  /**
    * Promote a pending message to sent using a targeted update
    * This prevents overwriting local mutations (like pins or reactions) that happened while the message was queued
    */
@@ -163,6 +261,7 @@ export class MessageRepository {
         );
 
         if (serverMessage.attachments && serverMessage.attachments.length > 0) {
+          await db.runAsync(`DELETE FROM attachments WHERE message_id = ?`, [localId]);
           for (const att of serverMessage.attachments) {
             const attId = att.id || `${localId}_${att.name}`;
             await db.runAsync(`
@@ -203,8 +302,11 @@ export class MessageRepository {
   /**
    * Delete a message locally
    */
-  async deleteMessageLocal(messageId: string): Promise<void> {
+  async deleteMessageLocal(messageId: string, channelId?: string): Promise<void> {
     await this.localDataSource.deleteMessage(messageId);
+    if (channelId) {
+      this.notifyObservers(channelId);
+    }
   }
 
   /**
@@ -212,32 +314,34 @@ export class MessageRepository {
    */
   async syncChannelMessages(channelId: string, lastSync?: string, lastMessageId?: string): Promise<any> {
     const syncData = await ConnectsService.syncMessages(channelId, lastSync, lastMessageId);
-    
+
     if (syncData && syncData.status) {
       // 1. Save new messages
-      if (syncData.new) {
-        for (const msg of syncData.new) {
-          await this.localDataSource.saveMessage(msg);
-        }
+      if (syncData.new && syncData.new.length > 0) {
+        await this.localDataSource.saveMessagesBatch(syncData.new);
       }
       // 2. Update existing messages
-      if (syncData.updated) {
-        for (const msg of syncData.updated) {
-          await this.localDataSource.saveMessage(msg);
-        }
+      if (syncData.updated && syncData.updated.length > 0) {
+        await this.localDataSource.saveMessagesBatch(syncData.updated);
       }
       // 3. Process deletions
-      if (syncData.deleted) {
-        for (const msgId of syncData.deleted) {
-           // update local DB to mark as deleted for everyone
-           const db = DatabaseService.getDB();
-           await db.runAsync(
-             `UPDATE messages SET is_deleted = 1, text = 'This message was deleted' WHERE server_id = ? OR local_id = ?`,
-             [msgId, msgId]
-           );
-           await db.runAsync(`DELETE FROM attachments WHERE message_id = ?`, [msgId]);
-        }
+      if (syncData.deleted && syncData.deleted.length > 0) {
+        const db = DatabaseService.getDB();
+        await DatabaseService.withWriteLock(async () => {
+          await db.withTransactionAsync(async () => {
+            for (const msgId of syncData.deleted) {
+              // update local DB to mark as deleted for everyone
+              await db.runAsync(
+                `UPDATE messages SET is_deleted = 1, text = 'This message was deleted' WHERE server_id = ? OR local_id = ?`,
+                [msgId, msgId]
+              );
+              await db.runAsync(`DELETE FROM attachments WHERE message_id = ?`, [msgId]);
+            }
+          });
+        });
       }
+      
+      this.notifyObservers(channelId);
     }
     return syncData;
   }
@@ -248,10 +352,33 @@ export class MessageRepository {
    */
   async fetchAndCacheRemoteMessages(channelId: string, after?: string): Promise<Message[]> {
     const remoteMessages = await this.remoteDataSource.getMessages(channelId, after);
-    for (const msg of remoteMessages) {
-      await this.localDataSource.saveMessage(msg);
+    if (remoteMessages.length > 0) {
+      await this.localDataSource.saveMessagesBatch(remoteMessages);
+      this.notifyObservers(channelId);
     }
     return remoteMessages;
+  }
+
+  async clearChannel(channelId: string): Promise<void> {
+    console.log("Repository clear:", channelId);
+    await this.localDataSource.clearChannel(channelId);
+    console.log("SQLite cleared");
+    this.notifyObservers(channelId);
+  }
+
+  async toggleMessagesStar(messageIds: string[], channelId: string, isStarred: boolean): Promise<void> {
+    await this.localDataSource.toggleMessagesStar(messageIds, channelId, isStarred);
+    this.notifyObservers(channelId);
+  }
+
+  async getStarredMessagesSnapshot(): Promise<ConversationSnapshot> {
+    const messages = await this.localDataSource.getStarredMessages();
+    return {
+      messages,
+      attachments: messages.flatMap(m => m.attachments || []),
+      reactions: messages.flatMap(m => m.reactions || []),
+      mentions: messages.flatMap(m => m.mentions || []),
+    };
   }
 }
 

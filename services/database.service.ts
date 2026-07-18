@@ -83,6 +83,23 @@ export class DatabaseService {
         count INTEGER DEFAULT 1,
         user_reacted INTEGER DEFAULT 0
       )`,
+      `CREATE TABLE IF NOT EXISTS message_mentions (
+        id TEXT PRIMARY KEY,
+        message_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        start_index INTEGER NOT NULL,
+        end_index INTEGER NOT NULL,
+        mention_type TEXT DEFAULT 'USER',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `DROP TABLE IF EXISTS starred_messages`,
+      `CREATE TABLE IF NOT EXISTS starred_messages (
+        message_id TEXT PRIMARY KEY,
+        channel_id TEXT NOT NULL,
+        starred_at DATETIME NOT NULL,
+        sync_state TEXT DEFAULT 'LOCAL'
+      )`,
       `CREATE TABLE IF NOT EXISTS pending_queue (
         local_id TEXT PRIMARY KEY,
         channel_id TEXT NOT NULL,
@@ -97,6 +114,10 @@ export class DatabaseService {
       `CREATE INDEX IF NOT EXISTS idx_messages_channel_created ON messages (channel_id, created_at DESC)`,
       `CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments (message_id)`,
       `CREATE INDEX IF NOT EXISTS idx_reactions_message_id ON reactions (message_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_message_mentions_message_id ON message_mentions (message_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_message_mentions_user_id ON message_mentions (user_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_starred_messages_message_id ON starred_messages (message_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_starred_messages_starred_at ON starred_messages (starred_at)`,
     ];
 
     try {
@@ -116,6 +137,8 @@ export class DatabaseService {
     await db.runAsync('DROP TABLE IF EXISTS messages');
     await db.runAsync('DROP TABLE IF EXISTS attachments');
     await db.runAsync('DROP TABLE IF EXISTS reactions');
+    await db.runAsync('DROP TABLE IF EXISTS message_mentions');
+    await db.runAsync('DROP TABLE IF EXISTS starred_messages');
     await db.runAsync('DROP TABLE IF EXISTS pending_queue');
     await this.setupSchema();
   }

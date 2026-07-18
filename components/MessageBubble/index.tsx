@@ -21,8 +21,8 @@ export interface MessageBubbleProps {
   isMine: boolean;
   attachments?: any[];
   readStatus?: "sent" | "delivered" | "read" | "pending" | "sending" | "failed";
-  isVisible?: boolean;
   reactions?: Reaction[];
+  mentions?: any[];
   selected?: boolean;
   showTail?: boolean;
   replyTo?: {
@@ -32,6 +32,7 @@ export interface MessageBubbleProps {
     attachments?: any[];
   };
   onLongPress?: (y: number, height: number) => void;
+  onPress?: () => void;
   onReactionPress?: (emoji: string) => void;
   onSwipeReply?: () => void;
   onReplyPress?: (messageId: string) => void;
@@ -43,15 +44,18 @@ export interface MessageBubbleProps {
   isSmallEmoji?: boolean;
   searchText?: string;
   searchEnabled?: boolean;
+  isVisible?: boolean;
+  isStarred?: boolean;
+  onMentionPress?: (userId: string) => void;
 }
 
 const MessageBubble = React.memo(({ 
   messageId, text, time, isMine, attachments, readStatus, 
   isVisible = false, reactions, selected = false, showTail = true,
-  replyTo, onLongPress, onReactionPress, onSwipeReply, onReplyPress,
+  replyTo, onLongPress, onPress, onReactionPress, onSwipeReply, onReplyPress,
   isForwarded = false, isDeleted = false, highlighted = false,
   isSingleEmoji = false, isMediumEmoji = false, isSmallEmoji = false,
-  searchText = '', searchEnabled = false,
+  searchText = '', searchEnabled = false, mentions = [], isStarred = false, onMentionPress,
 }: MessageBubbleProps) => {
   const colors = useColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -130,6 +134,8 @@ const MessageBubble = React.memo(({
           ref={bubbleRef}
           activeOpacity={0.9}
           onLongPress={handleLongPress}
+          onPress={onPress}
+          delayLongPress={200}
           style={[
             styles.messageContainer,
             isMine ? styles.myMessage : styles.otherMessage,
@@ -177,6 +183,8 @@ const MessageBubble = React.memo(({
                   readStatus={readStatus}
                   searchText={searchText}
                   searchEnabled={searchEnabled}
+                  mentions={mentions}
+                  onMentionPress={onMentionPress}
                 />
               ) : null}
 
@@ -186,6 +194,7 @@ const MessageBubble = React.memo(({
                   readStatus={readStatus}
                   isMine={isMine}
                   isSingleEmoji={isSingleEmoji}
+                  isStarred={isStarred}
                 />
               ) : null}
             </>
@@ -212,7 +221,9 @@ const MessageBubble = React.memo(({
          prev.isDeleted === next.isDeleted &&
          prev.searchText === next.searchText &&
          prev.searchEnabled === next.searchEnabled &&
-         JSON.stringify(prev.reactions) === JSON.stringify(next.reactions);
+         prev.isStarred === next.isStarred &&
+         JSON.stringify(prev.reactions) === JSON.stringify(next.reactions) &&
+         JSON.stringify(prev.mentions) === JSON.stringify(next.mentions);
 });
 
 export default MessageBubble;
