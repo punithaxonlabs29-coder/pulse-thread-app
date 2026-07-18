@@ -179,10 +179,12 @@ export class MessageRepository {
    */
   async updateMessageStatusLocal(localId: string, status: string, channelId: string): Promise<void> {
     const db = DatabaseService.getDB();
-    await db.runAsync(
-      `UPDATE messages SET status = ? WHERE local_id = ?`,
-      [status, localId]
-    );
+    await DatabaseService.withWriteLock(async () => {
+      await db.runAsync(
+        `UPDATE messages SET status = ? WHERE local_id = ?`,
+        [status, localId]
+      );
+    });
     this.notifyObservers(channelId);
   }
 

@@ -133,13 +133,15 @@ export class DatabaseService {
 
   public static async resetDatabase(): Promise<void> {
     const db = this.getDB();
-    await db.runAsync('DROP TABLE IF EXISTS channels');
-    await db.runAsync('DROP TABLE IF EXISTS messages');
-    await db.runAsync('DROP TABLE IF EXISTS attachments');
-    await db.runAsync('DROP TABLE IF EXISTS reactions');
-    await db.runAsync('DROP TABLE IF EXISTS message_mentions');
-    await db.runAsync('DROP TABLE IF EXISTS starred_messages');
-    await db.runAsync('DROP TABLE IF EXISTS pending_queue');
-    await this.setupSchema();
+    await this.withWriteLock(async () => {
+      await db.runAsync('DROP TABLE IF EXISTS channels');
+      await db.runAsync('DROP TABLE IF EXISTS messages');
+      await db.runAsync('DROP TABLE IF EXISTS attachments');
+      await db.runAsync('DROP TABLE IF EXISTS reactions');
+      await db.runAsync('DROP TABLE IF EXISTS message_mentions');
+      await db.runAsync('DROP TABLE IF EXISTS starred_messages');
+      await db.runAsync('DROP TABLE IF EXISTS pending_queue');
+      await this.setupSchema();
+    });
   }
 }

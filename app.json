@@ -48,7 +48,8 @@
       "expo-sqlite",
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
-      "./withNotifee.js"
+      "./withNotifee.js",
+      "./withFontScaleConfig.js"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -3,7 +3,7 @@ import { Colors } from '../../constants/Colors';
 
 export const styles = StyleSheet.create({
   container: {
-    height: 58,
+    minHeight: 58,
     borderRadius: 15,
     borderWidth: 1,
     borderColor: Colors.border,

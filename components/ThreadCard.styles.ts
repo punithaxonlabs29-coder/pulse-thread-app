@@ -95,7 +95,7 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   right: {
     alignItems: "flex-end",
     justifyContent: "space-between",
-    height: 50,
+    minHeight: 50,
   },
 
   time: {

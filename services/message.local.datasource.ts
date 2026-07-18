@@ -269,36 +269,40 @@ export class MessageLocalDataSource {
 
   async deleteMessage(messageId: string): Promise<void> {
     const db = DatabaseService.getDB();
-    await db.withTransactionAsync(async () => {
-      await db.runAsync(`DELETE FROM messages WHERE local_id = ? OR server_id = ?`, [messageId, messageId]);
-      await db.runAsync(`DELETE FROM attachments WHERE message_id = ?`, [messageId]);
-      await db.runAsync(`DELETE FROM reactions WHERE message_id = ?`, [messageId]);
-      await db.runAsync(`DELETE FROM message_mentions WHERE message_id = ?`, [messageId]);
-      await db.runAsync(`DELETE FROM starred_messages WHERE message_id = ?`, [messageId]);
+    await DatabaseService.withWriteLock(async () => {
+      await db.withTransactionAsync(async () => {
+        await db.runAsync(`DELETE FROM messages WHERE local_id = ? OR server_id = ?`, [messageId, messageId]);
+        await db.runAsync(`DELETE FROM attachments WHERE message_id = ?`, [messageId]);
+        await db.runAsync(`DELETE FROM reactions WHERE message_id = ?`, [messageId]);
+        await db.runAsync(`DELETE FROM message_mentions WHERE message_id = ?`, [messageId]);
+        await db.runAsync(`DELETE FROM starred_messages WHERE message_id = ?`, [messageId]);
+      });
     });
   }
 
   async toggleMessagesStar(messageIds: string[], channelId: string, isStarred: boolean): Promise<void> {
     const db = DatabaseService.getDB();
     console.log("TOGGLE STAR:", messageIds, channelId, isStarred);
-    await db.withTransactionAsync(async () => {
-      if (isStarred) {
-        const now = Date.now();
-        for (const msgId of messageIds) {
-          console.log("INSERT STAR:", msgId);
+    await DatabaseService.withWriteLock(async () => {
+      await db.withTransactionAsync(async () => {
+        if (isStarred) {
+          const now = Date.now();
+          for (const msgId of messageIds) {
+            console.log("INSERT STAR:", msgId);
+            await db.runAsync(
+              `INSERT OR REPLACE INTO starred_messages (message_id, channel_id, starred_at, sync_state) VALUES (?, ?, ?, 'LOCAL')`,
+              [msgId, channelId, now]
+            );
+          }
+        } else {
+          const placeholders = messageIds.map(() => '?').join(',');
+          console.log("DELETE STAR:", messageIds);
           await db.runAsync(
-            `INSERT OR REPLACE INTO starred_messages (message_id, channel_id, starred_at, sync_state) VALUES (?, ?, ?, 'LOCAL')`,
-            [msgId, channelId, now]
+            `DELETE FROM starred_messages WHERE message_id IN (${placeholders})`,
+            messageIds
           );
         }
-      } else {
-        const placeholders = messageIds.map(() => '?').join(',');
-        console.log("DELETE STAR:", messageIds);
-        await db.runAsync(
-          `DELETE FROM starred_messages WHERE message_id IN (${placeholders})`,
-          messageIds
-        );
-      }
+      });
     });
   }
 
@@ -316,26 +320,28 @@ export class MessageLocalDataSource {
   }
 
   async clearChannel(channelId: string): Promise<void> {
-  const db = DatabaseService.getDB();
+    const db = DatabaseService.getDB();
 
-  const before = await db.getFirstAsync<{ count: number }>(
-    "SELECT COUNT(*) as count FROM messages WHERE channel_id = ?",
-    [channelId]
-  );
+    await DatabaseService.withWriteLock(async () => {
+      const before = await db.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) as count FROM messages WHERE channel_id = ?",
+        [channelId]
+      );
 
-  console.log("BEFORE DELETE:", before);
+      console.log("BEFORE DELETE:", before);
 
-  const result = await db.runAsync(
-    "DELETE FROM messages WHERE channel_id = ?",
-    [channelId]
-  );
+      const result = await db.runAsync(
+        "DELETE FROM messages WHERE channel_id = ?",
+        [channelId]
+      );
 
-  console.log("DELETE RESULT:", result);
+      console.log("DELETE RESULT:", result);
 
-  const after = await db.getFirstAsync<{ count: number }>(
-    "SELECT COUNT(*) as count FROM messages WHERE channel_id = ?",
-    [channelId]
-  );
+      const after = await db.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) as count FROM messages WHERE channel_id = ?",
+        [channelId]
+      );
+    });
 
   console.log("AFTER DELETE:", after);
 }
