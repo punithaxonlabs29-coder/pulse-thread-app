@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TextProps } from 'react-native';
+import { Text, TextProps, useWindowDimensions } from 'react-native';
 import { Typography, TypographyVariant , useColors } from '../../design';
 
 
@@ -16,6 +16,9 @@ export const AppText = ({
   ...rest
 }: AppTextProps) => {
   const colors = useColors();
+  // We call useWindowDimensions so that this component automatically re-renders
+  // when the Android system fontScale changes, forcing the native Text to update!
+  useWindowDimensions();
   const typoStyle = Typography[variant];
 
   return (
