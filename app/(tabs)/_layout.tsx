@@ -1,48 +1,80 @@
-import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { MessageCircle, Handshake, User } from "lucide-react-native";
+import { withLayoutContext } from "expo-router";
+import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { useColors } from "../../design";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const { Navigator } = createMaterialTopTabNavigator();
+const MaterialTopTabs = withLayoutContext(Navigator);
 
 export default function TabsLayout() {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
+  
   return (
-    <Tabs
+    <MaterialTopTabs
+      tabBarPosition="bottom"
       screenOptions={{
-        headerShown: false,
         tabBarActiveTintColor: colors.brand.primary,
         tabBarInactiveTintColor: colors.text.muted,
+        tabBarShowIcon: true,
+        tabBarIndicatorStyle: {
+           backgroundColor: colors.brand.primary,
+           height: 3,
+           position: 'absolute',
+           top: 0
+        },
         tabBarStyle: {
           backgroundColor: colors.background.surface,
           borderTopColor: colors.border.primary,
-        }
+          borderTopWidth: 1,
+          paddingBottom: insets.bottom,
+        },
+        tabBarLabelStyle: {
+          textTransform: 'none',
+          fontSize: 12,
+        },
+        swipeEnabled: true,
       }}
     >
-      <Tabs.Screen
+      <MaterialTopTabs.Screen
         name="index"
         options={{
           title: "Chats",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons
-              name="chatbubble-ellipses-outline"
+          tabBarIcon: ({ color }) => (
+            <MessageCircle
               color={color}
-              size={size}
+              size={24}
             />
           ),
         }}
       />
 
-      <Tabs.Screen
-        name="profile"
+      <MaterialTopTabs.Screen
+        name="deals"
         options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons
-              name="person-outline"
+          title: "Deals",
+          tabBarIcon: ({ color }) => (
+            <Handshake
               color={color}
-              size={size}
+              size={24}
             />
           ),
         }}
       />
-    </Tabs>
+
+      <MaterialTopTabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color }) => (
+            <User
+              color={color}
+              size={24}
+            />
+          ),
+        }}
+      />
+    </MaterialTopTabs>
   );
 }

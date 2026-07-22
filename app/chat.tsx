@@ -292,6 +292,8 @@ export default function ChatScreen() {
     if (!channelId) return;
     const id = channelId as string;
     
+    if (id.startsWith('dummy-deal')) return;
+    
     try {
       const liveMessages = await ConnectsService.getMessages(id);
       if (liveMessages && liveMessages.length > 0) {
@@ -353,6 +355,51 @@ export default function ChatScreen() {
                ? otherMember?.profile_image_url
                : channel.channel_image) || "");
           }
+        }
+
+        if (id.startsWith("dummy-deal")) {
+           const dummyMessages: Message[] = [
+             {
+               message_id: 'msg-3',
+               local_id: 'local-3',
+               channel_id: id,
+               sender_email: "sales@dummy.com",
+               sender_name: "Sales Rep",
+               text: `I'll schedule a discovery call with them shortly.`,
+               created_at: new Date(Date.now() - 60000).toISOString(),
+               reactions: [],
+               attachments: [],
+               status: 'sent'
+             },
+             {
+               message_id: 'msg-2',
+               local_id: 'local-2',
+               channel_id: id,
+               sender_email: "manager@dummy.com",
+               sender_name: "Manager",
+               text: `I've reviewed the requirements, looks promising.`,
+               created_at: new Date(Date.now() - 1800000).toISOString(),
+               reactions: [],
+               attachments: [],
+               status: 'sent'
+             },
+             {
+               message_id: 'msg-1',
+               local_id: 'local-1',
+               channel_id: id,
+               sender_email: "ceo@dummy.com",
+               sender_name: "CEO",
+               text: `Hey team, let's discuss this opportunity.`,
+               created_at: new Date(Date.now() - 3600000).toISOString(),
+               reactions: [],
+               attachments: [],
+               status: 'sent'
+             }
+           ];
+           // Sorting newest first for inverted FlashList
+           setMessages(dummyMessages);
+           setLoading(false);
+           return;
         }
 
         // 1. Instant Load from Cache
@@ -563,6 +610,12 @@ export default function ChatScreen() {
 
   const handleLoadMore = async () => {
     if (loadingMore || !hasMore || messages.length === 0) return;
+    
+    if (typeof channelId === 'string' && channelId.startsWith('dummy-deal')) {
+      setHasMore(false);
+      return;
+    }
+    
     setLoadingMore(true);
     try {
       const oldestMessage = messages[0];
