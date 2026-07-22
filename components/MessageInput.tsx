@@ -7,6 +7,7 @@ import AttachmentPreview, { PendingAttachment } from './AttachmentPreview';
 import AttachmentSheet from './AttachmentSheet/AttachmentSheet';
 import AudioRecorder, { AudioRecordingResult } from './AudioRecorder';
 import EmojiKeyboard from './EmojiKeyboard';
+import ImagePreviewScreen from './ImageEditor/ImagePreviewScreen';
 
 import { Message } from '../types/connects';
 import { createStyles } from './MessageInput.styles';
@@ -49,6 +50,8 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
   const [showMentionPopover, setShowMentionPopover] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionStartIndex, setMentionStartIndex] = useState(-1);
+  const [previewImages, setPreviewImages] = useState<PendingAttachment[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
   const typingTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = React.useRef<TextInput>(null);
   const isSendingRef = React.useRef(false);
@@ -338,8 +341,26 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
         visible={menuVisible}
         onClose={() => setMenuVisible(false)}
         onSelectOption={handleMenuSelect}
-        onAttachmentSelected={(attachment) => {
-          setAttachments((prev) => [...prev, attachment]);
+        onSendMediaBatch={(attachments, captionText) => {
+          setMenuVisible(false);
+          onSend(captionText?.trim() || "", attachments);
+        }}
+        onEditMediaBatch={(attachments, captionText) => {
+          setMenuVisible(false);
+          setPreviewImages(attachments);
+          setShowPreview(true);
+        }}
+      />
+
+      <ImagePreviewScreen
+        visible={showPreview}
+        images={previewImages}
+        onClose={() => setShowPreview(false)}
+        onSend={(imgs, caption) => {
+          setShowPreview(false);
+          const captionText = caption.trim();
+          onSend(captionText, imgs);
+          setPreviewImages([]);
         }}
       />
 

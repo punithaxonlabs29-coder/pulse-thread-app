@@ -96,7 +96,7 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   },
   header: {
     position: 'absolute',
-    top: 0,
+    top: 40,
     left: 0,
     right: 0,
 

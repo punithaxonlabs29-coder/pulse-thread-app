@@ -903,7 +903,7 @@ export default function ChatScreen() {
 
         <KeyboardAvoidingView 
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 90 + insets.top : 0}
         >
           <ImageBackground 
@@ -1079,7 +1079,7 @@ export default function ChatScreen() {
             )}
           </ImageBackground>
   
-          <View style={{ backgroundColor: colors.background.surface, paddingBottom: insets.bottom }}>
+          <View style={{ backgroundColor: colors.background.surface, paddingBottom: 5 }}>
             <MessageInput 
               onSend={handleSend} 
               onTyping={handleTyping} 
