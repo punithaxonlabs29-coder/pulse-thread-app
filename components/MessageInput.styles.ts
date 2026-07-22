@@ -85,4 +85,38 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   replyPreviewClose: {
     padding: Spacing.md,
   },
+  mentionPopoverContainer: {
+    backgroundColor: colors.background.surface,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border.primary,
+    maxHeight: 180,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  mentionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.primary,
+  },
+  mentionAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.full,
+    marginRight: Spacing.md,
+    backgroundColor: colors.brand.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mentionAvatarText: {
+    color: colors.text.inverse,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
 });

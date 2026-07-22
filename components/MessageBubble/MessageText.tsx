@@ -15,6 +15,8 @@ interface MessageTextProps {
   readStatus?: "sent" | "delivered" | "read" | "pending" | "sending" | "failed";
   searchText?: string;
   searchEnabled?: boolean;
+  mentions?: any[];
+  onMentionPress?: (userName: string) => void;
 }
 
 export const MessageText = React.memo(({
@@ -27,6 +29,8 @@ export const MessageText = React.memo(({
   readStatus,
   searchText = '',
   searchEnabled = false,
+  mentions = [],
+  onMentionPress,
 }: MessageTextProps) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -53,13 +57,11 @@ export const MessageText = React.memo(({
   };
 
   const renderText = (textContent: string) => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const urlParts = textContent.split(urlRegex);
+    const tokenRegex = /(https?:\/\/[^\s]+|@[A-Za-z0-9_\s]+?(?=\s|[.,!?]|$))/g;
+    const parts = textContent.split(tokenRegex);
 
-    return urlParts.map((part, i) => {
-      const isUrl = !!part.match(urlRegex);
-
-      if (isUrl) {
+    return parts.map((part, i) => {
+      if (part.startsWith('http://') || part.startsWith('https://')) {
         return (
           <Text
             key={`url-${i}`}
@@ -71,7 +73,20 @@ export const MessageText = React.memo(({
         );
       }
 
-      // Non-URL segment — apply search highlighting inside it
+      if (part.startsWith('@')) {
+        const userName = part.slice(1).trim();
+        return (
+          <Text
+            key={`mention-${i}`}
+            style={{ fontWeight: 'bold', textDecorationLine: 'underline', color: isMine ? '#FFFFFF' : colors.brand.primary }}
+            onPress={() => onMentionPress && onMentionPress(userName)}
+          >
+            {part}
+          </Text>
+        );
+      }
+
+      // Non-URL / Non-Mention segment — apply search highlighting inside it
       const segments = splitBySearch(part);
       return (
         <Text key={`seg-${i}`}>

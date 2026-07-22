@@ -12,7 +12,7 @@ import CalendarModal from "../components/CalendarModal";
 import ChatHeader from "../components/ChatHeader";
 import MessageBubble from "../components/MessageBubble";
 import MessageInfo from "../components/MessageInfo";
-import MessageInput from "../components/MessageInput";
+import MessageInput, { MentionMember } from "../components/MessageInput";
 import ReactionPicker from "../components/ReactionPicker";
 import SearchHeader from "../components/SearchHeader";
 import SelectionHeader from "../components/SelectionHeader";
@@ -45,6 +45,7 @@ export default function ChatScreen() {
   const [resolvedName, setResolvedName] = useState((channelName as string) || "");
   const [resolvedImage, setResolvedImage] = useState((channelImage as string) || "");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [channelMembers, setChannelMembers] = useState<MentionMember[]>([]);
   const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -338,26 +339,52 @@ export default function ChatScreen() {
       if (channelId) {
         const id = channelId as string;
         
+        const cachedChannels = await CacheService.getCachedChannels();
+        const channel = cachedChannels?.find(c => c.channel_id === id);
+        if (channel && channel.members) {
+          setChannelMembers(channel.members.map((m: any) => ({
+            name: m.name || m.email || "Member",
+            email: m.email,
+            role: m.role
+          })));
+        }
+
         // Resolve missing channel info if opened from Push Notification
-        if (!channelName) {
-          const cachedChannels = await CacheService.getCachedChannels();
-          const channel = cachedChannels?.find(c => c.channel_id === id);
-          if (channel) {
-             const otherMember = channel.channel_type === "direct" 
-               ? channel.members?.find((m: any) => m.email?.toLowerCase() !== currentEmail?.toLowerCase())
-               : null;
-             
-             setResolvedName((channel.channel_type === "direct" 
-               ? otherMember?.name ?? channel.channel_name 
-               : channel.channel_name) || "Unknown");
-               
-             setResolvedImage((channel.channel_type === "direct"
-               ? otherMember?.profile_image_url
-               : channel.channel_image) || "");
-          }
+        if (!channelName && channel) {
+          const otherMember = channel.channel_type === "direct" 
+            ? channel.members?.find((m: any) => m.email?.toLowerCase() !== currentEmail?.toLowerCase())
+            : null;
+          
+          setResolvedName((channel.channel_type === "direct" 
+            ? otherMember?.name ?? channel.channel_name 
+            : channel.channel_name) || "Unknown");
+            
+          setResolvedImage((channel.channel_type === "direct"
+            ? otherMember?.profile_image_url
+            : channel.channel_image) || "");
+        }
+
+        if (id.startsWith("dm-") || id.startsWith("new-dm-")) {
+           const personName = (channelName as string) || "User";
+           setChannelMembers([
+             { name: personName, role: "Team Member" }
+           ]);
+           const cachedMsgs = await messageRepository.getMessages(id);
+           if (cachedMsgs && cachedMsgs.length > 0) {
+             setMessages(cachedMsgs);
+           } else {
+             setMessages([]);
+           }
+           setLoading(false);
+           return;
         }
 
         if (id.startsWith("dummy-deal")) {
+           setChannelMembers([
+             { name: "Sales Rep", email: "sales@dummy.com", role: "Sales Rep" },
+             { name: "Manager", email: "manager@dummy.com", role: "Manager" },
+             { name: "CEO", email: "ceo@dummy.com", role: "CEO" }
+           ]);
            const dummyMessages: Message[] = [
              {
                message_id: 'msg-3',
@@ -975,6 +1002,44 @@ export default function ChatScreen() {
                           searchEnabled={searchMode}
                           onSwipeReply={() => setReplyingTo(item)}
                           onReplyPress={(replyMessageId) => { scrollToMessage(replyMessageId); }}
+                          onMentionPress={async (userName) => {
+                            const cachedChannels = await CacheService.getCachedChannels();
+                            const lowerName = userName.toLowerCase().trim();
+
+                            // Search for existing direct channel with this user
+                            const existingChannel = cachedChannels?.find(c => {
+                              if (c.channel_type === "direct") {
+                                const matchMember = c.members?.some(m => 
+                                  (m.name && m.name.toLowerCase().includes(lowerName)) ||
+                                  (m.email && m.email.toLowerCase().includes(lowerName))
+                                );
+                                if (matchMember) return true;
+                              }
+                              return c.channel_name?.toLowerCase().includes(lowerName);
+                            });
+
+                            if (existingChannel) {
+                              router.push({
+                                pathname: '/chat',
+                                params: {
+                                  channelId: existingChannel.channel_id,
+                                  channelName: existingChannel.channel_name,
+                                  channelType: existingChannel.channel_type,
+                                  channelImage: existingChannel.channel_image || '',
+                                }
+                              });
+                            } else {
+                              const targetChannelId = `dm-${lowerName.replace(/\s+/g, '-')}`;
+                              router.push({
+                                pathname: '/chat',
+                                params: {
+                                  channelId: targetChannelId,
+                                  channelName: userName,
+                                  channelType: 'direct',
+                                }
+                              });
+                            }
+                          }}
                           selected={selectedMessageIds.includes(item.message_id)}
                         onLongPress={(y, height) => {
                           setSelectedMessageIds(prev => {
@@ -1020,6 +1085,7 @@ export default function ChatScreen() {
               onTyping={handleTyping} 
               replyingTo={replyingTo}
               onCancelReply={() => setReplyingTo(null)}
+              members={channelMembers}
             />
           </View>
         </KeyboardAvoidingView>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { TextInput, TouchableOpacity, View, Text, Image , Keyboard } from "react-native";
+import { TextInput, TouchableOpacity, View, Text, Image , Keyboard, ScrollView } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -14,14 +14,31 @@ import { useColors } from '../design';
 import { AppText } from './ui/AppText';
 
 
+export interface MentionMember {
+  name: string;
+  email?: string;
+  role?: string;
+}
+
+const DEFAULT_MEMBERS: MentionMember[] = [
+  { name: "CEO", email: "ceo@company.com", role: "CEO" },
+  { name: "Manager", email: "manager@company.com", role: "Manager" },
+  { name: "Sales Rep", email: "sales@company.com", role: "Sales Rep" },
+  { name: "Karan", email: "karan@company.com", role: "Sales Rep" },
+  { name: "Sunil Pal", email: "sunil@company.com", role: "Lead Contact" },
+  { name: "Rajit Kumar", email: "rajit@company.com", role: "Sales Rep" },
+  { name: "Sowndarya HS", email: "sowndarya@company.com", role: "Lead Contact" },
+];
+
 interface MessageInputProps {
   onSend: (text: string, attachments?: PendingAttachment[]) => void;
   onTyping?: (isTyping: boolean) => void;
   replyingTo?: Message | null;
   onCancelReply?: () => void;
+  members?: MentionMember[];
 }
 
-export default function MessageInput({ onSend, onTyping, replyingTo, onCancelReply }: MessageInputProps) {
+export default function MessageInput({ onSend, onTyping, replyingTo, onCancelReply, members }: MessageInputProps) {
   const colors = useColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -29,13 +46,37 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [menuVisible, setMenuVisible] = useState(false);
   const [showEmojiKeyboard, setShowEmojiKeyboard] = useState(false);
+  const [showMentionPopover, setShowMentionPopover] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionStartIndex, setMentionStartIndex] = useState(-1);
   const typingTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = React.useRef<TextInput>(null);
   const isSendingRef = React.useRef(false);
 
+  const availableMembers = members !== undefined ? members : DEFAULT_MEMBERS;
+  const filteredMembers = availableMembers.filter(m => 
+    (m.name && m.name.toLowerCase().includes(mentionQuery)) || 
+    (m.email && m.email.toLowerCase().includes(mentionQuery))
+  );
+
   const handleTextChange = (newText: string) => {
     setText(newText);
     
+    // Check if typing @mention
+    const lastAtIndex = newText.lastIndexOf('@');
+    if (lastAtIndex !== -1) {
+      const queryAfterAt = newText.slice(lastAtIndex + 1);
+      if (!queryAfterAt.includes('\n') && !queryAfterAt.includes('  ')) {
+        setMentionQuery(queryAfterAt.toLowerCase());
+        setMentionStartIndex(lastAtIndex);
+        setShowMentionPopover(true);
+      } else {
+        setShowMentionPopover(false);
+      }
+    } else {
+      setShowMentionPopover(false);
+    }
+
     if (onTyping) {
       onTyping(true);
       if (typingTimeoutRef.current) {
@@ -45,6 +86,18 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
         onTyping(false);
       }, 2000);
     }
+  };
+
+  const selectMention = (memberName: string) => {
+    if (mentionStartIndex !== -1) {
+      const beforeAt = text.slice(0, mentionStartIndex);
+      const newText = `${beforeAt}@${memberName} `;
+      setText(newText);
+    }
+    setShowMentionPopover(false);
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
   };
 
   const handleSend = () => {
@@ -192,6 +245,42 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
 
       <AttachmentPreview attachments={attachments} onRemove={handleRemoveAttachment} />
       
+      {showMentionPopover && filteredMembers.length > 0 && (
+        <View style={styles.mentionPopoverContainer}>
+          <ScrollView keyboardShouldPersistTaps="always" style={{ maxHeight: 160 }}>
+            {filteredMembers.map((member) => (
+              <TouchableOpacity
+                key={member.name}
+                style={styles.mentionItem}
+                onPress={() => selectMention(member.name)}
+              >
+                <View style={styles.mentionAvatar}>
+                  <AppText style={styles.mentionAvatarText}>
+                    {member.name.charAt(0).toUpperCase()}
+                  </AppText>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="bodySemibold" style={{ color: colors.text.primary }}>
+                    {member.name}
+                  </AppText>
+                  {member.role ? (
+                    <AppText variant="caption" style={{ color: colors.text.muted }}>
+                      {member.role} {member.email ? `• ${member.email}` : ''}
+                    </AppText>
+                  ) : (
+                    member.email && (
+                      <AppText variant="caption" style={{ color: colors.text.muted }}>
+                        {member.email}
+                      </AppText>
+                    )
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       <View style={styles.inputContainer}>
         <TouchableOpacity 
           style={styles.iconButton} 
