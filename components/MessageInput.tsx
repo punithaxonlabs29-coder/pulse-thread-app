@@ -4,8 +4,8 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import AttachmentPreview, { PendingAttachment } from './AttachmentPreview';
-import AttachmentMenu from './AttachmentMenu';
-import AudioRecorder from './AudioRecorder';
+import AttachmentSheet from './AttachmentSheet/AttachmentSheet';
+import AudioRecorder, { AudioRecordingResult } from './AudioRecorder';
 import EmojiKeyboard from './EmojiKeyboard';
 
 import { Message } from '../types/connects';
@@ -204,12 +204,13 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
     }
   };
 
-  const handleAudioRecord = (uri: string, durationMillis: number) => {
+  const handleAudioRecord = (result: AudioRecordingResult) => {
     onSend("", [{
-      uri,
-      type: 'audio/m4a',
+      uri: result.uri,
+      type: result.mimeType || 'audio/m4a',
       name: `audio_${Date.now()}.m4a`,
-      mimeType: 'audio/m4a'
+      size: result.size,
+      mimeType: result.mimeType || 'audio/m4a'
     }]);
   };
 
@@ -333,10 +334,13 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
         )}
       </View>
 
-      <AttachmentMenu 
-        visible={menuVisible} 
-        onClose={() => setMenuVisible(false)} 
-        onSelectOption={handleMenuSelect} 
+      <AttachmentSheet
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        onSelectOption={handleMenuSelect}
+        onAttachmentSelected={(attachment) => {
+          setAttachments((prev) => [...prev, attachment]);
+        }}
       />
 
       {showEmojiKeyboard && (

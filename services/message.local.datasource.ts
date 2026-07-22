@@ -341,8 +341,7 @@ export class MessageLocalDataSource {
         "SELECT COUNT(*) as count FROM messages WHERE channel_id = ?",
         [channelId]
       );
+      console.log("AFTER DELETE:", after);
     });
-
-  console.log("AFTER DELETE:", after);
 }
 }

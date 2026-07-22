@@ -30,7 +30,7 @@ export default function DealsScreen() {
     <Pressable
       style={({ pressed }) => [
         styles.stageRow,
-        { backgroundColor: pressed ? colors.background.muted : colors.background.surface }
+        { backgroundColor: pressed ? colors.background.selected : colors.background.surface }
       ]}
       onPress={() => handleStagePress(item.id, item.title)}
     >

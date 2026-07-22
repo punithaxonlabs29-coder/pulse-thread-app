@@ -1079,7 +1079,7 @@ export default function ChatScreen() {
             )}
           </ImageBackground>
   
-          <View style={{ backgroundColor: colors.background.surface }}>
+          <View style={{ backgroundColor: colors.background.surface, paddingBottom: insets.bottom }}>
             <MessageInput 
               onSend={handleSend} 
               onTyping={handleTyping} 

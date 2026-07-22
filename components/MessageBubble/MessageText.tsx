@@ -78,7 +78,7 @@ export const MessageText = React.memo(({
         return (
           <Text
             key={`mention-${i}`}
-            style={{ fontWeight: 'bold', textDecorationLine: 'underline', color: isMine ? '#FFFFFF' : colors.brand.primary }}
+            style={{ fontWeight: 'bold', textDecorationLine: 'underline', color: '#FF6B00' }}
             onPress={() => onMentionPress && onMentionPress(userName)}
           >
             {part}

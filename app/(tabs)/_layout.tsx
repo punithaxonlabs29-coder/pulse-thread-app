@@ -41,7 +41,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Chats",
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color }: { color: string }) => (
             <MessageCircle
               color={color}
               size={24}
@@ -54,7 +54,7 @@ export default function TabsLayout() {
         name="deals"
         options={{
           title: "Deals",
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color }: { color: string }) => (
             <Handshake
               color={color}
               size={24}
@@ -67,7 +67,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color }: { color: string }) => (
             <User
               color={color}
               size={24}

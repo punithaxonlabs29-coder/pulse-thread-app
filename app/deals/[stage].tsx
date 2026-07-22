@@ -47,7 +47,7 @@ export default function StageDealsScreen() {
       style={({ pressed }) => [
         styles.card,
         {
-          backgroundColor: pressed ? colors.background.muted : colors.background.surface,
+          backgroundColor: pressed ? colors.background.selected : colors.background.surface,
           borderColor: colors.border.primary,
         }
       ]}
@@ -63,7 +63,7 @@ export default function StageDealsScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.screen }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]} edges={['bottom']}>
       <Stack.Screen 
         options={{
           headerShown: true,
