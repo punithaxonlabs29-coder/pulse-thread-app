@@ -37,9 +37,10 @@ interface MessageInputProps {
   replyingTo?: Message | null;
   onCancelReply?: () => void;
   members?: MentionMember[];
+  isDealChat?: boolean;
 }
 
-export default function MessageInput({ onSend, onTyping, replyingTo, onCancelReply, members }: MessageInputProps) {
+export default function MessageInput({ onSend, onTyping, replyingTo, onCancelReply, members, isDealChat = false }: MessageInputProps) {
   const colors = useColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -286,47 +287,56 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
       )}
 
       <View style={styles.inputContainer}>
-        <TouchableOpacity 
-          style={styles.iconButton} 
-          onPress={() => {
-            if (showEmojiKeyboard) {
+        <View style={styles.inputWrapper}>
+          <TouchableOpacity 
+            style={styles.iconButtonInside} 
+            onPress={() => {
+              if (showEmojiKeyboard) {
+                setShowEmojiKeyboard(false);
+                setTimeout(() => {
+                  inputRef.current?.focus();
+                }, 50);
+              } else {
+                setShowEmojiKeyboard(true);
+                Keyboard.dismiss();
+              }
+            }}
+          >
+            {showEmojiKeyboard ? (
+              <MaterialIcons name="keyboard" size={24} color={colors.text.muted} />
+            ) : (
+              <Ionicons name="happy-outline" size={24} color={colors.text.muted} />
+            )}
+          </TouchableOpacity>
+
+          <TextInput
+            ref={inputRef}
+            showSoftInputOnFocus={!showEmojiKeyboard}
+            placeholder="Type a message..."
+            placeholderTextColor={colors.text.muted}
+            style={styles.input}
+            value={text}
+            onChangeText={handleTextChange}
+            onFocus={() => {
               setShowEmojiKeyboard(false);
-              setTimeout(() => {
-                inputRef.current?.focus();
-              }, 50);
-            } else {
-              setShowEmojiKeyboard(true);
-              Keyboard.dismiss();
-            }
-          }}
-        >
-          {showEmojiKeyboard ? (
-            <MaterialIcons name="keyboard" size={24} color={colors.text.muted} />
-          ) : (
-            <Ionicons name="happy-outline" size={24} color={colors.text.muted} />
-          )}
-        </TouchableOpacity>
+            }}
+            multiline
+          />
 
-        <TouchableOpacity 
-          style={styles.iconButton}
-          onPress={() => setMenuVisible(!menuVisible)}
-        >
-          <Ionicons name="attach" size={24} color={colors.text.muted} />
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.iconButtonInside}
+            onPress={() => setMenuVisible(!menuVisible)}
+          >
+            <Ionicons name="attach-outline" size={24} color={colors.text.muted} />
+          </TouchableOpacity>
 
-        <TextInput
-          ref={inputRef}
-          showSoftInputOnFocus={!showEmojiKeyboard}
-          placeholder="Type a message..."
-          placeholderTextColor={colors.text.muted}
-          style={styles.input}
-          value={text}
-          onChangeText={handleTextChange}
-          onFocus={() => {
-            setShowEmojiKeyboard(false);
-          }}
-          multiline
-        />
+          <TouchableOpacity 
+            style={styles.iconButtonInside}
+            onPress={() => handleMenuSelect('camera')}
+          >
+            <Ionicons name="camera-outline" size={24} color={colors.text.muted} />
+          </TouchableOpacity>
+        </View>
 
         {text.trim() || attachments.length > 0 ? (
           <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
@@ -341,6 +351,7 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
         visible={menuVisible}
         onClose={() => setMenuVisible(false)}
         onSelectOption={handleMenuSelect}
+        isDealChat={isDealChat}
         onSendMediaBatch={(attachments, captionText) => {
           setMenuVisible(false);
           onSend(captionText?.trim() || "", attachments);

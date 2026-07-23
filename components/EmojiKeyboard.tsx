@@ -82,7 +82,7 @@ export default function EmojiKeyboard({ onEmojiSelected, onBackspace }: EmojiKey
               style={styles.emojiWrapper}
               onPress={() => onEmojiSelected(emoji)}
             >
-              <AppText style={styles.emoji}>{emoji}</AppText>
+              <Text style={styles.emoji}>{emoji}</Text>
             </TouchableOpacity>
           ))}
         </View>

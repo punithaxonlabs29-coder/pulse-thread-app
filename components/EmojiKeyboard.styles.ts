@@ -5,10 +5,11 @@ const { width, height } = Dimensions.get('window');
 
 export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
-    height: 300,
-    backgroundColor: colors.background.primary, // Usually light gray or primary
+    height: 270,
+    backgroundColor: colors.background.primary,
     borderTopWidth: 1,
     borderColor: colors.border.primary,
+    paddingBottom: 10,
   },
   categoryContainer: {
     paddingVertical: Spacing.sm,
@@ -18,7 +19,7 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     paddingRight: Spacing.md,
   },
   categoryTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text.secondary,
     paddingHorizontal: Spacing.md,
@@ -28,13 +29,16 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     flexWrap: 'wrap',
   },
   emojiWrapper: {
-    width: width / Math.floor(width / 48), // Increased width hit area
-    height: 52, // Increased height hit area
+    width: width / Math.floor(width / 44),
+    height: 46,
     justifyContent: 'center',
     alignItems: 'center',
   },
   emoji: {
-    fontSize: 34,
+    fontSize: 26,
+    lineHeight: 34,
+    textAlign: 'center',
+    color: '#000000',
   },
   backspaceTopButton: {
     padding: 4,

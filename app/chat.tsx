@@ -58,6 +58,7 @@ export default function ChatScreen() {
   const isLoadedRef = useRef(false);
   const { lastUpdatedMessage, lastPinnedEvent, resetUnreadCount, readReceipts, broadcastDeleteEvent } = useChatContext();
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [keyboardPadding, setKeyboardPadding] = useState(0);
   const insets = useSafeAreaInsets();
 
   const colors = useColors();
@@ -287,17 +288,30 @@ export default function ChatScreen() {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
+        if (Platform.OS === 'android' && e.endCoordinates) {
+          setKeyboardPadding(e.endCoordinates.height);
+        }
         if (!isScrolledUpRef.current) {
           flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
         }
       }
     );
 
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        if (Platform.OS === 'android') {
+          setKeyboardPadding(0);
+        }
+      }
+    );
+
     return () => {
       showSub.remove();
+      hideSub.remove();
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, [channelId, leadId, channelType]);
+  }, [channelId, leadId, channelType, insets.bottom]);
 
   const syncNewMessages = async () => {
     if (!channelId) return;
@@ -1203,13 +1217,14 @@ export default function ChatScreen() {
             )}
           </ImageBackground>
   
-          <View style={{ backgroundColor: colors.background.surface, paddingBottom: 5 }}>
+          <View style={{ backgroundColor: colors.background.surface, paddingBottom: Platform.OS === 'android' ? (keyboardPadding > 0 ? keyboardPadding : 5) : 5 }}>
             <MessageInput 
               onSend={handleSend} 
               onTyping={handleTyping} 
               replyingTo={replyingTo}
               onCancelReply={() => setReplyingTo(null)}
               members={channelMembers}
+              isDealChat={channelType === "lead" || (channelId as string)?.startsWith("lead-") || (channelId as string)?.startsWith("dummy-deal")}
             />
           </View>
         </KeyboardAvoidingView>

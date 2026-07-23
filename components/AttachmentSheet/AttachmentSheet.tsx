@@ -22,13 +22,13 @@ import RecentGallery from "./RecentGallery";
 import { PendingAttachment } from "../AttachmentPreview";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
-const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
+const SHEET_HEIGHT = SCREEN_HEIGHT * 0.82;
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   onSelectOption: (
-    option: "camera" | "gallery" | "document" | "video"
+    option: any
   ) => void;
   onSendMediaBatch: (
     attachments: PendingAttachment[],
@@ -38,6 +38,7 @@ interface Props {
     attachments: PendingAttachment[],
     caption?: string
   ) => void;
+  isDealChat?: boolean;
 }
 
 export default function AttachmentSheet({
@@ -46,6 +47,7 @@ export default function AttachmentSheet({
   onSelectOption,
   onSendMediaBatch,
   onEditMediaBatch,
+  isDealChat = false,
 }: Props) {
   const colors = useColors();
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
@@ -142,7 +144,7 @@ export default function AttachmentSheet({
       <Animated.View
         style={[
           styles.sheet,
-          { backgroundColor: "#121b22" },
+          { backgroundColor: "#FFFFFF" },
           { transform: [{ translateY }] },
         ]}
       >
@@ -150,16 +152,13 @@ export default function AttachmentSheet({
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          {/* Top header bar */}
-          <View style={styles.topHeader}>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Recents</Text>
-            <View style={{ width: 24 }} />
+          {/* Drag Handle Pill */}
+          <View style={styles.dragHandleContainer}>
+            <View style={styles.dragHandle} />
           </View>
 
-          <AttachmentHeader onSelectOption={onSelectOption} />
+          {/* Option Grid */}
+          <AttachmentHeader onSelectOption={onSelectOption} isDealChat={isDealChat} />
 
           {/* Media Grid */}
           <View style={styles.gridContainer}>
@@ -169,7 +168,7 @@ export default function AttachmentSheet({
             />
           </View>
 
-          {/* WhatsApp Bottom Bar when media selected */}
+          {/* Bottom Bar when media selected */}
           {selectedAssets.length > 0 && (
             <View style={styles.bottomBar}>
               {/* Left Edit Icon with Badge */}
@@ -193,13 +192,13 @@ export default function AttachmentSheet({
                 <TextInput
                   style={styles.captionInput}
                   placeholder="Add a caption..."
-                  placeholderTextColor="#8696a0"
+                  placeholderTextColor="#94A3B8"
                   value={caption}
                   onChangeText={setCaption}
                 />
               </View>
 
-              {/* Right Green Send Button with Badge */}
+              {/* Right Orange Send Button with Badge */}
               <TouchableOpacity
                 style={styles.sendBtn}
                 onPress={handleDirectSend}
@@ -235,39 +234,32 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     overflow: "hidden",
   },
-  topHeader: {
-    flexDirection: "row",
+  dragHandleContainer: {
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#202c33",
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
   },
-  closeBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
+  dragHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#CBD5E1",
   },
   gridContainer: {
     flex: 1,
-    backgroundColor: "#111b21",
+    backgroundColor: "#F8FAFC",
   },
 
   // Bottom Bar
   bottomBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1f2c34",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 10,
     borderTopWidth: 1,
-    borderTopColor: "#2a3942",
+    borderTopColor: "#E2E8F0",
   },
   editBtnContainer: {
     padding: 2,
@@ -278,7 +270,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
     position: "relative",
-    backgroundColor: "#111b21",
+    backgroundColor: "#F1F5F9",
   },
   editThumbnail: {
     width: "100%",
@@ -293,13 +285,13 @@ const styles = StyleSheet.create({
   },
   captionInputContainer: {
     flex: 1,
-    backgroundColor: "#2a3942",
+    backgroundColor: "#F1F5F9",
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: Platform.OS === "ios" ? 10 : 6,
   },
   captionInput: {
-    color: "#e9edef",
+    color: "#0F172A",
     fontSize: 15,
   },
   sendBtn: {
@@ -322,7 +314,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "#1f2c34",
+    borderColor: "#FFFFFF",
   },
   sendBadgeText: {
     color: "#fff",

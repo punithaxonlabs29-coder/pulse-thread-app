@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
 import { AppText } from '../../components/ui/AppText';
 import { useColors } from '../../design';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
-import InputField from '../../components/Input/InputField';
-import { ChevronLeft, Filter, Download, User, Phone, DollarSign, Tag, Calendar, UserCheck } from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Filter, Download, Phone, DollarSign, Tag, Calendar, UserCheck } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ConnectsService, DealLead } from '../../services/connects.service';
 
@@ -187,42 +187,35 @@ export default function StageDealsScreen() {
   const headerTitleText = `${stageTitle} (${total > 0 ? total : leads.length})`;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]} edges={['bottom']}>
-      <Stack.Screen 
-        options={{
-          headerShown: true,
-          title: headerTitleText,
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()} style={{ marginRight: 16 }}>
-              <ChevronLeft size={24} color={colors.text.primary} />
-            </Pressable>
-          ),
-          headerRight: () => (
-            <View style={{ flexDirection: 'row', gap: 16 }}>
-              <Pressable>
-                <Download size={20} color={colors.brand.primary} />
-              </Pressable>
-              <Pressable>
-                <Filter size={20} color={colors.brand.primary} />
-              </Pressable>
-            </View>
-          ),
-          headerStyle: {
-            backgroundColor: colors.background.surface,
-          },
-          headerTitleStyle: {
-            color: colors.text.primary,
-            fontSize: 18,
-            fontWeight: '600',
-          },
-          headerShadowVisible: false,
-        }} 
-      />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]} edges={['top', 'bottom']}>
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.searchContainer}>
-        <InputField 
-          placeholder="Search" 
-          icon="search" 
+      {/* Header matching app top-level header design */}
+      <View style={styles.header}>
+        <View style={styles.headerLeftRow}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <AppText variant="h1">{headerTitleText}</AppText>
+        </View>
+
+        <View style={styles.headerRightRow}>
+          <TouchableOpacity hitSlop={10}>
+            <Download size={22} color={colors.brand.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity hitSlop={10}>
+            <Filter size={22} color={colors.brand.primary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Search Bar matching Chats & Deals tab search bar design */}
+      <View style={[styles.searchContainer, { backgroundColor: colors.border.primary }]}>
+        <Ionicons name="search" size={20} color={colors.text.secondary} />
+        <TextInput
+          style={[styles.searchInput, { color: colors.text.primary }]}
+          placeholder="Search Leads"
+          placeholderTextColor={colors.text.secondary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -271,8 +264,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  headerLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  backButton: {
+    marginRight: 12,
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
   searchContainer: {
-    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 24,
+    marginHorizontal: 16,
+    paddingHorizontal: 16,
+    height: 40,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
   },
   listContent: {
     paddingHorizontal: 16,
