@@ -1,27 +1,26 @@
 import React from "react";
 import {
-    StyleSheet,
-    TextInput,
-    View,
+  View,
 } from "react-native";
 import { AppTextInput } from "../ui/AppTextInput";
-
 import { Feather } from "@expo/vector-icons";
-
 import { Colors } from "../../constants/Colors";
 import { styles } from './InputField.styles';
-
 
 interface Props {
   placeholder: string;
   icon: any;
   secureTextEntry?: boolean;
+  value?: string;
+  onChangeText?: (text: string) => void;
 }
 
 export default function InputField({
   placeholder,
   icon,
   secureTextEntry = false,
+  value,
+  onChangeText,
 }: Props) {
   return (
     <View style={styles.container}>
@@ -36,6 +35,8 @@ export default function InputField({
         placeholderTextColor={Colors.placeholder}
         style={styles.input}
         secureTextEntry={secureTextEntry}
+        value={value}
+        onChangeText={onChangeText}
       />
 
       {secureTextEntry && (
@@ -48,4 +49,3 @@ export default function InputField({
     </View>
   );
 }
-

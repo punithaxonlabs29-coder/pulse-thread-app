@@ -129,5 +129,58 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   deletedText: {
     fontStyle: 'italic',
     color: colors.text.muted,
-  }
+  },
+  outerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    width: '100%',
+  },
+  outerRowMine: {
+    justifyContent: 'flex-end',
+  },
+  outerRowOther: {
+    justifyContent: 'flex-start',
+  },
+  avatarContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    marginRight: 6,
+    marginTop: 2,
+    marginBottom: 2,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 28,
+    height: 28,
+  },
+  avatarPlaceholder: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitial: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  senderHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+    paddingBottom: 2,
+    gap: 8,
+  },
+  senderNameText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  senderSubText: {
+    fontSize: 11,
+    color: '#8696a0',
+  },
 });

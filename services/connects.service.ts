@@ -18,6 +18,104 @@ interface GetMessagesResponse {
   messages: Message[];
 }
 
+export interface SalesStageItem {
+  sales_stage_index: string;
+  sales_stage: string;
+  lead_count?: number;
+  lead_mode_counts?: {
+    default: number;
+    review: number;
+  };
+}
+
+export interface GetSalesStagesResponse {
+  status: boolean;
+  stages: SalesStageItem[];
+  shared_leads_mode?: boolean;
+  hide_stage_counts?: boolean;
+}
+
+export interface GetDealStagesResponse {
+  status: boolean;
+  collection?: string;
+  stages: SalesStageItem[];
+}
+
+export interface DealLead {
+  customer_lead_unique_id: string;
+  customer_project_name?: string;
+  customer_name: string;
+  customer_mobile?: string;
+  customer_email?: string;
+  number_of_floors?: string;
+  number_of_people?: string;
+  customer_primary_product_name?: string;
+  customer_leadsource_primary?: string;
+  customer_sales_stage?: string;
+  customer_sales_stage_index?: string;
+  customer_assign_lead_to_name?: string;
+  customer_assign_lead_to?: string;
+  totalvalue_of_deal?: string;
+  lead_progression_milestone?: string;
+  customer_expected_signup_date?: string;
+  added_by_timestamp?: string;
+  forecast_status?: string;
+  leads_criteria_in_client_leads?: string;
+  quotation_exists?: boolean;
+}
+
+export interface GetDealLeadsResponse {
+  status: boolean;
+  sales_stage_index?: string;
+  sales_stage?: string;
+  total?: number;
+  leads: DealLead[];
+  lead_mode_counts?: {
+    default: number;
+    review: number;
+  };
+}
+
+export interface DealMessageRaw {
+  id: string;
+  message?: string;
+  timestamp?: string;
+  createdAt?: string;
+  sortTimestamp?: string;
+  owner?: string;
+  source?: string;
+  status?: string;
+  senderName?: string;
+  senderEmail?: string;
+  avatar?: string;
+  messageType?: string;
+  message_type?: string;
+  message_source?: string;
+  created_by?: string;
+  created_by_name?: string;
+  customer_lead_unique_id?: string;
+  deal_input?: any;
+  dealInput?: any;
+  side?: "left" | "right";
+  pulse_message_unique_id?: string;
+  attachments?: any[];
+}
+
+export interface GetDealConversationResponse {
+  status: boolean;
+  customer_lead_unique_id?: string;
+  collection?: string;
+  conversationModelVersion?: number;
+  has_messages?: boolean;
+  messages: DealMessageRaw[];
+}
+
+export interface SendDealMessageResponse {
+  status: boolean;
+  collection?: string;
+  created_message?: DealMessageRaw;
+}
+
 export const ConnectsService = {
   async getChannels(): Promise<Channel[]> {
     try {
@@ -418,5 +516,102 @@ export const ConnectsService = {
     return false;
   }
 },
+
+  async getSalesStages(): Promise<SalesStageItem[]> {
+    try {
+      const response = await mainApi.get<GetSalesStagesResponse>("connects/sales-stages/");
+      if (response.data && response.data.status && response.data.stages) {
+        return response.data.stages;
+      }
+      return [];
+    } catch (error) {
+      console.log("Get Sales Stages Error:", (error as AxiosError).message);
+      return [];
+    }
+  },
+
+  async getDealStages(): Promise<SalesStageItem[]> {
+    try {
+      const response = await mainApi.get<GetDealStagesResponse>("connects/deal-stages/");
+      if (response.data && response.data.status && response.data.stages) {
+        return response.data.stages;
+      }
+      return [];
+    } catch (error) {
+      console.log("Get Deal Stages Error:", (error as AxiosError).message);
+      return [];
+    }
+  },
+
+  async getDealLeads(
+    salesStageIndex: string,
+    leadListMode: string = "default",
+    page: number = 1,
+    pageSize: number = 25
+  ): Promise<GetDealLeadsResponse> {
+    try {
+      const response = await mainApi.get<GetDealLeadsResponse>(
+        `connects/deal-leads/?sales_stage_index=${salesStageIndex}&lead_list_mode=${leadListMode}&page=${page}&page_size=${pageSize}`
+      );
+      if (response.data && response.data.status) {
+        return response.data;
+      }
+      return { status: false, leads: [], total: 0 };
+    } catch (error) {
+      console.log("Get Deal Leads Error:", (error as AxiosError).message);
+      return { status: false, leads: [], total: 0 };
+    }
+  },
+
+  async getDealConversation(customerLeadUniqueId: string): Promise<Message[]> {
+    try {
+      const response = await mainApi.get<GetDealConversationResponse>(
+        `connects/deal-conversation/?customer_lead_unique_id=${customerLeadUniqueId}`
+      );
+      if (response.data && response.data.status && response.data.messages) {
+        return response.data.messages.map(raw => this.mapDealMessageToMessage(raw, customerLeadUniqueId));
+      }
+      return [];
+    } catch (error) {
+      console.log("Get Deal Conversation Error:", (error as AxiosError).message);
+      return [];
+    }
+  },
+
+  async sendDealMessage(
+    customerLeadUniqueId: string,
+    text: string,
+    attachments: any[] = []
+  ): Promise<SendDealMessageResponse> {
+    try {
+      const response = await mainApi.post<SendDealMessageResponse>(
+        "connects/deal-conversation/send/",
+        {
+          customer_lead_unique_id: customerLeadUniqueId,
+          text: text,
+          attachments: attachments,
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.log("Send Deal Message Error:", (error as AxiosError).message);
+      throw error;
+    }
+  },
+
+  mapDealMessageToMessage(raw: DealMessageRaw, leadId: string): Message {
+    return {
+      message_id: raw.pulse_message_unique_id || raw.id || `MSG_${Date.now()}`,
+      channel_id: `lead-${leadId}`,
+      sender_email: raw.senderEmail || raw.created_by || "",
+      sender_name: raw.senderName || raw.created_by_name || "System",
+      text: raw.message || "",
+      created_at: raw.createdAt || raw.timestamp || raw.sortTimestamp || new Date().toISOString(),
+      status: (raw.status as any) || "sent",
+      attachments: raw.attachments || [],
+      side: raw.side,
+      message_type: raw.messageType || raw.message_type,
+    };
+  },
 
 };

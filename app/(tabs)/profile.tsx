@@ -240,13 +240,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={29} color={colors.text.primary} />
-          </TouchableOpacity>
-        </View>
-        
-        <AppText style={styles.headerTitle}>{isEditMode ? "Edit Profile" : "My Profile"}</AppText>
+        <AppText variant="h1">{isEditMode ? "Edit Profile" : "My Profile"}</AppText>
         
         <View style={styles.headerRight}>
           {isEditMode ? (

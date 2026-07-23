@@ -76,4 +76,6 @@ export interface Message {
     is_deleted?: boolean;
     deleted_by?: string;
     is_starred?: boolean;
+    side?: "left" | "right";
+    message_type?: string;
 }

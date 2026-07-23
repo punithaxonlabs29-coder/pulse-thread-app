@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { StyleSheet, View, TouchableOpacity, Animated, Text } from "react-native";
+import { StyleSheet, View, TouchableOpacity, Animated, Text, Image } from "react-native";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Ionicons } from "@expo/vector-icons";
 import { Reaction } from "../../types/connects";
@@ -13,12 +13,31 @@ import { createStyles } from './index.styles';
 import { useColors } from "../../design";
 import { AppText } from "../ui/AppText";
 
+const SENDER_COLORS = [
+  '#34B7F1', '#E542A3', '#00A884', '#9B51E0',
+  '#F2994A', '#27AE60', '#2F80ED', '#EC4899',
+  '#F97316', '#10B981', '#6366F1', '#8B5CF6'
+];
+
+function getSenderColor(name: string = ''): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % SENDER_COLORS.length;
+  return SENDER_COLORS[index];
+}
 
 export interface MessageBubbleProps {
   messageId: string;
   text: string;
   time: string;
   isMine: boolean;
+  senderName?: string;
+  senderAvatar?: string;
+  senderEmail?: string;
+  showSenderHeader?: boolean;
+  showAvatar?: boolean;
   attachments?: any[];
   readStatus?: "sent" | "delivered" | "read" | "pending" | "sending" | "failed";
   reactions?: Reaction[];
@@ -50,7 +69,7 @@ export interface MessageBubbleProps {
 }
 
 const MessageBubble = React.memo(({ 
-  messageId, text, time, isMine, attachments, readStatus, 
+  messageId, text, time, isMine, senderName, senderAvatar, senderEmail, showSenderHeader = false, showAvatar = false, attachments, readStatus, 
   isVisible = false, reactions, selected = false, showTail = true,
   replyTo, onLongPress, onPress, onReactionPress, onSwipeReply, onReplyPress,
   isForwarded = false, isDeleted = false, highlighted = false,
@@ -65,7 +84,6 @@ const MessageBubble = React.memo(({
 
   useEffect(() => {
     if (highlighted) {
-      // Flash in then out
       Animated.sequence([
         Animated.timing(highlightAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
         Animated.delay(800),
@@ -103,6 +121,9 @@ const MessageBubble = React.memo(({
     );
   };
 
+  const shouldShowAvatar = !isMine && (showAvatar || !!senderAvatar || !!senderName);
+  const shouldShowSenderHeader = !isMine && (showSenderHeader || !!senderName);
+
   return (
     <Swipeable
       ref={swipeableRef}
@@ -118,7 +139,7 @@ const MessageBubble = React.memo(({
         styles.bubbleWrapper, 
         selected && styles.selectedWrapper
       ]}>
-        {/* Highlight flash overlay - like WhatsApp */}
+        {/* Highlight flash overlay */}
         <Animated.View
           pointerEvents="none"
           style={{
@@ -130,76 +151,101 @@ const MessageBubble = React.memo(({
             borderRadius: 10,
           }}
         />
-        <TouchableOpacity
-          ref={bubbleRef}
-          activeOpacity={0.9}
-          onLongPress={handleLongPress}
-          onPress={onPress}
-          delayLongPress={200}
-          style={[
-            styles.messageContainer,
-            isMine ? styles.myMessage : styles.otherMessage,
-            !showTail && (isMine ? styles.myMessageNoTail : styles.otherMessageNoTail),
-            hasAttachments && !hasText && { paddingHorizontal: 4, paddingVertical: 4 },
-            isSingleEmoji && styles.transparentMessage
-          ]}
-        >
-          {showTail && !isSingleEmoji && (isMine ? <View style={styles.myTail} /> : <View style={styles.otherTail} />)}
 
-          {isDeleted ? (
-            <View style={styles.deletedContainer}>
-              <Ionicons name="ban-outline" size={16} color={colors.text.muted} style={styles.deletedIcon} />
-              <AppText variant="body" color={colors.text.muted} style={styles.deletedText}>{text || "This message was deleted"}</AppText>
-            </View>
-          ) : (
-            <>
-              {isForwarded && (
-                <View style={styles.forwardedContainer}>
-                  <Ionicons name="arrow-redo" size={14} color={colors.text.muted} style={styles.forwardedIcon} />
-                  <AppText variant="caption" style={styles.forwardedText}>Forwarded</AppText>
+        <View style={[styles.outerRow, isMine ? styles.outerRowMine : styles.outerRowOther]}>
+          {shouldShowAvatar && (
+            <View style={styles.avatarContainer}>
+              {senderAvatar ? (
+                <Image source={{ uri: senderAvatar }} style={styles.avatarImage} />
+              ) : (
+                <View style={[styles.avatarPlaceholder, { backgroundColor: getSenderColor(senderName) }]}>
+                  <Text style={styles.avatarInitial}>
+                    {senderName ? senderName.trim().charAt(0).toUpperCase() : '?'}
+                  </Text>
                 </View>
               )}
+            </View>
+          )}
 
-              <ReplyPreview replyTo={replyTo} onReplyPress={onReplyPress} />
+          <TouchableOpacity
+            ref={bubbleRef}
+            activeOpacity={0.9}
+            onLongPress={handleLongPress}
+            onPress={onPress}
+            delayLongPress={200}
+            style={[
+              styles.messageContainer,
+              isMine ? styles.myMessage : styles.otherMessage,
+              !showTail && (isMine ? styles.myMessageNoTail : styles.otherMessageNoTail),
+              hasAttachments && !hasText && { paddingHorizontal: 4, paddingVertical: 4 },
+              isSingleEmoji && styles.transparentMessage
+            ]}
+          >
+            {showTail && !isSingleEmoji && (isMine ? <View style={styles.myTail} /> : <View style={styles.otherTail} />)}
 
-              <Attachments 
-                attachments={attachments}
-                messageId={messageId}
-                time={time}
-                readStatus={readStatus}
-                isMine={isMine}
-                showOverlayTime={showOverlayTime}
-                isVisible={isVisible}
-              />
+            {isDeleted ? (
+              <View style={styles.deletedContainer}>
+                <Ionicons name="ban-outline" size={16} color={colors.text.muted} style={styles.deletedIcon} />
+                <AppText variant="body" color={colors.text.muted} style={styles.deletedText}>{text || "This message was deleted"}</AppText>
+              </View>
+            ) : (
+              <>
+                {shouldShowSenderHeader && senderName ? (
+                  <View style={styles.senderHeaderRow}>
+                    <AppText style={[styles.senderNameText, { color: getSenderColor(senderName) }]} numberOfLines={1}>
+                      ~ {senderName}
+                    </AppText>
+                  </View>
+                ) : null}
 
-              {hasText ? (
-                <MessageText 
-                  text={text}
-                  isMine={isMine}
-                  isSingleEmoji={isSingleEmoji}
-                  isMediumEmoji={isMediumEmoji}
-                  isSmallEmoji={isSmallEmoji}
-                  hasAttachments={hasAttachments ?? false}
-                  readStatus={readStatus}
-                  searchText={searchText}
-                  searchEnabled={searchEnabled}
-                  mentions={mentions}
-                  onMentionPress={onMentionPress}
-                />
-              ) : null}
+                {isForwarded && (
+                  <View style={styles.forwardedContainer}>
+                    <Ionicons name="arrow-redo" size={14} color={colors.text.muted} style={styles.forwardedIcon} />
+                    <AppText variant="caption" style={styles.forwardedText}>Forwarded</AppText>
+                  </View>
+                )}
 
-              {!showOverlayTime && hasText ? (
-                <StatusIndicator 
+                <ReplyPreview replyTo={replyTo} onReplyPress={onReplyPress} />
+
+                <Attachments 
+                  attachments={attachments}
+                  messageId={messageId}
                   time={time}
                   readStatus={readStatus}
                   isMine={isMine}
-                  isSingleEmoji={isSingleEmoji}
-                  isStarred={isStarred}
+                  showOverlayTime={showOverlayTime}
+                  isVisible={isVisible}
                 />
-              ) : null}
-            </>
-          )}
-        </TouchableOpacity>
+
+                {hasText ? (
+                  <MessageText 
+                    text={text}
+                    isMine={isMine}
+                    isSingleEmoji={isSingleEmoji}
+                    isMediumEmoji={isMediumEmoji}
+                    isSmallEmoji={isSmallEmoji}
+                    hasAttachments={hasAttachments ?? false}
+                    readStatus={readStatus}
+                    searchText={searchText}
+                    searchEnabled={searchEnabled}
+                    mentions={mentions}
+                    onMentionPress={onMentionPress}
+                  />
+                ) : null}
+
+                {!showOverlayTime && hasText ? (
+                  <StatusIndicator 
+                    time={time}
+                    readStatus={readStatus}
+                    isMine={isMine}
+                    isSingleEmoji={isSingleEmoji}
+                    isStarred={isStarred}
+                  />
+                ) : null}
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
 
         <ReactionBar 
           reactions={reactions}
@@ -222,6 +268,11 @@ const MessageBubble = React.memo(({
          prev.searchText === next.searchText &&
          prev.searchEnabled === next.searchEnabled &&
          prev.isStarred === next.isStarred &&
+         prev.senderName === next.senderName &&
+         prev.senderAvatar === next.senderAvatar &&
+         prev.senderEmail === next.senderEmail &&
+         prev.showSenderHeader === next.showSenderHeader &&
+         prev.showAvatar === next.showAvatar &&
          JSON.stringify(prev.reactions) === JSON.stringify(next.reactions) &&
          JSON.stringify(prev.mentions) === JSON.stringify(next.mentions);
 });

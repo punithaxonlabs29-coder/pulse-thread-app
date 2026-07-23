@@ -136,8 +136,7 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 20,
-    marginBottom: 20,
+    paddingVertical: 18,
   },
   headerTitle: {
     fontSize: 24,
@@ -145,11 +144,9 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     color: colors.text.primary,
   },
   headerLeft: {
-    width: 60,
     alignItems: 'flex-start',
   },
   headerRight: {
-    width: 60,
     alignItems: 'flex-end',
   },
   headerActionTextCancel: {

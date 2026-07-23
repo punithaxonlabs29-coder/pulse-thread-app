@@ -41,12 +41,14 @@ declare module "@shopify/flash-list" {
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { channelId, channelName, channelImage, channelType } = useLocalSearchParams();
+  const { channelId, channelName, channelImage, channelType, leadId } = useLocalSearchParams();
   const [resolvedName, setResolvedName] = useState((channelName as string) || "");
   const [resolvedImage, setResolvedImage] = useState((channelImage as string) || "");
   const [messages, setMessages] = useState<Message[]>([]);
   const [channelMembers, setChannelMembers] = useState<MentionMember[]>([]);
   const [currentUserEmail, setCurrentUserEmail] = useState("");
+  const [currentUserName, setCurrentUserName] = useState("");
+  const [currentUserId, setCurrentUserId] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -275,6 +277,13 @@ export default function ChatScreen() {
   useEffect(() => {
     loadData();
 
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    if (channelId && ((channelId as string).startsWith("lead-") || channelType === "lead" || leadId)) {
+      pollInterval = setInterval(() => {
+        syncNewMessages();
+      }, 5000);
+    }
+
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
@@ -286,19 +295,60 @@ export default function ChatScreen() {
 
     return () => {
       showSub.remove();
+      if (pollInterval) clearInterval(pollInterval);
     };
-  }, [channelId]);
+  }, [channelId, leadId, channelType]);
 
   const syncNewMessages = async () => {
     if (!channelId) return;
     const id = channelId as string;
     
     if (id.startsWith('dummy-deal')) return;
+
+    if (id.startsWith('lead-') || channelType === 'lead' || leadId) {
+      const leadUniqueId = (leadId as string) || id.replace(/^lead-/, "");
+      try {
+        const dealMessages = await ConnectsService.getDealConversation(leadUniqueId);
+        if (dealMessages && dealMessages.length > 0) {
+          setMessages(prev => {
+            const hasChange = dealMessages.some(dm => {
+              const existing = prev.find(p => p.message_id === dm.message_id);
+              if (!existing) return true;
+              return existing.text !== dm.text || existing.status !== dm.status;
+            });
+
+            if (!hasChange && prev.length >= dealMessages.length) {
+              return prev; // Return same reference -> ZERO UI flicker!
+            }
+
+            const messageMap = new Map<string, Message>();
+            prev.forEach(m => messageMap.set(m.message_id, m));
+            dealMessages.forEach(m => messageMap.set(m.message_id, m));
+            return Array.from(messageMap.values()).sort((a, b) => 
+              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
+          });
+        }
+      } catch (err) {
+        console.log("Error syncing deal conversation:", err);
+      }
+      return;
+    }
     
     try {
       const liveMessages = await ConnectsService.getMessages(id);
       if (liveMessages && liveMessages.length > 0) {
         setMessages(prev => {
+          const hasChange = liveMessages.some(lm => {
+            const existing = prev.find(p => p.message_id === lm.message_id);
+            if (!existing) return true;
+            return existing.text !== lm.text || existing.status !== lm.status || existing.is_deleted !== lm.is_deleted;
+          });
+
+          if (!hasChange && prev.length >= liveMessages.length) {
+            return prev; // Return same reference -> ZERO UI flicker!
+          }
+
           const messageMap = new Map<string, Message>();
           prev.forEach(m => messageMap.set(m.message_id, m));
           liveMessages.forEach(m => messageMap.set(m.message_id, m));
@@ -332,8 +382,10 @@ export default function ChatScreen() {
       let currentEmail = "";
       const user = await SessionService.getUser();
       if (user) {
-        currentEmail = user.email_id;
-        setCurrentUserEmail(user.email_id);
+        currentEmail = user.email_id || user.email || "";
+        setCurrentUserEmail(currentEmail);
+        setCurrentUserName(user.name || user.username || user.full_name || user.display_name || "");
+        setCurrentUserId(user.user_id || user.id || user.unique_id || user.email_id || "");
       }
 
       if (channelId) {
@@ -362,6 +414,20 @@ export default function ChatScreen() {
           setResolvedImage((channel.channel_type === "direct"
             ? otherMember?.profile_image_url
             : channel.channel_image) || "");
+        }
+
+        if (id.startsWith("lead-") || channelType === "lead" || leadId) {
+          const leadUniqueId = (leadId as string) || id.replace(/^lead-/, "");
+          setLoading(true);
+          try {
+            const dealMessages = await ConnectsService.getDealConversation(leadUniqueId);
+            setMessages(dealMessages);
+          } catch (err) {
+            console.log("Error loading deal conversation:", err);
+          } finally {
+            setLoading(false);
+          }
+          return;
         }
 
         if (id.startsWith("dm-") || id.startsWith("new-dm-")) {
@@ -479,6 +545,54 @@ export default function ChatScreen() {
   };
 
   const handleSend = async (text: string, attachments?: any[]) => {
+    const id = channelId as string;
+
+    if (id && (id.startsWith('lead-') || channelType === 'lead' || leadId)) {
+      const leadUniqueId = (leadId as string) || id.replace(/^lead-/, "");
+      const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const optimisticMessage: Message = {
+        message_id: localId,
+        local_id: localId,
+        channel_id: id,
+        sender_email: currentUserEmail,
+        sender_name: resolvedName || 'User',
+        text: text || '',
+        attachments: attachments || [],
+        reactions: [],
+        status: 'sending',
+        created_at: new Date().toISOString(),
+        side: 'right',
+        message_type: 'pulse_chat',
+      };
+
+      setMessages(prev => [...prev, optimisticMessage]);
+      setTimeout(() => {
+        if (!isScrolledUpRef.current) {
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        }
+      }, 50);
+
+      try {
+        const response = await ConnectsService.sendDealMessage(leadUniqueId, text, attachments);
+        if (response && response.status && response.created_message) {
+          const serverMsg = ConnectsService.mapDealMessageToMessage(response.created_message, leadUniqueId);
+          setMessages(prev => {
+            const hasOptimistic = prev.some(m => m.message_id === localId);
+            if (hasOptimistic) {
+              return prev.map(m => m.message_id === localId ? serverMsg : m);
+            }
+            return [...prev, serverMsg];
+          });
+        }
+      } catch (error) {
+        console.log("Error sending deal message:", error);
+        setMessages(prev =>
+          prev.map(m => m.message_id === localId ? { ...m, status: 'failed' } : m)
+        );
+      }
+      return;
+    }
+
     const replyId = replyingTo ? replyingTo.message_id : undefined;
     const replySnapshot = replyingTo; // capture before clearing
     setReplyingTo(null); // clear instantly for better UX
@@ -967,11 +1081,16 @@ export default function ChatScreen() {
                 }
 
                 renderItem={({ item, index }) => {
-                  const isMine = item.sender_email === currentUserEmail;
+                  const isMine = !!(
+                    (currentUserEmail && item.sender_email?.toLowerCase() === currentUserEmail.toLowerCase()) ||
+                    (currentUserId && item.sender_email?.toLowerCase() === currentUserId.toLowerCase()) ||
+                    (currentUserName && item.sender_name?.toLowerCase() === currentUserName.toLowerCase())
+                  );
                   const lastReadMessageId = readReceipts[channelId as string];
                   const isRead = lastReadMessageId
                     ? messages.findIndex(m => m.message_id === lastReadMessageId) >= index
                     : false;
+
                   const bubble = (
                     <View>
                       {item.showDateHeader && (
@@ -985,13 +1104,18 @@ export default function ChatScreen() {
                         messageId={item.message_id}
                         text={item.text}
                         attachments={item.attachments || []}
-                          time={item.timeStr}
-                          isMine={isMine}
-                          showTail={item.showTail}
-                          readStatus={isMine ? (item.status === 'sending' || item.status === 'pending' || item.status === 'failed' ? item.status : (isRead ? "read" : "delivered")) : undefined}
-                          isVisible={visibleItems.has(item.message_id)}
-                          reactions={item.reactions}
-                          replyTo={item.reply_to}
+                        time={item.timeStr}
+                        isMine={isMine}
+                        senderName={item.sender_name}
+                        senderAvatar={item.sender_avatar || item.sender_profile_image}
+                        senderEmail={item.sender_email}
+                        showSenderHeader={!isMine}
+                        showAvatar={false}
+                        showTail={item.showTail}
+                        readStatus={isMine ? (item.status === 'sending' || item.status === 'pending' || item.status === 'failed' ? item.status : (isRead ? "read" : "delivered")) : undefined}
+                        isVisible={visibleItems.has(item.message_id)}
+                        reactions={item.reactions}
+                        replyTo={item.reply_to}
                           isForwarded={item.is_forwarded}
                           isDeleted={item.is_deleted}
                           highlighted={highlightedMessageId === item.message_id}

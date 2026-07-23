@@ -48,10 +48,10 @@ export default function DownloadButton({ url, filename, style }: DownloadButtonP
 
   const handleSaveToLibrary = async (fileUri: string) => {
     try {
-      const existingPerms = await MediaLibrary.getPermissionsAsync();
-      if (existingPerms.status !== 'granted') {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        if (status !== 'granted') {
+      const existingPerms = await MediaLibrary.getPermissionsAsync(false);
+      if (!existingPerms.granted) {
+        const req = await MediaLibrary.requestPermissionsAsync(false);
+        if (!req.granted) {
           Alert.alert('Permission Denied', 'We need storage permission to save the file.');
           return;
         }
