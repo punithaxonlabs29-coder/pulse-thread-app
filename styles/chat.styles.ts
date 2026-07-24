@@ -33,8 +33,8 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   },
   floatingPill: {
     position: 'absolute',
-    right: Spacing.lg,
-    bottom: Spacing.lg,
+    right: Spacing.md,
+    bottom: Spacing.huge,
     backgroundColor: colors.text.primary, // Dark gray/black for FAB
     width: 44,
     height: 44,
