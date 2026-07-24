@@ -49,6 +49,7 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
   const [text, setText] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [selectedDealInput, setSelectedDealInput] = useState<string | null>(null);
   const [showDealInputModal, setShowDealInputModal] = useState(false);
@@ -375,54 +376,66 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
 
       <View style={styles.inputContainer}>
         <View style={styles.inputWrapper}>
-          <TouchableOpacity 
-            style={styles.iconButtonInside} 
-            onPress={() => {
-              if (showEmojiKeyboard) {
+          {!isRecording && (
+            <TouchableOpacity 
+              style={styles.iconButtonInside} 
+              onPress={() => {
+                if (showEmojiKeyboard) {
+                  setShowEmojiKeyboard(false);
+                  setTimeout(() => {
+                    inputRef.current?.focus();
+                  }, 50);
+                } else {
+                  setShowEmojiKeyboard(true);
+                  Keyboard.dismiss();
+                }
+              }}
+            >
+              {showEmojiKeyboard ? (
+                <MaterialIcons name="keyboard" size={24} color={colors.text.muted} />
+              ) : (
+                <Ionicons name="happy-outline" size={24} color={colors.text.muted} />
+              )}
+            </TouchableOpacity>
+          )}
+
+          {!isRecording && (
+            <TextInput
+              ref={inputRef}
+              autoFocus={true}
+              cursorColor={colors.brand.primary}
+              selectionColor="rgba(249, 115, 22, 0.3)"
+              caretHidden={false}
+              showSoftInputOnFocus={!showEmojiKeyboard}
+              placeholder={selectedDealInput ? "Write it here..." : "Type a message..."}
+              placeholderTextColor={colors.text.muted}
+              style={styles.input}
+              value={text}
+              onChangeText={handleTextChange}
+              onFocus={() => {
                 setShowEmojiKeyboard(false);
-                setTimeout(() => {
-                  inputRef.current?.focus();
-                }, 50);
-              } else {
-                setShowEmojiKeyboard(true);
-                Keyboard.dismiss();
-              }
-            }}
-          >
-            {showEmojiKeyboard ? (
-              <MaterialIcons name="keyboard" size={24} color={colors.text.muted} />
-            ) : (
-              <Ionicons name="happy-outline" size={24} color={colors.text.muted} />
-            )}
-          </TouchableOpacity>
+              }}
+              multiline
+            />
+          )}
 
-          <TextInput
-            ref={inputRef}
-            showSoftInputOnFocus={!showEmojiKeyboard}
-            placeholder={selectedDealInput ? "Write it here..." : "Type a message..."}
-            placeholderTextColor={colors.text.muted}
-            style={styles.input}
-            value={text}
-            onChangeText={handleTextChange}
-            onFocus={() => {
-              setShowEmojiKeyboard(false);
-            }}
-            multiline
-          />
+          {!isRecording && (
+            <TouchableOpacity 
+              style={styles.iconButtonInside}
+              onPress={() => setMenuVisible(!menuVisible)}
+            >
+              <Ionicons name="attach-outline" size={24} color={colors.text.muted} />
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity 
-            style={styles.iconButtonInside}
-            onPress={() => setMenuVisible(!menuVisible)}
-          >
-            <Ionicons name="attach-outline" size={24} color={colors.text.muted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.iconButtonInside}
-            onPress={() => setShowCameraOptionModal(true)}
-          >
-            <Ionicons name="camera-outline" size={24} color={colors.text.muted} />
-          </TouchableOpacity>
+          {!isRecording && !text.trim() && (
+            <TouchableOpacity 
+              style={styles.iconButtonInside}
+              onPress={() => setShowCameraOptionModal(true)}
+            >
+              <Ionicons name="camera-outline" size={24} color={colors.text.muted} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {text.trim() || attachments.length > 0 ? (
@@ -430,7 +443,7 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
             <Ionicons name="send" size={18} color={colors.text.inverse} style={{ marginLeft: 2 }} />
           </TouchableOpacity>
         ) : (
-          <AudioRecorder onRecordComplete={handleAudioRecord} />
+          <AudioRecorder onRecordComplete={handleAudioRecord} onRecordingStateChange={setIsRecording} />
         )}
       </View>
 

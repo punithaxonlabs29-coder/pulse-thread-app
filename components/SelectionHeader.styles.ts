@@ -11,6 +11,8 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     backgroundColor: colors.brand.primary, // App theme orange
     borderBottomWidth: 1,
     borderColor: colors.brand.primary,
+    zIndex: 100,
+    elevation: 10,
   },
   leftContainer: {
     flexDirection: "row",

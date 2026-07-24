@@ -3,6 +3,7 @@ import { StyleSheet, View, ActivityIndicator, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from "@expo/vector-icons";
 import { ConnectsService } from '../services/connects.service';
+import * as FileSystem from 'expo-file-system/legacy';
 import DownloadButton from './ui/DownloadButton';
 import { createStyles } from './ImageAttachment.styles';
 import { useColors } from '../design';
@@ -39,27 +40,42 @@ export default function ImageAttachment({ url, name, messageId, time, readStatus
 
     if (fetchedRef.current) return;
 
-    if (url) {
-      setSource(url);
-      return;
-    }
-
-    if (!messageId || !messageId.startsWith('MSG_')) {
-      return;
-    }
-
-    fetchedRef.current = true;
-
-    ConnectsService.getMessageAttachment(messageId).then((attachments) => {
-      if (attachments && attachments.length > 0) {
-         const att = attachments.find((a: any) => a.name === name) || attachments[0];
-         setSource(att?.url || att?.file_url || "");
+    const loadAndCacheImage = async () => {
+      let targetUrl = url;
+      if (!targetUrl && messageId && messageId.startsWith('MSG_')) {
+        fetchedRef.current = true;
+        const attachments = await ConnectsService.getMessageAttachment(messageId);
+        if (attachments && attachments.length > 0) {
+          const att = attachments.find((a: any) => a.name === name) || attachments[0];
+          targetUrl = att?.url || att?.file_url || "";
+        }
       }
-    }).catch(err => {
-      console.log("Failed to load image base64", err);
-      fetchedRef.current = false;
-    });
-  }, [messageId, isVisible, gridMode]);
+
+      if (targetUrl) {
+        if (targetUrl.startsWith('data:')) {
+          try {
+            const parts = targetUrl.split(',');
+            if (parts.length > 1) {
+              const cleanBase64 = parts[1];
+              const safeName = `${messageId}_${(name || 'image').replace(/[^a-zA-Z0-9_.-]/g, '_')}.jpg`;
+              const filePath = `${FileSystem.cacheDirectory}cache/images/${safeName}`;
+              const fileInfo = await FileSystem.getInfoAsync(filePath);
+              if (!fileInfo.exists) {
+                await FileSystem.writeAsStringAsync(filePath, cleanBase64, { encoding: 'base64' });
+              }
+              setSource(filePath);
+              return;
+            }
+          } catch (e) {
+            console.log("Failed to cache base64 image", e);
+          }
+        }
+        setSource(targetUrl);
+      }
+    };
+
+    loadAndCacheImage();
+  }, [messageId, url, isVisible, gridMode]);
 
   if (!source || (!isVisible && gridMode)) {
     return (
@@ -88,7 +104,7 @@ export default function ImageAttachment({ url, name, messageId, time, readStatus
             <Ionicons
               name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
               size={14}
-              color={readStatus === "read" ? colors.status.info : colors.text.inverse}
+              color={readStatus === "read" ? "#3B82F6" : colors.text.inverse}
               style={styles.tickIcon}
             />
           )}

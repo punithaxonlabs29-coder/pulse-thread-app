@@ -5,20 +5,21 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: 240, // Fixed width prevents collapsing
+    width: 240, // Fixed width for audio player
     paddingVertical: 6,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
+    backgroundColor: 'transparent',
   },
   playButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   playButtonMine: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: colors.brand.primary,
   },
   playButtonOther: {
     backgroundColor: colors.brand.primary,
@@ -31,7 +32,7 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   barsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 36,
+    height: 32,
   },
   bar: {
     width: 3,
@@ -46,19 +47,18 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   },
   durationText: {
     fontSize: 12,
-    opacity: 0.9,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   textMine: {
-    color: '#FFFFFF',
+    color: colors.bubble.own.text,
   },
   textOther: {
-    color: colors.text.secondary,
+    color: colors.text.primary,
   },
   timeText: {
     fontSize: 11,
     marginLeft: 8,
-    opacity: 0.7,
+    color: colors.text.muted,
   },
   tickIcon: {
     marginLeft: 4,

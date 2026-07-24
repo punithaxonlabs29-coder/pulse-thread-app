@@ -1,9 +1,11 @@
+
+
 // Primitive color values (theme-agnostic)
 const Primitives = {
   white: '#FFFFFF',
   black: '#000000',
   
-  orange300: '#F8A871', // Soft orange for chat bubble
+  orange300: '#FDF6E3', // Light Sand (#FDF6E3) for chat bubble
   orange500: '#F97316',
   orange600: '#FF8C00', // Reply icon circle
   

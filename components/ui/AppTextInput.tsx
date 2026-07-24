@@ -6,7 +6,7 @@ export interface AppTextInputProps extends TextInputProps {
 }
 
 export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
-  ({ maxFontSizeMultiplier = 1.4, ...props }, ref) => {
+  ({ maxFontSizeMultiplier = 1.4, cursorColor = '#F97316', selectionColor = 'rgba(249, 115, 22, 0.3)', caretHidden = false, ...props }, ref) => {
     // We call useWindowDimensions so that this component automatically re-renders
     // when the Android system fontScale changes, forcing the native TextInput to update!
     useWindowDimensions();
@@ -16,6 +16,9 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
         ref={ref} 
         allowFontScaling={true}
         maxFontSizeMultiplier={maxFontSizeMultiplier} 
+        cursorColor={cursorColor}
+        selectionColor={selectionColor}
+        caretHidden={caretHidden}
         {...props} 
       />
     );

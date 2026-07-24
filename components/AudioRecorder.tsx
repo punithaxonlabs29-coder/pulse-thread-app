@@ -17,6 +17,7 @@ export interface AudioRecordingResult {
 
 interface Props {
   onRecordComplete: (recording: AudioRecordingResult) => void;
+  onRecordingStateChange?: (isRecording: boolean) => void;
 }
 
 enum RecorderState {
@@ -28,39 +29,32 @@ enum RecorderState {
   Finished
 }
 
-export default function AudioRecorder({ onRecordComplete }: Props) {
+export default function AudioRecorder({ onRecordComplete, onRecordingStateChange }: Props) {
   const colors = useColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
-  
+
   const [state, setState] = useState<RecorderState>(RecorderState.Idle);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [durationMillis, setDurationMillis] = useState(0);
-  const [metering, setMetering] = useState<number[]>(Array(40).fill(-60));
-  
-  const blinkAnim = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => {
-    if (state === RecorderState.Recording) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(blinkAnim, { toValue: 0.3, duration: 500, useNativeDriver: true }),
-          Animated.timing(blinkAnim, { toValue: 1, duration: 500, useNativeDriver: true })
-        ])
-      ).start();
-    } else {
-      blinkAnim.setValue(1);
-      blinkAnim.stopAnimation();
-    }
-  }, [state, blinkAnim]);
-
-  const handleToggleRecord = async () => {
-    if (state === RecorderState.Idle || state === RecorderState.Finished) {
-      await startRecording();
-    }
-  };
+  const NUM_BARS = 48;
+  const [meteringHistory, setMeteringHistory] = useState<number[]>(Array(NUM_BARS).fill(6));
+  const isPreparingRef = useRef(false);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
   const startRecording = async () => {
+    if (isPreparingRef.current) return;
+    isPreparingRef.current = true;
+
     try {
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+        } catch (e) {}
+        recordingRef.current = null;
+        setRecording(null);
+      }
+
       const permission = await Audio.requestPermissionsAsync();
       if (permission.status === 'granted') {
         await Audio.setAudioModeAsync({
@@ -69,83 +63,96 @@ export default function AudioRecorder({ onRecordComplete }: Props) {
         });
 
         setState(RecorderState.Recording);
+        if (onRecordingStateChange) onRecordingStateChange(true);
         setDurationMillis(0);
-        setMetering(Array(40).fill(-60));
+        setMeteringHistory(Array(NUM_BARS).fill(6));
 
-        const { recording: newRecording } = await Audio.Recording.createAsync(
-          Audio.RecordingOptionsPresets.HIGH_QUALITY
-        );
+        const { recording: newRecording } = await Audio.Recording.createAsync({
+          ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+          isMeteringEnabled: true,
+        });
 
-        newRecording.setProgressUpdateInterval(100);
+        newRecording.setProgressUpdateInterval(80);
         newRecording.setOnRecordingStatusUpdate((status) => {
           if (status.isRecording) {
             setDurationMillis(status.durationMillis);
+
             if (status.metering !== undefined) {
-              setMetering(prev => {
-                const next = [...prev];
-                next.shift();
-                next.push(status.metering as number);
-                return next;
-              });
+              // Convert dB level (-160 to 0) to dynamic bar height (6px to 46px)
+              const db = status.metering;
+              const normalizedHeight = Math.max(6, Math.min(46, (db + 60) * 0.8 + (Math.random() * 4)));
+              
+              setMeteringHistory((prev) => [...prev.slice(1), normalizedHeight]);
             }
           }
         });
 
+        recordingRef.current = newRecording;
         setRecording(newRecording);
       } else {
         alert("Microphone permission denied.");
         setState(RecorderState.Idle);
+        if (onRecordingStateChange) onRecordingStateChange(false);
       }
     } catch (err: any) {
       console.error('Failed to start recording', err);
-      alert(`Recording failed: ${err.message || 'Unknown error'}`);
       setState(RecorderState.Idle);
+      if (onRecordingStateChange) onRecordingStateChange(false);
+    } finally {
+      isPreparingRef.current = false;
     }
   };
 
-  const handlePauseResume = async () => {
-    if (!recording) return;
-    
-    if (state === RecorderState.Recording) {
-      await recording.pauseAsync();
-      setState(RecorderState.Paused);
-    } else if (state === RecorderState.Paused) {
-      await recording.startAsync();
-      setState(RecorderState.Recording);
+  const pauseRecording = async () => {
+    const activeRec = recordingRef.current || recording;
+    if (!activeRec) return;
+    try {
+      if (state === RecorderState.Recording) {
+        await activeRec.pauseAsync();
+        setState(RecorderState.Paused);
+      } else if (state === RecorderState.Paused) {
+        await activeRec.startAsync();
+        setState(RecorderState.Recording);
+      }
+    } catch (e) {
+      console.error('Error toggling pause', e);
     }
   };
 
   const handleCancel = async () => {
-    if (state === RecorderState.Idle || state === RecorderState.Finished) return;
     setState(RecorderState.Stopping);
-    
-    if (recording) {
-      await recording.stopAndUnloadAsync();
+    if (onRecordingStateChange) onRecordingStateChange(false);
+
+    const recToStop = recordingRef.current || recording;
+    if (recToStop) {
+      try {
+        await recToStop.stopAndUnloadAsync();
+      } catch (e) {}
+      recordingRef.current = null;
       setRecording(null);
     }
-    
+
     setState(RecorderState.Idle);
   };
 
   const handleSend = async () => {
-    if (state === RecorderState.Idle || state === RecorderState.Finished) return;
+    if (onRecordingStateChange) onRecordingStateChange(false);
     setState(RecorderState.Stopping);
 
-    if (!recording) {
+    const recToSend = recordingRef.current || recording;
+    if (!recToSend) {
       setState(RecorderState.Idle);
       return;
     }
 
     try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      
+      await recToSend.stopAndUnloadAsync();
+      const uri = recToSend.getURI();
       setState(RecorderState.Uploading);
 
       if (uri) {
         const fileInfo = await FileSystem.getInfoAsync(uri);
         const size = fileInfo.exists ? fileInfo.size : 0;
-        
         const localId = `local_audio_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         
         onRecordComplete({
@@ -159,9 +166,10 @@ export default function AudioRecorder({ onRecordComplete }: Props) {
     } catch (e) {
       console.log("Error sending recording", e);
     } finally {
+      recordingRef.current = null;
       setRecording(null);
       setState(RecorderState.Finished);
-      setTimeout(() => setState(RecorderState.Idle), 500);
+      setTimeout(() => setState(RecorderState.Idle), 300);
     }
   };
 
@@ -172,72 +180,74 @@ export default function AudioRecorder({ onRecordComplete }: Props) {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const renderWaveform = () => {
-    return metering.map((val, i) => {
-      const normalized = Math.max(0, (val + 60) / 60);
-      const heightPercentage = 15 + (normalized * 85);
-      return (
-        <View 
-          key={i} 
-          style={[
-            styles.bar, 
-            { height: `${heightPercentage}%`, opacity: state === RecorderState.Paused ? 0.5 : 1 }
-          ]} 
-        />
-      );
-    });
-  };
-
-  const isModalVisible = state !== RecorderState.Idle && state !== RecorderState.Finished;
+  const isRecordingActive = state === RecorderState.Recording || state === RecorderState.Paused || state === RecorderState.Stopping;
 
   return (
     <>
       <TouchableOpacity
-        style={[styles.micButton]}
-        onPress={handleToggleRecord}
+        style={styles.micButton}
         activeOpacity={0.7}
+        onPress={startRecording}
+        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
       >
-        <Ionicons name="mic" size={24} color={colors.text.muted} />
+        <Ionicons name="mic" size={22} color={colors.bubble.own.text} />
       </TouchableOpacity>
 
+      {/* Bottom Sheet Audio Recording Modal */}
       <Modal
-        visible={isModalVisible}
+        visible={isRecordingActive}
         transparent={true}
         animationType="slide"
         onRequestClose={handleCancel}
       >
-        <View style={styles.modalOverlay}>
-          <SafeAreaView style={{ backgroundColor: colors.background.primary }}>
-            <View style={styles.sheetContainer}>
-              <View style={styles.sheetHandle} />
+        <SafeAreaView style={styles.modalOverlay}>
+          <View style={styles.sheetContainer}>
+            {/* Sheet Handle Indicator */}
+            <View style={styles.sheetHandle} />
 
-              <View style={styles.middleRow}>
-                <AppText style={styles.timerText}>{formatDuration(durationMillis)}</AppText>
-                
-                <View style={styles.waveformContainer}>
-                   {renderWaveform()}
-                </View>
-              </View>
+            {/* Middle Section: Duration Timer + Live Audio Waveform in a Row */}
+            <View style={styles.middleRow}>
+              <AppText style={styles.timerText}>{formatDuration(durationMillis)}</AppText>
 
-              <View style={styles.bottomRow}>
-                <TouchableOpacity style={styles.deleteButton} onPress={handleCancel}>
-                  <Ionicons name="trash-outline" size={24} color={colors.brand.primary} />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.pauseButton} onPress={handlePauseResume}>
-                  <Ionicons name={state === RecorderState.Paused ? "play" : "pause"} size={20} color={colors.brand.primary} />
-                  <AppText style={styles.pauseText}>
-                    {state === RecorderState.Paused ? "Resume" : "Pause"}
-                  </AppText>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-                  <Ionicons name="send" size={20} color="#FFFFFF" style={{ marginLeft: 4 }} />
-                </TouchableOpacity>
+              <View style={styles.waveformContainer}>
+                {meteringHistory.map((height, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.bar,
+                      { height }
+                    ]}
+                  />
+                ))}
               </View>
             </View>
-          </SafeAreaView>
-        </View>
+
+            {/* Bottom Row: Trash / Cancel, Pause / Resume, and Send */}
+            <View style={styles.bottomRow}>
+              {/* Trash / Cancel Button */}
+              <TouchableOpacity style={styles.deleteButton} onPress={handleCancel}>
+                <Ionicons name="trash-outline" size={24} color={colors.brand.primary} />
+              </TouchableOpacity>
+
+              {/* Pause / Resume Button */}
+              <TouchableOpacity style={styles.pauseButton} onPress={pauseRecording}>
+                <Ionicons
+                  name={state === RecorderState.Paused ? "play" : "pause"}
+                  size={20}
+                  color={colors.brand.primary}
+                />
+                <AppText style={styles.pauseText}>
+                  {state === RecorderState.Paused ? "Resume" : "Pause"}
+                </AppText>
+              </TouchableOpacity>
+
+              {/* Send Button */}
+              <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
+                <Ionicons name="send" size={24} color={colors.text.inverse} style={{ marginLeft: 2 }} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
       </Modal>
     </>
   );

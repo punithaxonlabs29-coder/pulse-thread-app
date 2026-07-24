@@ -51,25 +51,6 @@ class MediaCacheService {
           size_bytes INTEGER
         );
       `);
-
-      // Attempt to add new columns in case the table was created by an older version of the app
-      const columnsToAdd = [
-        'ALTER TABLE media_cache ADD COLUMN media_url TEXT;',
-        'ALTER TABLE media_cache ADD COLUMN media_type TEXT;',
-        'ALTER TABLE media_cache ADD COLUMN thumbnail_uri TEXT;',
-        'ALTER TABLE media_cache ADD COLUMN local_uri TEXT;',
-        'ALTER TABLE media_cache ADD COLUMN last_accessed INTEGER;',
-        'ALTER TABLE media_cache ADD COLUMN size_bytes INTEGER;'
-      ];
-      
-      for (const stmt of columnsToAdd) {
-        try {
-          await this.db.execAsync(stmt);
-        } catch (e) {
-          // Ignore error, column likely already exists
-        }
-      }
-
       this.initialized = true;
     } catch (e) {
       console.error("MediaCacheManager init error:", e);

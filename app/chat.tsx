@@ -1217,9 +1217,7 @@ export default function ChatScreen() {
                 )}
               </TouchableOpacity>
             )}
-          </ImageBackground>
-  
-          <View style={{ backgroundColor: colors.background.surface, paddingBottom: Platform.OS === 'android' ? (keyboardPadding > 0 ? keyboardPadding : 5) : 5 }}>
+          <View style={{ backgroundColor: 'transparent', paddingBottom: Platform.OS === 'android' ? (keyboardPadding > 0 ? keyboardPadding : 5) : 5 }}>
             <MessageInput 
               onSend={handleSend} 
               onTyping={handleTyping} 
@@ -1229,6 +1227,7 @@ export default function ChatScreen() {
               isDealChat={channelType === "lead" || (channelId as string)?.startsWith("lead-") || (channelId as string)?.startsWith("dummy-deal")}
             />
           </View>
+        </ImageBackground>
         </KeyboardAvoidingView>
 
         <ReactionPicker 

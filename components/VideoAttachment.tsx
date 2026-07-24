@@ -204,6 +204,13 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
 
   const handlePress = async () => {
     if (loading) return;
+
+    if (type === 'video' && url) {
+      setLocalUri(url);
+      setVideoModalVisible(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const fileUri = await getCachedFile();

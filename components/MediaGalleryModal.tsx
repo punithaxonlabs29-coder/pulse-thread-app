@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, View, StyleSheet, TouchableOpacity, Text, Dimensions, SafeAreaView , FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { ResizeMode, Video } from 'expo-av';
 import DownloadButton from './ui/DownloadButton';
@@ -19,22 +20,51 @@ interface MediaGalleryModalProps {
 }
 
 function GalleryImageItem({ uri, thumbnailUri, styles }: { uri: string; thumbnailUri?: string; styles: any }) {
-  const [loading, setLoading] = useState(true);
+  const [displayUri, setDisplayUri] = useState<string>(uri);
+  const [loading, setLoading] = useState(!thumbnailUri);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (uri && uri.startsWith('data:')) {
+      (async () => {
+        try {
+          const parts = uri.split(',');
+          if (parts.length > 1) {
+            const cleanBase64 = parts[1];
+            const hash = uri.substring(0, 40).replace(/[^a-zA-Z0-9]/g, '');
+            const filePath = `${FileSystem.cacheDirectory}cache/images/gallery_${hash}.jpg`;
+            const fileInfo = await FileSystem.getInfoAsync(filePath);
+            if (!fileInfo.exists) {
+              await FileSystem.writeAsStringAsync(filePath, cleanBase64, { encoding: 'base64' });
+            }
+            if (isMounted) setDisplayUri(filePath);
+          }
+        } catch (e) {
+          if (isMounted) setDisplayUri(uri);
+        }
+      })();
+    } else {
+      setDisplayUri(uri);
+    }
+    return () => { isMounted = false; };
+  }, [uri]);
 
   return (
     <View style={styles.pageContainer}>
       <Image
-        source={{ uri }}
+        source={{ uri: displayUri }}
         placeholder={thumbnailUri ? { uri: thumbnailUri } : undefined}
         style={styles.mediaItem}
         contentFit="contain"
-        transition={200}
+        transition={150}
         cachePolicy="memory-disk"
-        onLoadStart={() => setLoading(true)}
+        onLoadStart={() => {
+          if (!thumbnailUri) setLoading(true);
+        }}
         onLoad={() => setLoading(false)}
         onError={() => setLoading(false)}
       />
-      {loading && (
+      {loading && !thumbnailUri && (
         <View style={styles.loadingOverlay} pointerEvents="none">
           <ActivityIndicator size="large" color="#FFFFFF" />
         </View>
@@ -63,6 +93,9 @@ export default function MediaGalleryModal({ visible, media, initialIndex, messag
             style={styles.mediaItem}
             resizeMode={ResizeMode.CONTAIN}
             useNativeControls
+            usePoster={!!thumbnailUri}
+            posterSource={thumbnailUri ? { uri: thumbnailUri } : undefined}
+            posterStyle={{ resizeMode: 'contain' }}
             shouldPlay={index === currentIndex}
           />
         ) : (

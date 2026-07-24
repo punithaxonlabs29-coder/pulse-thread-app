@@ -32,25 +32,25 @@ export default function ReactionPicker({ visible, onClose, onSelectReaction, pos
   if (!visible) return null;
 
   return (
-    <TouchableWithoutFeedback onPress={onClose}>
-      <View style={[StyleSheet.absoluteFill, styles.overlay]}>
-        <TouchableWithoutFeedback>
-          <View style={containerStyle}>
-            {EMOJIS.map((emoji) => (
-              <TouchableOpacity 
-                key={emoji} 
-                style={styles.emojiButton}
-                onPress={() => {
-                  onSelectReaction(emoji);
-                  onClose();
-                }}
-              >
-                <Text style={styles.emojiText}>{emoji}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableWithoutFeedback>
+    <View style={[StyleSheet.absoluteFill, styles.overlay, { top: 70 }]} pointerEvents="box-none">
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={StyleSheet.absoluteFill} />
+      </TouchableWithoutFeedback>
+
+      <View style={containerStyle}>
+        {EMOJIS.map((emoji) => (
+          <TouchableOpacity 
+            key={emoji} 
+            style={styles.emojiButton}
+            onPress={() => {
+              onSelectReaction(emoji);
+              onClose();
+            }}
+          >
+            <Text style={styles.emojiText}>{emoji}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
-    </TouchableWithoutFeedback>
+    </View>
   );
 }

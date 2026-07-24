@@ -50,8 +50,8 @@ export const StatusIndicator = React.memo(({ time, readStatus, isMine, isSingleE
           size={14}
           color={
             readStatus === "failed" ? colors.status.error :
-            readStatus === "read" ? colors.status.info : 
-            colors.text.muted
+            readStatus === "read" ? "#3B82F6" : 
+            "#111827"
           }
           style={styles.tickIcon}
         />

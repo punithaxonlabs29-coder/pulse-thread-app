@@ -15,19 +15,16 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   messageContainer: {
     maxWidth: "80%",
     marginVertical: 1,
-    // paddingHorizontal: 8,
-    paddingHorizontal: Spacing.sm,
-    // paddingVertical: 4,
-    paddingVertical: Spacing.xs,
-    // borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 9.5,
     borderRadius: Radius.md,
     position: "relative",
   },
   myMessage: {
     alignSelf: "flex-end",
-    // backgroundColor: "#F8A871", 
     backgroundColor: colors.brand.bubble,
     borderTopRightRadius: 0,
+    ...Shadows.sm,
   },
   otherMessage: {
     alignSelf: "flex-start",

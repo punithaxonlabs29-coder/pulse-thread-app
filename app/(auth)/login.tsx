@@ -106,6 +106,10 @@ export default function LoginScreen() {
         />
 
         <TextInput
+          autoFocus={true}
+          cursorColor={colors.brand.primary}
+          selectionColor="rgba(249, 115, 22, 0.3)"
+          caretHidden={false}
           value={email}
           onChangeText={setEmail}
           placeholder="Email Address"

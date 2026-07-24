@@ -26,6 +26,7 @@ export default function StageDealsScreen() {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false);
   const [appliedFilters, setAppliedFilters] = useState<Record<string, string[]>>({});
   const [people, setPeople] = useState<any[]>([]);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     ConnectsService.getPeople()
@@ -184,10 +185,26 @@ export default function StageDealsScreen() {
 
   const renderDealCard = ({ item }: { item: DealLead }) => {
     const displayName = item.customer_name || item.customer_project_name || 'Unnamed Lead';
+    const subTitle = item.customer_mobile || item.customer_email || '';
+    const productName = item.customer_project_name || 'Standard Traction MRL Elevators';
+    const specs = [
+      item.number_of_floors ? `G+${item.number_of_floors}` : 'G+3',
+      item.number_of_people ? `${item.number_of_people}P` : '6P'
+    ].filter(Boolean).join(' | ');
+
+    const leadSource = item.customer_leadsource_primary 
+      ? item.customer_leadsource_primary.toUpperCase() 
+      : 'NEW LEAD';
     
+    const stageStatus = (item.customer_sales_stage || stageTitle).toUpperCase();
+    const timestampStr = item.added_by_timestamp || '';
+
+    const isSelected = item.customer_lead_unique_id === selectedLeadId;
+
     return (
       <Pressable
         onPress={() => {
+          setSelectedLeadId(item.customer_lead_unique_id);
           router.push({
             pathname: '/chat',
             params: {
@@ -199,84 +216,83 @@ export default function StageDealsScreen() {
           });
         }}
         style={({ pressed }) => [
-          styles.card,
-          {
-            backgroundColor: pressed ? colors.background.selected : colors.background.surface,
-            borderColor: colors.border.primary,
-          }
+          styles.mintCard,
+          (isSelected || pressed) && styles.selectedMintCard
         ]}
       >
-        <View style={styles.cardHeader}>
-          <AppText variant="title" style={[styles.cardTitle, { color: colors.brand.primary }]}>
-            {displayName}
-          </AppText>
-          {item.customer_leadsource_primary ? (
-            <View style={[styles.sourceBadge, { backgroundColor: colors.background.primary }]}>
-              <AppText variant="caption" style={{ color: colors.text.secondary, fontSize: 12.5, fontWeight: '600' }}>
-                {item.customer_leadsource_primary}
-              </AppText>
+        {/* Title (Bold Purple) */}
+        <AppText style={styles.mintTitle}>{displayName}</AppText>
+
+        {/* Mobile / Secondary Subtext */}
+        {subTitle ? (
+          <AppText style={styles.mintSubtitle}>{subTitle}</AppText>
+        ) : null}
+
+        {/* Product line with Dark 'P' icon */}
+        <View style={styles.productRow}>
+          <View style={styles.productIconCircle}>
+            <AppText style={styles.productIconText}>P</AppText>
+          </View>
+          <AppText style={styles.productNameText}>{productName}</AppText>
+        </View>
+
+        {/* Floor & Capacity Specs */}
+        {specs ? (
+          <AppText style={styles.productSpecsText}>{specs}</AppText>
+        ) : null}
+
+        {/* Badges / Chips */}
+        <View style={styles.badgeRow}>
+          <View style={styles.oliveBadge}>
+            <AppText style={styles.badgeText}>{leadSource}</AppText>
+          </View>
+          <View style={styles.slateBadge}>
+            <AppText style={styles.badgeText}>{stageStatus}</AppText>
+          </View>
+        </View>
+
+        {/* Date & Time Footer */}
+        {(() => {
+          const rawTs = item.added_by_timestamp || (item as any).created_at || (item as any).date;
+          let dateStr = '24 July 2026';
+          let timeStr = '11:31 am';
+
+          if (rawTs) {
+            try {
+              const d = new Date(rawTs);
+              if (!isNaN(d.getTime())) {
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                dateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+                let hours = d.getHours();
+                const minutes = d.getMinutes().toString().padStart(2, '0');
+                const ampm = hours >= 12 ? 'pm' : 'am';
+                hours = hours % 12 || 12;
+                timeStr = `${hours}:${minutes} ${ampm}`;
+              } else {
+                dateStr = String(rawTs);
+                timeStr = '';
+              }
+            } catch (e) {
+              dateStr = String(rawTs);
+              timeStr = '';
+            }
+          }
+
+          return (
+            <View style={styles.footerRow}>
+              <View style={styles.footerItem}>
+                <Ionicons name="calendar-outline" size={16} color="#8EA0B5" />
+                <AppText style={styles.footerText}>{dateStr}</AppText>
+              </View>
+              {timeStr ? (
+                <View style={styles.footerItem}>
+                  <Ionicons name="time-outline" size={16} color="#8EA0B5" />
+                  <AppText style={styles.footerText}>{timeStr}</AppText>
+                </View>
+              ) : null}
             </View>
-          ) : null}
-        </View>
-
-        {item.customer_mobile ? (
-          <View style={styles.infoRow}>
-            <Phone size={15} color={colors.text.muted} />
-            <AppText variant="body" style={[styles.cardText, { color: colors.text.secondary }]}>
-              {item.customer_mobile} {item.customer_email ? `• ${item.customer_email}` : ''}
-            </AppText>
-          </View>
-        ) : item.customer_email ? (
-          <View style={styles.infoRow}>
-            <AppText variant="body" style={[styles.cardText, { color: colors.text.secondary }]}>
-              {item.customer_email}
-            </AppText>
-          </View>
-        ) : null}
-
-        <View style={styles.infoRow}>
-          <Tag size={15} color={colors.text.muted} />
-          <AppText variant="body" style={[styles.cardText, { color: colors.text.primary }]}>
-            Status : <AppText variant="body" style={{ fontWeight: '600', fontSize: 15.5 }}>{item.customer_sales_stage || stageTitle}</AppText>
-          </AppText>
-        </View>
-
-        {item.customer_assign_lead_to_name ? (
-          <View style={styles.infoRow}>
-            <UserCheck size={15} color={colors.text.muted} />
-            <AppText variant="body" style={[styles.cardText, { color: colors.text.secondary }]}>
-              Sales Rep : <AppText variant="body" style={{ color: colors.text.primary, fontSize: 15.5 }}>{item.customer_assign_lead_to_name}</AppText>
-            </AppText>
-          </View>
-        ) : null}
-
-        {item.totalvalue_of_deal ? (
-          <View style={styles.infoRow}>
-            <DollarSign size={15} color={colors.brand.primary} />
-            <AppText variant="body" style={[styles.cardText, { color: colors.brand.primary, fontWeight: '600', fontSize: 15.5 }]}>
-              Deal Value : {item.totalvalue_of_deal}
-            </AppText>
-          </View>
-        ) : null}
-
-        {item.number_of_floors || item.number_of_people ? (
-          <View style={styles.infoRow}>
-            <AppText variant="caption" style={{ color: colors.text.muted, fontSize: 13 }}>
-              {item.number_of_floors ? `Floors: ${item.number_of_floors}` : ''}
-              {item.number_of_floors && item.number_of_people ? '  •  ' : ''}
-              {item.number_of_people ? `People: ${item.number_of_people}` : ''}
-            </AppText>
-          </View>
-        ) : null}
-
-        {item.added_by_timestamp ? (
-          <View style={[styles.infoRow, { marginTop: 4 }]}>
-            <Calendar size={13} color={colors.text.muted} />
-            <AppText variant="caption" style={{ color: colors.text.muted, fontSize: 12.5 }}>
-              {item.added_by_timestamp}
-            </AppText>
-          </View>
-        ) : null}
+          );
+        })()}
       </Pressable>
     );
   };
@@ -482,36 +498,99 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
-  card: {
-    padding: 16,
-    borderRadius: 12,
+  mintCard: {
+    backgroundColor: '#F4FBF6',
+    borderColor: '#DCF2E3',
     borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+  selectedMintCard: {
+    backgroundColor: '#EEFAF4',
+    borderColor: '#A7F3D0',
+    borderWidth: 2,
   },
-  cardTitle: {
-    flex: 1,
-    fontSize: 18,
+  mintTitle: {
+    fontSize: 20,
     fontWeight: '700',
+    color: '#4F46E5', // Customer name color (#4F46E5)
+    marginBottom: 4,
   },
-  sourceBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginLeft: 8,
+  mintSubtitle: {
+    fontSize: 15.5,
+    color: '#64748B',
+    marginBottom: 10,
   },
-  infoRow: {
+  productRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  productIconCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#334155',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  productIconText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  productNameText: {
+    fontSize: 15.5,
+    fontWeight: '600',
+    color: '#334155',
+    flex: 1,
+  },
+  productSpecsText: {
+    fontSize: 14.5,
+    color: '#64748B',
+    marginLeft: 30,
+    marginBottom: 12,
+  },
+  badgeRow: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginBottom: 12,
+  },
+  oliveBadge: {
+    backgroundColor: '#858000', // Primary lead source badge color (#858000)
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  slateBadge: {
+    backgroundColor: '#f0d078', // Slate / Steel badge
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingTop: 2,
+  },
+  footerItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 4,
   },
-  cardText: {
-    fontSize: 15.5,
+  footerText: {
+    fontSize: 14,
+    color: '#8EA0B5',
   },
   loadingContainer: {
     flex: 1,

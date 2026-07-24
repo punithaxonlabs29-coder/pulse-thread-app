@@ -5,6 +5,7 @@ import { mainApi } from "./api";
 import { SessionService } from "./session.service";
 
 const pendingDownloads = new Map<string, Promise<any[]>>();
+const attachmentMemoryCache = new Map<string, any[]>();
 
 interface GetChannelsResponse {
   status: boolean;
@@ -351,11 +352,14 @@ export const ConnectsService = {
       return false;
     }
   },
-
   async getMessageAttachment(messageId: string): Promise<any[]> {
     // Prevent pointless requests for optimistic local messages
     if (!messageId || !messageId.startsWith('MSG_')) {
       return [];
+    }
+
+    if (attachmentMemoryCache.has(messageId)) {
+      return attachmentMemoryCache.get(messageId)!;
     }
 
     // Request deduplication
@@ -375,7 +379,11 @@ export const ConnectsService = {
             }
           }
         );
-        return response.data.attachments || [];
+        const atts = response.data.attachments || [];
+        if (atts.length > 0) {
+          attachmentMemoryCache.set(messageId, atts);
+        }
+        return atts;
       } catch (error) {
         console.log("Get Attachment Error:", (error as AxiosError).message);
         return [];

@@ -157,8 +157,8 @@ export default function AudioAttachment({ url, name, messageId, isMine, isVisibl
   };
 
   const textStyle = isMine ? styles.textMine : styles.textOther;
-  const barColor = isMine ? 'rgba(255, 255, 255, 0.6)' : colors.brand.primary + '60'; // Light orange when others
-  const barActiveColor = isMine ? '#FFFFFF' : colors.brand.primary;
+  const barColor = isMine ? 'rgba(17, 24, 39, 0.35)' : 'rgba(0, 0, 0, 0.25)';
+  const barActiveColor = colors.brand.primary;
 
   return (
     <View style={styles.container}>
@@ -193,7 +193,7 @@ export default function AudioAttachment({ url, name, messageId, isMine, isVisibl
               <Ionicons
                 name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
                 size={14}
-                color={readStatus === "read" ? colors.status.info : "#FFFFFF"}
+                color={readStatus === "read" ? "#3B82F6" : "#111827"}
                 style={styles.tickIcon}
               />
             )}
