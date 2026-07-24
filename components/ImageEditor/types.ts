@@ -30,12 +30,6 @@ export interface EmojiOverlay {
   size: number;
 }
 
-export interface BlurPatch {
-  id: string;
-  points: Point[];
-  width: number;
-}
-
 export interface EditableImage {
   id: string;
   originalUri: string;
@@ -43,10 +37,9 @@ export interface EditableImage {
   drawings: Stroke[];
   texts: TextOverlay[];
   emojis: EmojiOverlay[];
-  blurs: BlurPatch[];
   rotation: number;
   name: string;
   type: string;
 }
 
-export type EditorTool = "crop" | "rotate" | "draw" | "text" | "emoji" | "blur";
+export type EditorTool = "crop" | "rotate" | "draw" | "text" | "emoji";

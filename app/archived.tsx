@@ -19,7 +19,7 @@ import { ConnectsService } from "../services/connects.service";
 import { SessionService } from "../services/session.service";
 import { syncEventBus } from "../services/sync.engine";
 import { Channel, Message } from "../types/connects";
-import { createStyles } from './(tabs)/index.styles';
+import { createStyles } from '../styles/index.styles';
 import { useColors } from "../design";
 import { AppText } from "../components/ui/AppText";
 

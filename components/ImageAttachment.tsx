@@ -28,6 +28,12 @@ export default function ImageAttachment({ url, name, messageId, time, readStatus
   const fetchedRef = useRef(false);
 
   useEffect(() => {
+    if (source && source.startsWith('http')) {
+      Image.prefetch(source).catch(() => {});
+    }
+  }, [source]);
+
+  useEffect(() => {
     // In gridMode, defer loading until it becomes visible
     if (!isVisible && gridMode) return;
 

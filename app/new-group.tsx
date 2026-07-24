@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ConnectsService } from '../services/connects.service';
 import { useColors } from '../design';
 import { AppText } from '../components/ui/AppText';
-import { createStyles } from './new-group.styles';
+import { createStyles } from '../styles/new-group.styles';
 
 export default function NewGroupScreen() {
   const colors = useColors();

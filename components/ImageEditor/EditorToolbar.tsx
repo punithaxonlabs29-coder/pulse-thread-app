@@ -6,15 +6,14 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 
 export type EditorTool =
   | "crop"
   | "rotate"
   | "draw"
   | "text"
-  | "emoji"
-  | "blur";
+  | "emoji";
 
 interface Props {
   activeTool: EditorTool | null;
@@ -32,7 +31,6 @@ const TOOLS: {
   { id: "draw",   label: "Draw",   icon: "pencil",             iconSet: "ionicons"  },
   { id: "text",   label: "Text",   icon: "text-outline",       iconSet: "ionicons"  },
   { id: "emoji",  label: "Emoji",  icon: "happy-outline",      iconSet: "ionicons"  },
-  { id: "blur",   label: "Blur",   icon: "water-outline",      iconSet: "ionicons"  },
 ];
 
 export default function EditorToolbar({ activeTool, onSelectTool }: Props) {
@@ -54,7 +52,7 @@ export default function EditorToolbar({ activeTool, onSelectTool }: Props) {
               <Ionicons
                 name={tool.icon as any}
                 size={22}
-                color={isActive ? "#F97316" : "#fff"}
+                color={isActive ? "#F97316" : "#64748B"}
               />
               <Text style={[styles.label, isActive && styles.labelActive]}>
                 {tool.label}
@@ -69,9 +67,9 @@ export default function EditorToolbar({ activeTool, onSelectTool }: Props) {
 
 const styles = StyleSheet.create({
   wrapper: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor: "#2a2a2a",
+    borderTopColor: "#F1F5F9",
     paddingVertical: 10,
   },
   row: {
@@ -84,17 +82,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: "#2a2a2a",
+    backgroundColor: "#F8FAFC",
     minWidth: 68,
     gap: 4,
   },
   toolBtnActive: {
-    backgroundColor: "rgba(249,115,22,0.15)",
+    backgroundColor: "rgba(249,115,22,0.1)",
     borderWidth: 1,
     borderColor: "#F97316",
   },
   label: {
-    color: "#aaa",
+    color: "#64748B",
     fontSize: 11,
     fontWeight: "500",
   },

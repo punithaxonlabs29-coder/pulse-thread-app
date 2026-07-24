@@ -47,7 +47,6 @@ export default function ImagePreviewScreen({
   const prevVisibleRef = useRef(false);
   const canvasRefs = useRef<{ [key: string]: View | null }>({});
 
-  // Initialize EditableImages array when screen first becomes visible
   useEffect(() => {
     if (visible && !prevVisibleRef.current) {
       const converted: EditableImage[] = images.map((img, idx) => ({
@@ -57,7 +56,6 @@ export default function ImagePreviewScreen({
         drawings: [],
         texts: [],
         emojis: [],
-        blurs: [],
         rotation: 0,
         name: img.name,
         type: img.type,
@@ -99,14 +97,12 @@ export default function ImagePreviewScreen({
         const hasOverlays =
           img.drawings.length > 0 ||
           img.texts.length > 0 ||
-          img.emojis.length > 0 ||
-          (img.blurs && img.blurs.length > 0);
+          img.emojis.length > 0;
 
         const refNode = canvasRefs.current[img.id];
 
         if (hasOverlays && refNode) {
           try {
-            // Bake drawings, text, emojis, blurs and base image together into a single JPG file
             const exportedUri = await captureRef(refNode, {
               format: "jpg",
               quality: 0.95,
@@ -152,15 +148,15 @@ export default function ImagePreviewScreen({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <StatusBar backgroundColor="#000" barStyle="light-content" />
+      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
       <KeyboardAvoidingView
         style={styles.root}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        {/* ── Top Bar ── */}
+        {/* Top Bar */}
         <View style={styles.topBar}>
           <TouchableOpacity onPress={onClose} style={styles.topBtn} disabled={exporting}>
-            <Ionicons name="close" size={26} color="#fff" />
+            <Ionicons name="close" size={26} color="#0F172A" />
           </TouchableOpacity>
 
           <View style={styles.topRight}>
@@ -169,7 +165,7 @@ export default function ImagePreviewScreen({
               onPress={() => setEditingIndex(currentIndex)}
               disabled={exporting}
             >
-              <Ionicons name="sparkles" size={16} color="#fff" />
+              <Ionicons name="sparkles" size={16} color="#F97316" />
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
 
@@ -178,12 +174,12 @@ export default function ImagePreviewScreen({
               onPress={() => handleRemoveImage(currentIndex)}
               disabled={exporting}
             >
-              <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* ── Main Image Canvas Preview with Live Overlays ── */}
+        {/* Main Image Canvas Preview */}
         <View style={styles.imageArea}>
           <FlatList
             ref={flatRef}
@@ -218,7 +214,6 @@ export default function ImagePreviewScreen({
                     drawings={item.drawings}
                     texts={item.texts}
                     emojis={item.emojis}
-                    blurs={item.blurs || []}
                   />
                 </View>
               </View>
@@ -238,7 +233,7 @@ export default function ImagePreviewScreen({
           )}
         </View>
 
-        {/* ── Thumbnail Strip with Deselect (Delete) badges ── */}
+        {/* Thumbnail Strip */}
         {editableImages.length > 1 && (
           <ScrollView
             horizontal
@@ -269,20 +264,20 @@ export default function ImagePreviewScreen({
                   onPress={() => handleRemoveImage(i)}
                   disabled={exporting}
                 >
-                  <Ionicons name="close-circle" size={18} color="#FF3B30" />
+                  <Ionicons name="close-circle" size={18} color="#EF4444" />
                 </TouchableOpacity>
               </View>
             ))}
           </ScrollView>
         )}
 
-        {/* ── Caption Input ── */}
+        {/* Caption Input */}
         <View style={styles.captionRow}>
-          <Ionicons name="happy-outline" size={22} color="#aaa" style={{ marginRight: 8 }} />
+          <Ionicons name="happy-outline" size={22} color="#64748B" style={{ marginRight: 8 }} />
           <TextInput
             style={styles.captionInput}
             placeholder="Add a caption..."
-            placeholderTextColor="#888"
+            placeholderTextColor="#94A3B8"
             value={caption}
             onChangeText={setCaption}
             multiline
@@ -291,7 +286,7 @@ export default function ImagePreviewScreen({
           />
         </View>
 
-        {/* ── Send Button ── */}
+        {/* Send Button */}
         <TouchableOpacity style={styles.sendBtn} onPress={handleSend} disabled={exporting}>
           {exporting ? (
             <ActivityIndicator color="#fff" />
@@ -327,10 +322,9 @@ export default function ImagePreviewScreen({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#111",
+    backgroundColor: "#FFFFFF",
   },
 
-  // Top bar
   topBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -338,6 +332,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 48,
     paddingBottom: 12,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
   topBtn: {
     padding: 6,
@@ -350,27 +347,27 @@ const styles = StyleSheet.create({
   editBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "#F1F5F9",
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 7,
     gap: 5,
   },
   editBtnText: {
-    color: "#fff",
+    color: "#0F172A",
     fontSize: 14,
     fontWeight: "600",
   },
   removeBtn: {
     padding: 6,
-    backgroundColor: "rgba(255,59,48,0.15)",
+    backgroundColor: "rgba(239,68,68,0.1)",
     borderRadius: 20,
   },
 
-  // Image area
   imageArea: {
     flex: 1,
     position: "relative",
+    backgroundColor: "#FFFFFF",
   },
   imagePage: {
     width: SCREEN_W,
@@ -382,14 +379,13 @@ const styles = StyleSheet.create({
     width: SCREEN_W,
     height: SCREEN_H * 0.55,
     position: "relative",
-    backgroundColor: "#000",
+    backgroundColor: "#FFFFFF",
   },
   mainImage: {
     width: "100%",
     height: "100%",
   },
 
-  // Dot indicators
   dotRow: {
     position: "absolute",
     bottom: 10,
@@ -402,17 +398,16 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.4)",
+    backgroundColor: "rgba(0,0,0,0.2)",
   },
   dotActive: {
-    backgroundColor: "#fff",
+    backgroundColor: "#F97316",
     width: 18,
   },
 
-  // Thumbnail strip
   thumbnailStrip: {
     maxHeight: 74,
-    backgroundColor: "#000",
+    backgroundColor: "#F8FAFC",
   },
   thumbnailContent: {
     paddingHorizontal: 12,
@@ -426,7 +421,7 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 6,
-    opacity: 0.6,
+    opacity: 0.7,
   },
   thumbnailActive: {
     opacity: 1,
@@ -437,28 +432,26 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -4,
     right: -4,
-    backgroundColor: "#000",
+    backgroundColor: "#FFFFFF",
     borderRadius: 10,
   },
 
-  // Caption
   captionRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#F1F5F9",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: "#2a2a2a",
+    borderTopColor: "#E2E8F0",
   },
   captionInput: {
     flex: 1,
-    color: "#fff",
+    color: "#0F172A",
     fontSize: 15,
     maxHeight: 80,
   },
 
-  // Send
   sendBtn: {
     flexDirection: "row",
     alignItems: "center",

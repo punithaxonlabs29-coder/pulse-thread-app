@@ -9,7 +9,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useColors } from '../design';
 import { AppText } from '../components/ui/AppText';
-import { createStyles } from './media.styles';
+import { createStyles } from '../styles/media.styles';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 

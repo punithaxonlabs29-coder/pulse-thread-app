@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Stroke, TextOverlay, EmojiOverlay, BlurPatch } from "./types";
+import { Stroke, TextOverlay, EmojiOverlay } from "./types";
 
 interface Props {
   width: number;
@@ -8,7 +8,6 @@ interface Props {
   drawings?: Stroke[];
   texts?: TextOverlay[];
   emojis?: EmojiOverlay[];
-  blurs?: BlurPatch[];
 }
 
 function StrokeLine({ stroke }: { stroke: Stroke }) {
@@ -48,61 +47,15 @@ function StrokeLine({ stroke }: { stroke: Stroke }) {
   return <>{segments}</>;
 }
 
-function BlurLine({ blur }: { blur: BlurPatch }) {
-  const segments: React.ReactNode[] = [];
-
-  for (let i = 1; i < blur.points.length; i++) {
-    const p1 = blur.points[i - 1];
-    const p2 = blur.points[i];
-
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const length = Math.sqrt(dx * dx + dy * dy);
-    if (length < 0.5) continue;
-
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    const cx = (p1.x + p2.x) / 2;
-    const cy = (p1.y + p2.y) / 2;
-
-    // Render dense mosaic pixelated privacy blur block
-    segments.push(
-      <View
-        key={`${blur.id}-${i}`}
-        style={{
-          position: "absolute",
-          left: cx - length / 2,
-          top: cy - blur.width / 2,
-          width: length,
-          height: blur.width,
-          backgroundColor: "#888888",
-          opacity: 0.95,
-          borderRadius: 4,
-          borderWidth: 1,
-          borderColor: "#666666",
-          transform: [{ rotate: `${angle}deg` }],
-        }}
-      />
-    );
-  }
-
-  return <>{segments}</>;
-}
-
 export default function ImageOverlayCanvas({
   width,
   height,
   drawings = [],
   texts = [],
   emojis = [],
-  blurs = [],
 }: Props) {
   return (
     <View style={[styles.container, { width, height }]} pointerEvents="none">
-      {/* Blur privacy layer */}
-      {blurs.map((blur) => (
-        <BlurLine key={blur.id} blur={blur} />
-      ))}
-
       {/* Drawings layer */}
       {drawings.map((stroke) => (
         <StrokeLine key={stroke.id} stroke={stroke} />

@@ -94,6 +94,11 @@ export default function DownloadButton({ url, filename, style }: DownloadButtonP
       setStatus('downloading');
       setProgress(0);
 
+      if (!url) {
+        setStatus('error');
+        return;
+      }
+
       if (url.startsWith('data:')) {
         const base64Data = url.split(',')[1];
         if (base64Data) {
@@ -107,6 +112,21 @@ export default function DownloadButton({ url, filename, style }: DownloadButtonP
         } else {
           setStatus('error');
         }
+        return;
+      }
+
+      if (url.startsWith('file://') || url.startsWith('/')) {
+        setProgress(50);
+        await FileSystem.copyAsync({ from: url, to: localUri });
+        setProgress(100);
+        setStatus('success');
+        await handleSaveToLibrary(localUri);
+        return;
+      }
+
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        console.log('Invalid URL for download (must start with http/https):', url);
+        setStatus('error');
         return;
       }
 

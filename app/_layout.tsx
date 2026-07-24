@@ -15,6 +15,7 @@ let navigating = false;
 
 export default function RootLayout() {
   const colors = useColors();
+
   useEffect(() => {
     // Initialize SQLite Database on startup
     DatabaseService.init().then(() => {

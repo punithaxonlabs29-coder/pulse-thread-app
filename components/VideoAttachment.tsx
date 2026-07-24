@@ -117,7 +117,12 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
       if (type === 'video' && !filename.toLowerCase().endsWith('.mp4')) {
         filename += '.mp4';
       }
-      const fileUri = FileSystem.cacheDirectory + `cache/videos/${filename}`;
+      const dirPath = `${FileSystem.cacheDirectory}cache/videos/`;
+      const dirInfo = await FileSystem.getInfoAsync(dirPath);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(dirPath, { intermediates: true });
+      }
+      const fileUri = `${dirPath}${filename}`;
       await FileSystem.writeAsStringAsync(fileUri, base64Data, {
         encoding: 'base64',
       });

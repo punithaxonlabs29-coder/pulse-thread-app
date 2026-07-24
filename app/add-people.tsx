@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ConnectsService } from '../services/connects.service';
 import { useColors } from '../design';
 import { AppText } from '../components/ui/AppText';
-import { createStyles } from './add-people.styles';
+import { createStyles } from '../styles/add-people.styles';
 
 export default function AddPeopleScreen() {
   const colors = useColors();

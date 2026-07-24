@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 import { AuthService } from "../../services/auth.service";
-import { createStyles } from './login.styles';
+import { createStyles } from '../../styles/login.styles';
 import { useColors } from '../../design';
 import { AppText } from '../../components/ui/AppText';
 

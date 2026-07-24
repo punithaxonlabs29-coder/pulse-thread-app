@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import authApi from "../../services/api";
 import { SessionService } from "../../services/session.service";
-import { createStyles } from './profile.styles';
+import { createStyles } from '../../styles/profile.styles';
 import { useColors } from "../../design";
 import { AppText } from "../../components/ui/AppText";
 

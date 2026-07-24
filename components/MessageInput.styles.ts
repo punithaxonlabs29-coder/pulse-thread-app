@@ -47,6 +47,24 @@ export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     alignItems: "center",
     marginLeft: 6,
   },
+  dealInputTagContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#F0FDF4',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DCFCE7',
+  },
+  dealInputTagText: {
+    color: '#059669',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dealInputTagClose: {
+    padding: 2,
+  },
   replyPreviewContainer: {
     flexDirection: 'row',
     backgroundColor: colors.brand.primaryLight,

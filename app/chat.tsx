@@ -26,7 +26,7 @@ import { formatDateHeader, formatTimeOnly } from "../utils/date";
 import { AppText } from "../components/ui/AppText";
 import { useChatContext } from "../contexts/ChatContext";
 import { useColors } from "../design";
-import { createStyles } from "./_chat.styles";
+import { createStyles } from "../styles/chat.styles";
 
 import { backgroundWorker } from "../services/background.worker";
 import { messageRepository } from "../services/message.repository";
@@ -558,7 +558,7 @@ export default function ChatScreen() {
     }
   };
 
-  const handleSend = async (text: string, attachments?: any[]) => {
+  const handleSend = async (text: string, attachments?: any[], dealInput?: string) => {
     const id = channelId as string;
 
     if (id && (id.startsWith('lead-') || channelType === 'lead' || leadId)) {
@@ -577,6 +577,7 @@ export default function ChatScreen() {
         created_at: new Date().toISOString(),
         side: 'right',
         message_type: 'pulse_chat',
+        deal_input: dealInput,
       };
 
       setMessages(prev => [...prev, optimisticMessage]);
@@ -587,7 +588,7 @@ export default function ChatScreen() {
       }, 50);
 
       try {
-        const response = await ConnectsService.sendDealMessage(leadUniqueId, text, attachments);
+        const response = await ConnectsService.sendDealMessage(leadUniqueId, text, attachments, dealInput);
         if (response && response.status && response.created_message) {
           const serverMsg = ConnectsService.mapDealMessageToMessage(response.created_message, leadUniqueId);
           setMessages(prev => {
@@ -1126,6 +1127,7 @@ export default function ChatScreen() {
                         showSenderHeader={!isMine}
                         showAvatar={false}
                         showTail={item.showTail}
+                        dealInput={item.deal_input || item.dealInput}
                         readStatus={isMine ? (item.status === 'sending' || item.status === 'pending' || item.status === 'failed' ? item.status : (isRead ? "read" : "delivered")) : undefined}
                         isVisible={visibleItems.has(item.message_id)}
                         reactions={item.reactions}

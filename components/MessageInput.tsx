@@ -1,13 +1,17 @@
 import React, { useState } from "react";
-import { TextInput, TouchableOpacity, View, Text, Image , Keyboard, ScrollView } from "react-native";
+import { TextInput, TouchableOpacity, View, Text, Image , Keyboard, ScrollView, Platform } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as IntentLauncher from 'expo-intent-launcher';
 import AttachmentPreview, { PendingAttachment } from './AttachmentPreview';
 import AttachmentSheet from './AttachmentSheet/AttachmentSheet';
 import AudioRecorder, { AudioRecordingResult } from './AudioRecorder';
 import EmojiKeyboard from './EmojiKeyboard';
 import ImagePreviewScreen from './ImageEditor/ImagePreviewScreen';
+import DealInputModal from './DealInputModal';
+import CameraOptionModal from './CameraOptionModal';
+import { Audio } from 'expo-av';
 
 import { Message } from '../types/connects';
 import { createStyles } from './MessageInput.styles';
@@ -32,7 +36,7 @@ const DEFAULT_MEMBERS: MentionMember[] = [
 ];
 
 interface MessageInputProps {
-  onSend: (text: string, attachments?: PendingAttachment[]) => void;
+  onSend: (text: string, attachments?: PendingAttachment[], dealInput?: string) => void;
   onTyping?: (isTyping: boolean) => void;
   replyingTo?: Message | null;
   onCancelReply?: () => void;
@@ -46,6 +50,9 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
 
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [selectedDealInput, setSelectedDealInput] = useState<string | null>(null);
+  const [showDealInputModal, setShowDealInputModal] = useState(false);
+  const [showCameraOptionModal, setShowCameraOptionModal] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [showEmojiKeyboard, setShowEmojiKeyboard] = useState(false);
   const [showMentionPopover, setShowMentionPopover] = useState(false);
@@ -106,12 +113,13 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
 
   const handleSend = () => {
     if (isSendingRef.current) return;
-    if (!text.trim() && attachments.length === 0) return;
+    if (!text.trim() && attachments.length === 0 && !selectedDealInput) return;
     
     isSendingRef.current = true;
-    onSend(text, attachments);
+    onSend(text, attachments, selectedDealInput || undefined);
     setText("");
     setAttachments([]);
+    setSelectedDealInput(null);
     
     if (onTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -131,13 +139,20 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
     setAttachments(prev => [...prev, att]);
   };
 
-  const handleMenuSelect = async (option: 'camera' | 'gallery' | 'document' | 'video') => {
+  const handleMenuSelect = async (option: string) => {
+    setMenuVisible(false);
+    if (option === 'deal_inputs') {
+      setTimeout(() => {
+        setShowDealInputModal(true);
+      }, 250);
+      return;
+    }
     try {
       if (option === 'camera') {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') return;
         const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           quality: 0.7,
         });
         if (!result.canceled && result.assets[0]) {
@@ -150,11 +165,57 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
             mimeType: asset.mimeType
           });
         }
+      } else if (option === 'camera_video' || option === 'explain_clip') {
+        const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+        if (cameraStatus !== 'granted') return;
+        try {
+          await Audio.requestPermissionsAsync();
+        } catch (e) {
+          console.log("Audio permission request error:", e);
+        }
+
+        if (Platform.OS === 'android') {
+          try {
+            const intentResult = await IntentLauncher.startActivityAsync(
+              'android.media.action.VIDEO_CAPTURE'
+            );
+            if (intentResult.resultCode === -1 && intentResult.data) {
+              addAttachment({
+                uri: intentResult.data,
+                type: 'video/mp4',
+                name: `video_${Date.now()}.mp4`,
+                mimeType: 'video/mp4'
+              });
+              return;
+            } else if (intentResult.resultCode === 0) {
+              // User cancelled recording
+              return;
+            }
+          } catch (intentErr) {
+            console.log("IntentLauncher video capture failed, falling back to launchCameraAsync:", intentErr);
+          }
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['videos'],
+          allowsEditing: false,
+          videoMaxDuration: 60,
+        });
+        if (!result.canceled && result.assets[0]) {
+          const asset = result.assets[0];
+          addAttachment({
+            uri: asset.uri,
+            type: asset.mimeType || 'video/mp4',
+            name: asset.fileName || `video_${Date.now()}.mp4`,
+            size: asset.fileSize,
+            mimeType: asset.mimeType || 'video/mp4'
+          });
+        }
       } else if (option === 'gallery') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') return;
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           quality: 0.7,
           allowsMultipleSelection: true,
         });
@@ -173,7 +234,7 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') return;
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+          mediaTypes: ['videos'],
           quality: 0.7,
           allowsMultipleSelection: true,
         });
@@ -185,6 +246,23 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
               name: asset.fileName || `video_${Date.now()}.mp4`,
               size: asset.fileSize,
               mimeType: asset.mimeType
+            });
+          });
+        }
+      } else if (option === 'audio') {
+        const result = await DocumentPicker.getDocumentAsync({
+          type: 'audio/*',
+          copyToCacheDirectory: true,
+          multiple: true,
+        });
+        if (!result.canceled && result.assets) {
+          result.assets.forEach(asset => {
+            addAttachment({
+              uri: asset.uri,
+              type: asset.mimeType || 'audio/mpeg',
+              name: asset.name || `audio_${Date.now()}.mp3`,
+              size: asset.size,
+              mimeType: asset.mimeType || 'audio/mpeg'
             });
           });
         }
@@ -286,6 +364,15 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
         </View>
       )}
 
+      {selectedDealInput && (
+        <View style={styles.dealInputTagContainer}>
+          <AppText style={styles.dealInputTagText}>{selectedDealInput}</AppText>
+          <TouchableOpacity onPress={() => setSelectedDealInput(null)} style={styles.dealInputTagClose} hitSlop={10}>
+            <Ionicons name="close" size={18} color="#059669" />
+          </TouchableOpacity>
+        </View>
+      )}
+
       <View style={styles.inputContainer}>
         <View style={styles.inputWrapper}>
           <TouchableOpacity 
@@ -312,7 +399,7 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
           <TextInput
             ref={inputRef}
             showSoftInputOnFocus={!showEmojiKeyboard}
-            placeholder="Type a message..."
+            placeholder={selectedDealInput ? "Write it here..." : "Type a message..."}
             placeholderTextColor={colors.text.muted}
             style={styles.input}
             value={text}
@@ -332,7 +419,7 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
 
           <TouchableOpacity 
             style={styles.iconButtonInside}
-            onPress={() => handleMenuSelect('camera')}
+            onPress={() => setShowCameraOptionModal(true)}
           >
             <Ionicons name="camera-outline" size={24} color={colors.text.muted} />
           </TouchableOpacity>
@@ -373,6 +460,22 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
           onSend(captionText, imgs);
           setPreviewImages([]);
         }}
+      />
+
+      <DealInputModal
+        visible={showDealInputModal}
+        onClose={() => setShowDealInputModal(false)}
+        onSelectOption={(option) => {
+          setSelectedDealInput(option);
+          setShowDealInputModal(false);
+        }}
+      />
+
+      <CameraOptionModal
+        visible={showCameraOptionModal}
+        onClose={() => setShowCameraOptionModal(false)}
+        onSelectPhoto={() => handleMenuSelect('camera')}
+        onSelectVideo={() => handleMenuSelect('camera_video')}
       />
 
       {showEmojiKeyboard && (

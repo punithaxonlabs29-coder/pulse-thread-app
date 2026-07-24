@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, View, StyleSheet, TouchableOpacity, Text, Dimensions, SafeAreaView , FlatList } from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, Text, Dimensions, SafeAreaView , FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 
@@ -18,17 +18,42 @@ interface MediaGalleryModalProps {
   onClose: () => void;
 }
 
+function GalleryImageItem({ uri, thumbnailUri, styles }: { uri: string; thumbnailUri?: string; styles: any }) {
+  const [loading, setLoading] = useState(true);
+
+  return (
+    <View style={styles.pageContainer}>
+      <Image
+        source={{ uri }}
+        placeholder={thumbnailUri ? { uri: thumbnailUri } : undefined}
+        style={styles.mediaItem}
+        contentFit="contain"
+        transition={200}
+        cachePolicy="memory-disk"
+        onLoadStart={() => setLoading(true)}
+        onLoad={() => setLoading(false)}
+        onError={() => setLoading(false)}
+      />
+      {loading && (
+        <View style={styles.loadingOverlay} pointerEvents="none">
+          <ActivityIndicator size="large" color="#FFFFFF" />
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function MediaGalleryModal({ visible, media, initialIndex, messageId, onClose }: MediaGalleryModalProps) {
   const colors = useColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
-  const renderItem = ({ item, index }: { item: any, index: number }) => {
+  const renderItem = ({ item, index }: { item: any; index: number }) => {
     const type = item.type || item.mime_type || "";
     const isVideo = type.startsWith("video/") || item.name?.endsWith(".webm") || item.name?.endsWith(".mp4");
     
-    // In a real app we'd fetch the exact local URI if missing, but we'll use url directly for gallery
-    const uri = item.url || item.file_url;
+    const uri = item.url || item.file_url || item.uri;
+    const thumbnailUri = item.thumbnailUrl || item.thumbnail_url || uri;
 
     return (
       <View style={styles.pageContainer}>
@@ -41,11 +66,7 @@ export default function MediaGalleryModal({ visible, media, initialIndex, messag
             shouldPlay={index === currentIndex}
           />
         ) : (
-          <Image
-            source={{ uri }}
-            style={styles.mediaItem}
-            contentFit="contain"
-          />
+          <GalleryImageItem uri={uri} thumbnailUri={thumbnailUri} styles={styles} />
         )}
       </View>
     );
@@ -134,5 +155,10 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   mediaItem: {
     width: '100%',
     height: '100%',
-  }
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

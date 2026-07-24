@@ -46,6 +46,15 @@ export default function DrawTool({
   const [selectedBrush, setSelectedBrush] = useState(0);
   const [currentStroke, setCurrentStroke] = useState<Stroke | null>(null);
 
+  const drawingsRef = useRef(drawings);
+  drawingsRef.current = drawings;
+
+  const selectedColorRef = useRef(selectedColor);
+  selectedColorRef.current = selectedColor;
+
+  const selectedBrushRef = useRef(selectedBrush);
+  selectedBrushRef.current = selectedBrush;
+
   const currentPointsRef = useRef<Point[]>([]);
 
   const panResponder = useRef(
@@ -60,9 +69,9 @@ export default function DrawTool({
         setCurrentStroke({
           id: Date.now().toString(),
           points: [pt],
-          color: selectedColor,
-          width: BRUSHES[selectedBrush].width,
-          opacity: BRUSHES[selectedBrush].opacity,
+          color: selectedColorRef.current,
+          width: BRUSHES[selectedBrushRef.current].width,
+          opacity: BRUSHES[selectedBrushRef.current].opacity,
         });
       },
 
@@ -70,9 +79,13 @@ export default function DrawTool({
         const { locationX, locationY } = e.nativeEvent;
         const pt = { x: locationX, y: locationY };
         currentPointsRef.current = [...currentPointsRef.current, pt];
-        setCurrentStroke((prev) =>
-          prev ? { ...prev, points: [...currentPointsRef.current] } : null
-        );
+        setCurrentStroke({
+          id: Date.now().toString(),
+          points: [...currentPointsRef.current],
+          color: selectedColorRef.current,
+          width: BRUSHES[selectedBrushRef.current].width,
+          opacity: BRUSHES[selectedBrushRef.current].opacity,
+        });
       },
 
       onPanResponderRelease: () => {
@@ -80,11 +93,11 @@ export default function DrawTool({
           const finished: Stroke = {
             id: Date.now().toString(),
             points: [...currentPointsRef.current],
-            color: selectedColor,
-            width: BRUSHES[selectedBrush].width,
-            opacity: BRUSHES[selectedBrush].opacity,
+            color: selectedColorRef.current,
+            width: BRUSHES[selectedBrushRef.current].width,
+            opacity: BRUSHES[selectedBrushRef.current].opacity,
           };
-          onChangeDrawings([...drawings, finished]);
+          onChangeDrawings([...drawingsRef.current, finished]);
           setCurrentStroke(null);
           currentPointsRef.current = [];
         }

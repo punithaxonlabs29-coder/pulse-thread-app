@@ -78,4 +78,6 @@ export interface Message {
     is_starred?: boolean;
     side?: "left" | "right";
     message_type?: string;
+    deal_input?: string;
+    dealInput?: string;
 }

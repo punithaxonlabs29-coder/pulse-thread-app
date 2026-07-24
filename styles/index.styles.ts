@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Colors, Spacing, Radius, Shadows, ZIndices } from '../../design';
+import { Colors, Spacing, Radius, Shadows, ZIndices } from '../design';
 
 export const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {

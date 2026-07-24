@@ -13,7 +13,7 @@ import { ConnectsService } from "../services/connects.service";
 import { SessionService } from "../services/session.service";
 import { CacheService } from "../services/cache.service";
 import { Ionicons } from "@expo/vector-icons";
-import { createStyles } from './_new-chat.styles';
+import { createStyles } from '../styles/new-chat.styles';
 import { useColors } from '../design';
 import { AppText } from '../components/ui/AppText';
 

@@ -21,7 +21,7 @@ import { ConnectsService } from "../../services/connects.service";
 import { SessionService } from "../../services/session.service";
 import { syncEventBus } from "../../services/sync.engine";
 import { Channel, Message } from "../../types/connects";
-import { createStyles } from './index.styles';
+import { createStyles } from '../../styles/index.styles';
 import { AppText } from "../../components/ui/AppText";
 import { useColors } from "../../design";
 

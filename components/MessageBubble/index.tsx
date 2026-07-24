@@ -65,6 +65,7 @@ export interface MessageBubbleProps {
   searchEnabled?: boolean;
   isVisible?: boolean;
   isStarred?: boolean;
+  dealInput?: string;
   onMentionPress?: (userId: string) => void;
 }
 
@@ -74,7 +75,7 @@ const MessageBubble = React.memo(({
   replyTo, onLongPress, onPress, onReactionPress, onSwipeReply, onReplyPress,
   isForwarded = false, isDeleted = false, highlighted = false,
   isSingleEmoji = false, isMediumEmoji = false, isSmallEmoji = false,
-  searchText = '', searchEnabled = false, mentions = [], isStarred = false, onMentionPress,
+  searchText = '', searchEnabled = false, mentions = [], isStarred = false, dealInput, onMentionPress,
 }: MessageBubbleProps) => {
   const colors = useColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -194,6 +195,14 @@ const MessageBubble = React.memo(({
                   <View style={styles.senderHeaderRow}>
                     <AppText style={[styles.senderNameText, { color: getSenderColor(senderName) }]} numberOfLines={1}>
                       ~ {senderName}
+                    </AppText>
+                  </View>
+                ) : null}
+
+                {dealInput ? (
+                  <View style={{ marginBottom: 4 }}>
+                    <AppText style={{ fontSize: 13, fontWeight: '700', color: isMine ? '#15803D' : '#16A34A' }}>
+                      {dealInput}
                     </AppText>
                   </View>
                 ) : null}

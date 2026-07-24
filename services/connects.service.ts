@@ -581,7 +581,8 @@ export const ConnectsService = {
   async sendDealMessage(
     customerLeadUniqueId: string,
     text: string,
-    attachments: any[] = []
+    attachments: any[] = [],
+    dealInput?: string
   ): Promise<SendDealMessageResponse> {
     try {
       const response = await mainApi.post<SendDealMessageResponse>(
@@ -590,6 +591,7 @@ export const ConnectsService = {
           customer_lead_unique_id: customerLeadUniqueId,
           text: text,
           attachments: attachments,
+          ...(dealInput && { deal_input: dealInput, dealInput: dealInput }),
         }
       );
       return response.data;
@@ -611,6 +613,7 @@ export const ConnectsService = {
       attachments: raw.attachments || [],
       side: raw.side,
       message_type: raw.messageType || raw.message_type,
+      deal_input: raw.deal_input || raw.dealInput || undefined,
     };
   },
 

@@ -9,7 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { CacheService } from '../services/cache.service';
 import { SessionService } from '../services/session.service';
 import { mainApi } from '../services/api';
-import { createStyles } from './contact-info.styles';
+import { createStyles } from '../styles/contact-info.styles';
 import { useColors } from '../design';
 import { AppText } from '../components/ui/AppText';
 

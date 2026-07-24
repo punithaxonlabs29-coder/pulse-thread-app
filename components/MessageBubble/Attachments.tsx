@@ -71,7 +71,9 @@ export const Attachments = React.memo(({
         );
       } else {
         return (
-          <VideoAttachment url={url || ""} messageId={messageId} name={name} type="video" isVisible={isVisible} {...mediaProps} readStatus={mediaProps.readStatus as any} />
+          <TouchableOpacity onPress={() => handleMediaPress(0)} activeOpacity={0.9}>
+            <VideoAttachment url={url || ""} messageId={messageId} name={name} type="video" isVisible={isVisible} {...mediaProps} readStatus={mediaProps.readStatus as any} />
+          </TouchableOpacity>
         );
       }
     }

@@ -17,7 +17,6 @@ import RotateTool from "./RotateTool";
 import DrawTool from "./DrawTool";
 import TextTool from "./TextTool";
 import EmojiTool from "./EmojiTool";
-import BlurTool from "./BlurTool";
 import ImageOverlayCanvas from "./ImageOverlayCanvas";
 import { EditableImage } from "./types";
 
@@ -40,7 +39,6 @@ export default function ImageEditorScreen({
   const [activeTool, setActiveTool] = useState<EditorTool | null>(null);
   const [currentImage, setCurrentImage] = useState<EditableImage | null>(image);
 
-  // Sync state when new image passed in or modal becomes visible
   React.useEffect(() => {
     if (visible && image) {
       setCurrentImage(image);
@@ -68,10 +66,10 @@ export default function ImageEditorScreen({
       }}
       statusBarTranslucent
     >
-      <StatusBar backgroundColor="#000" barStyle="light-content" />
+      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
       <View style={styles.root}>
 
-        {/* ── Top Bar ── */}
+        {/* Top Bar */}
         <View style={styles.topBar}>
           <TouchableOpacity
             onPress={() => {
@@ -80,7 +78,7 @@ export default function ImageEditorScreen({
             }}
             style={styles.topBtn}
           >
-            <Ionicons name={activeTool ? "arrow-back" : "close"} size={24} color="#fff" />
+            <Ionicons name={activeTool ? "arrow-back" : "close"} size={24} color="#0F172A" />
           </TouchableOpacity>
 
           <Text style={styles.topTitle}>{toolTitle}</Text>
@@ -91,7 +89,7 @@ export default function ImageEditorScreen({
           </TouchableOpacity>
         </View>
 
-        {/* ── Content Area ── */}
+        {/* Content Area */}
         <View style={styles.content}>
           {activeTool === "crop" && (
             <CropTool
@@ -147,18 +145,7 @@ export default function ImageEditorScreen({
             />
           )}
 
-          {activeTool === "blur" && (
-            <BlurTool
-              imageUri={currentImage.editedUri}
-              blurs={currentImage.blurs || []}
-              onChangeBlurs={(blurs) => {
-                setCurrentImage((prev) => prev ? { ...prev, blurs } : null);
-              }}
-              onDone={() => setActiveTool(null)}
-            />
-          )}
-
-          {/* Default — Image preview with persistent drawing/text/emoji/blur overlay */}
+          {/* Default Preview */}
           {!activeTool && (
             <View style={styles.previewArea}>
               <View style={styles.canvasContainer}>
@@ -173,7 +160,6 @@ export default function ImageEditorScreen({
                   drawings={currentImage.drawings}
                   texts={currentImage.texts}
                   emojis={currentImage.emojis}
-                  blurs={currentImage.blurs || []}
                 />
               </View>
               <Text style={styles.hint}>Select a tool below to edit</Text>
@@ -181,7 +167,7 @@ export default function ImageEditorScreen({
           )}
         </View>
 
-        {/* ── Bottom Toolbar ── */}
+        {/* Bottom Toolbar */}
         {!activeTool && (
           <EditorToolbar
             activeTool={activeTool}
@@ -194,7 +180,7 @@ export default function ImageEditorScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#111" },
+  root: { flex: 1, backgroundColor: "#FFFFFF" },
 
   topBar: {
     flexDirection: "row",
@@ -203,10 +189,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 48,
     paddingBottom: 14,
-    backgroundColor: "#000",
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
   topBtn: { padding: 6, width: 44 },
-  topTitle: { color: "#fff", fontSize: 17, fontWeight: "700", letterSpacing: 0.3 },
+  topTitle: { color: "#0F172A", fontSize: 17, fontWeight: "700", letterSpacing: 0.3 },
   doneBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -218,13 +206,14 @@ const styles = StyleSheet.create({
   },
   doneBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
-  content: { flex: 1 },
+  content: { flex: 1, backgroundColor: "#FFFFFF" },
   previewArea: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
     gap: 16,
+    backgroundColor: "#FFFFFF",
   },
   canvasContainer: {
     width: SCREEN_W - 40,
@@ -232,10 +221,11 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
     borderRadius: 8,
+    backgroundColor: "#FFFFFF",
   },
   previewImage: {
     width: "100%",
     height: "100%",
   },
-  hint: { color: "#555", fontSize: 13, textAlign: "center" },
+  hint: { color: "#64748B", fontSize: 13, textAlign: "center" },
 });

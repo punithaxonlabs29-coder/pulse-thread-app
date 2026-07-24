@@ -21,9 +21,32 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.pulsethread",
-
       "googleServicesFile": "./google-services.json",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "intentFilters": [
+        {
+          "action": "SEND",
+          "category": ["DEFAULT"],
+          "data": [
+            { "mimeType": "image/*" },
+            { "mimeType": "video/*" },
+            { "mimeType": "application/pdf" },
+            { "mimeType": "audio/*" },
+            { "mimeType": "*/*" }
+          ]
+        },
+        {
+          "action": "SEND_MULTIPLE",
+          "category": ["DEFAULT"],
+          "data": [
+            { "mimeType": "image/*" },
+            { "mimeType": "video/*" },
+            { "mimeType": "application/pdf" },
+            { "mimeType": "audio/*" },
+            { "mimeType": "*/*" }
+          ]
+        }
+      ]
     },
     "web": {
       "output": "static",
@@ -31,6 +54,7 @@
     },
     "plugins": [
       "expo-router",
+      "./withAndroidShareReceiver.js",
       [
         "expo-splash-screen",
         {

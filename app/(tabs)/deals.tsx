@@ -69,19 +69,19 @@ export default function DealsScreen() {
       onPress={() => handleStagePress(item.sales_stage_index, item.sales_stage)}
     >
       <View style={styles.stageLeft}>
-        <Hash size={18} color={colors.text.muted} />
+        <Hash size={20} color={colors.text.muted} />
         <AppText variant="body" style={styles.stageTitle}>
           {item.sales_stage}
         </AppText>
       </View>
       <View style={styles.stageRight}>
         {item.lead_count !== undefined && (
-          <AppText variant="body" style={{ color: colors.brand.primary, fontWeight: '600' }}>
+          <AppText variant="body" style={styles.stageCountText}>
             ({item.lead_count})
           </AppText>
         )}
         <Pressable style={styles.moreButton}>
-          <MoreVertical size={18} color={colors.text.muted} />
+          <MoreVertical size={20} color={colors.text.muted} />
         </Pressable>
       </View>
     </Pressable>
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     marginLeft: 10,
-    fontSize: 16,
+    fontSize: 17,
   },
   listContent: {
     paddingBottom: 20,
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingVertical: 17,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   stageLeft: {
@@ -180,11 +180,18 @@ const styles = StyleSheet.create({
   },
   stageTitle: {
     marginLeft: 12,
+    fontSize: 17.5,
+    fontWeight: '600',
   },
   stageRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  stageCountText: {
+    color: '#F97316',
+    fontSize: 17.5,
+    fontWeight: '700',
   },
   moreButton: {
     padding: 4,
