@@ -862,6 +862,39 @@ export default function ChatScreen() {
     .filter(m => selectedMessageIds.includes(m.message_id))
     .every(m => m.sender_email === currentUserEmail);
 
+  const handleClearChat = () => {
+    Alert.alert(
+      "Clear Chat?",
+      "Are you sure you want to clear all messages in this chat? This action only clears messages for you.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear Chat",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const success = await ConnectsService.clearChat(channelId as string);
+              if (success) {
+                setMessages([]);
+                await messageRepository.clearChannel(channelId as string);
+                syncEventBus.emit('chat_cleared', { channelId: channelId as string });
+                if (Platform.OS === 'android') {
+                  ToastAndroid.show("Chat cleared for you", ToastAndroid.SHORT);
+                } else {
+                  Alert.alert("Success", "Chat cleared for you");
+                }
+              } else {
+                Alert.alert("Error", "Failed to clear chat");
+              }
+            } catch (err: any) {
+              Alert.alert("Error", err.message || "Failed to clear chat");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
         {selectedMessageIds.length > 0 ? (
@@ -955,6 +988,7 @@ export default function ChatScreen() {
                 onSearch={() => setSearchMode(true)}
                 onMediaPress={() => router.push({ pathname: '/media', params: { channelId } })}
                 onProfilePress={() => router.push({ pathname: '/contact-info', params: { channelId, name: resolvedName, image: resolvedImage, status: 'Active' } })}
+                onClearChat={handleClearChat}
               />
             ) : (
               <SearchHeader

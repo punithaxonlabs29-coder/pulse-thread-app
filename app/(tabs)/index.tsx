@@ -104,11 +104,54 @@ export default function ChatsScreen() {
       });
     };
 
+    const handleChatCleared = (event: string, data: { channelId: string }) => {
+      setChannels(prev => {
+        const idx = prev.findIndex(c => c.channel_id === data.channelId);
+        if (idx === -1) return prev;
+        const next = [...prev];
+        next[idx] = {
+          ...next[idx],
+          last_message: undefined
+        };
+        CacheService.saveChannels(next);
+        return next;
+      });
+    };
+
+    const handleMessageDeleted = (event: string, data: any) => {
+      const channelId = data?.channelId || data?.channel_id;
+      const messageId = data?.messageId || data?.message_id;
+      if (!channelId) return;
+
+      setChannels(prev => {
+        const idx = prev.findIndex(c => c.channel_id === channelId);
+        if (idx === -1) return prev;
+        const next = [...prev];
+        if (!messageId || next[idx].last_message?.message_id === messageId || next[idx].last_message?.local_id === messageId) {
+          next[idx] = {
+            ...next[idx],
+            last_message: {
+              ...(next[idx].last_message || {}),
+              is_deleted: true,
+              text: "This message was deleted",
+              attachments: []
+            } as any
+          };
+          CacheService.saveChannels(next);
+        }
+        return next;
+      });
+    };
+
     syncEventBus.on('new_message', handleNewMessage);
     syncEventBus.on('channel_updated', handleChannelUpdated);
+    syncEventBus.on('chat_cleared', handleChatCleared);
+    syncEventBus.on('message_deleted', handleMessageDeleted);
     return () => {
       syncEventBus.off('new_message', handleNewMessage);
       syncEventBus.off('channel_updated', handleChannelUpdated);
+      syncEventBus.off('chat_cleared', handleChatCleared);
+      syncEventBus.off('message_deleted', handleMessageDeleted);
     };
   }, []);
 
@@ -445,7 +488,7 @@ export default function ChatsScreen() {
           // Channels state is now real-time updated via syncEventBus
           const displayMessage = item.last_message?.text;
           const displayAttachments = item.last_message?.attachments || [];
-          const displayTime = item.last_message?.created_at || item.updated_at;
+          const displayTime = item.last_message ? item.last_message.created_at : undefined;
           const displayUnreadCount = unreadCounts[item.channel_id] ?? item.unread_count;
 
           const otherMember = item.channel_type === "direct"

@@ -58,37 +58,59 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
   const [isPdfModalVisible, setPdfModalVisible] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const [thumbLoading, setThumbLoading] = useState<boolean>(true);
 
   const attachmentId = `${messageId}_${name}`;
+
+  useEffect(() => {
+    setThumbnailUrl(null);
+    setThumbLoading(true);
+  }, [attachmentId, url]);
 
   useEffect(() => {
     let isMounted = true;
     
     const checkCacheAndGenerate = async () => {
-      const state = await MediaCacheManager.getMediaState(attachmentId);
-      if (state?.thumbnail_uri) {
-        if (isMounted) setThumbnailUrl(state.thumbnail_uri);
-        return;
-      }
-      
-      if (!isVisible) return; // Do not generate if not visible
-
       try {
+        const state = await MediaCacheManager.getMediaState(attachmentId);
+        if (state?.thumbnail_uri) {
+          const info = await FileSystem.getInfoAsync(state.thumbnail_uri);
+          if (info.exists && info.size > 0) {
+            if (isMounted) {
+              setThumbnailUrl(state.thumbnail_uri);
+              setThumbLoading(false);
+            }
+            return;
+          }
+        }
+        
+        if (!isVisible) {
+          if (isMounted) setThumbLoading(false);
+          return;
+        }
+
         const fileUri = await getCachedFile();
-        if (fileUri && fileUri.startsWith('file://')) {
+        if (fileUri && (fileUri.startsWith('file://') || fileUri.startsWith('content://'))) {
           const { uri } = await VideoThumbnails.getThumbnailAsync(fileUri, { time: 1000, quality: 0.5 });
-          if (isMounted) setThumbnailUrl(uri);
+          if (isMounted) {
+            setThumbnailUrl(uri);
+            setThumbLoading(false);
+          }
           
           const fileInfo = await FileSystem.getInfoAsync(uri);
           await MediaCacheManager.saveThumbnail(attachmentId, fileUri, uri, fileInfo.exists ? fileInfo.size : 0);
         }
       } catch (e) {
         // Quietly fallback to default video icon
+      } finally {
+        if (isMounted) setThumbLoading(false);
       }
     };
 
     if (type === 'video') {
       checkCacheAndGenerate();
+    } else {
+      setThumbLoading(false);
     }
     
     return () => { isMounted = false; };
@@ -357,7 +379,7 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
             />
           ) : null}
           <View style={[StyleSheet.absoluteFill, { backgroundColor: thumbnailUrl ? 'rgba(0,0,0,0.2)' : '#1F2937', borderRadius: gridMode ? 0 : 12 }]} />
-          {loading ? (
+          {loading || (thumbLoading && !thumbnailUrl) ? (
             <ActivityIndicator size="large" color="#FFFFFF" />
           ) : (
             <View style={styles.playButtonCircle}>

@@ -275,10 +275,10 @@ export default function StageDealsScreen() {
         {/* Badges / Chips */}
         <View style={styles.badgeRow}>
           <View style={styles.oliveBadge}>
-            <AppText style={styles.badgeText}>{leadSource}</AppText>
+            <AppText style={styles.oliveBadgeText}>{leadSource}</AppText>
           </View>
           <View style={styles.slateBadge}>
-            <AppText style={styles.badgeText}>{stageStatus}</AppText>
+            <AppText style={styles.slateBadgeText}>{stageStatus}</AppText>
           </View>
         </View>
 
@@ -619,8 +619,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 14,
   },
-  badgeText: {
+  oliveBadgeText: {
     color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  slateBadgeText: {
+    color: '#858000', // Text color matching the first chip's background color (#858000)
     fontSize: 12.5,
     fontWeight: '800',
     letterSpacing: 0.5,

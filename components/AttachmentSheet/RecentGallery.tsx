@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import * as MediaLibrary from "expo-media-library";
+import * as VideoThumbnails from "expo-video-thumbnails";
 
 const SCREEN_W = Dimensions.get("window").width;
 const ITEM_SIZE = (SCREEN_W - 10) / 4;
@@ -17,6 +18,25 @@ const ITEM_SIZE = (SCREEN_W - 10) / 4;
 interface Props {
   selectedAssets: MediaLibrary.Asset[];
   onToggleSelectAsset: (asset: MediaLibrary.Asset) => void;
+}
+
+function GalleryItemImage({ uri, isSelected }: { uri: string; isSelected: boolean }) {
+  const [thumbUri, setThumbUri] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    VideoThumbnails.getThumbnailAsync(uri, { time: 1000, quality: 0.4 })
+      .then(res => { if (active && res.uri) setThumbUri(res.uri); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [uri]);
+
+  return (
+    <Image
+      source={{ uri: thumbUri || uri }}
+      style={[styles.image, isSelected && styles.imageSelected]}
+    />
+  );
 }
 
 export default function RecentGallery({
@@ -81,13 +101,17 @@ export default function RecentGallery({
             onPress={() => onToggleSelectAsset(item)}
             style={styles.itemContainer}
           >
-            <Image
-              source={{ uri: item.uri }}
-              style={[
-                styles.image,
-                isSelected && styles.imageSelected,
-              ]}
-            />
+            {isVideo ? (
+              <GalleryItemImage uri={item.uri} isSelected={isSelected} />
+            ) : (
+              <Image
+                source={{ uri: item.uri }}
+                style={[
+                  styles.image,
+                  isSelected && styles.imageSelected,
+                ]}
+              />
+            )}
 
             {/* Video duration badge */}
             {isVideo && (

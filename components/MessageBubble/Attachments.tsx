@@ -80,9 +80,7 @@ export const Attachments = React.memo(({
         );
       } else {
         return (
-          <TouchableOpacity onPress={() => handleMediaPress(0)} activeOpacity={0.9}>
-            <VideoAttachment url={url || ""} messageId={messageId} name={name} duration={file.duration} type="video" isVisible={isVisible} {...mediaProps} readStatus={mediaProps.readStatus as any} />
-          </TouchableOpacity>
+          <VideoAttachment url={url || ""} messageId={messageId} name={name} duration={file.duration} type="video" isVisible={isVisible} {...mediaProps} readStatus={mediaProps.readStatus as any} />
         );
       }
     }
@@ -98,40 +96,62 @@ export const Attachments = React.memo(({
           const url = file.url || file.file_url;
           const name = file.name || "Attachment";
 
-          return (
-            <TouchableOpacity 
-              key={index}
-              style={styles.gridItem} 
-              onPress={() => handleMediaPress(index)}
-              activeOpacity={0.9}
-            >
-              {type.startsWith("image/") ? (
+          if (type.startsWith("image/")) {
+            return (
+              <TouchableOpacity 
+                key={index}
+                style={styles.gridItem} 
+                onPress={() => handleMediaPress(index)}
+                activeOpacity={0.9}
+              >
                 <ImageAttachment url={url || ""} name={name} messageId={messageId} gridMode={true} isVisible={isVisible} />
-              ) : (
+                {index === 3 && extraCount > 0 && (
+                  <View style={styles.extraOverlay}>
+                    <AppText style={styles.extraText}>+{extraCount}</AppText>
+                  </View>
+                )}
+                
+                {index === displayMedia.length - 1 && showOverlayTime && (
+                  <View style={[styles.timeOverlay, (index === 3 && extraCount > 0) ? { zIndex: 20 } : undefined]}>
+                    <AppText style={styles.timeText}>{time}</AppText>
+                    {isMine && readStatus && (
+                      <Ionicons
+                        name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
+                        size={12}
+                        color={readStatus === "read" ? colors.status.info : "#FFF"}
+                        style={styles.tickIcon}
+                      />
+                    )}
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          } else {
+            return (
+              <View key={index} style={styles.gridItem}>
                 <VideoAttachment url={url || ""} messageId={messageId} name={name} duration={file.duration} type="video" gridMode={true} isVisible={isVisible} isMine={isMine} />
-              )}
-              {index === 3 && extraCount > 0 && (
-                <View style={styles.extraOverlay}>
-                  <AppText style={styles.extraText}>+{extraCount}</AppText>
-                </View>
-              )}
-              
-              {/* Shared overlay on bottom right item */}
-              {index === displayMedia.length - 1 && showOverlayTime && (
-                <View style={[styles.timeOverlay, (index === 3 && extraCount > 0) ? { zIndex: 20 } : undefined]}>
-                  <AppText style={styles.timeText}>{time}</AppText>
-                  {isMine && readStatus && (
-                    <Ionicons
-                      name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
-                      size={14}
-                      color={readStatus === "read" ? colors.status.info : "#FFFFFF"}
-                      style={styles.tickIcon}
-                    />
-                  )}
-                </View>
-              )}
-            </TouchableOpacity>
-          );
+                {index === 3 && extraCount > 0 && (
+                  <View style={styles.extraOverlay} pointerEvents="none">
+                    <AppText style={styles.extraText}>+{extraCount}</AppText>
+                  </View>
+                )}
+                
+                {index === displayMedia.length - 1 && showOverlayTime && (
+                  <View style={[styles.timeOverlay, (index === 3 && extraCount > 0) ? { zIndex: 20 } : undefined]} pointerEvents="none">
+                    <AppText style={styles.timeText}>{time}</AppText>
+                    {isMine && readStatus && (
+                      <Ionicons
+                        name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
+                        size={12}
+                        color={readStatus === "read" ? colors.status.info : "#FFF"}
+                        style={styles.tickIcon}
+                      />
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          }
         })}
         
         {/* Centralized Uploading/Sending Overlay */}

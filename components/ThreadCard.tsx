@@ -67,7 +67,11 @@ export default React.memo(function ThreadCard({
     .substring(0, 2)
     .toUpperCase();
 
+  const lastMsg = channel.last_message;
+  const isDeletedMsg = lastMsg?.is_deleted || lastMsg?.text === 'This message was deleted';
+
   const getAttachmentInfo = () => {
+    if (isDeletedMsg) return null;
     if (!displayAttachments || displayAttachments.length === 0) return null;
     const type = displayAttachments[0].type || displayAttachments[0].mime_type || "";
     if (type.startsWith("image/")) return { icon: "image", label: "Photo" };
@@ -78,7 +82,17 @@ export default React.memo(function ThreadCard({
   };
 
   const attachmentInfo = getAttachmentInfo();
-  const showText = displayMessage || (attachmentInfo ? attachmentInfo.label : "No messages yet");
+  
+  let showText = "No messages yet";
+  if (isDeletedMsg) {
+    showText = "🚫 This message was deleted";
+  } else if (displayMessage) {
+    showText = displayMessage;
+  } else if (attachmentInfo) {
+    showText = attachmentInfo.label;
+  }
+
+  const effectiveTime = (showText !== "No messages yet" && lastMsg) ? (displayTime ?? lastMsg?.created_at) : undefined;
 
   return (
     <TouchableOpacity
@@ -136,9 +150,9 @@ export default React.memo(function ThreadCard({
             )}
             <AppText
               variant="body"
-              color={colors.text.secondary}
+              color={isDeletedMsg ? colors.text.muted : colors.text.secondary}
               numberOfLines={1}
-              style={[styles.subtitle, { flex: 1 }]}
+              style={[styles.subtitle, { flex: 1 }, isDeletedMsg && { fontStyle: 'italic' }]}
             >
               {showText}
             </AppText>
@@ -148,7 +162,7 @@ export default React.memo(function ThreadCard({
 
       <View style={styles.right}>
         <AppText variant="caption" color={colors.text.secondary} style={styles.time}>
-          {formatMessageTime(displayTime ?? channel.last_message?.created_at)}
+          {effectiveTime ? formatMessageTime(effectiveTime) : ''}
         </AppText>
 
         {(displayUnreadCount !== undefined ? displayUnreadCount : channel.unread_count) > 0 && (

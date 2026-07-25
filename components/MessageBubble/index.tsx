@@ -136,10 +136,16 @@ const MessageBubble = React.memo(({
       friction={2}
       leftThreshold={40}
     >
-      <View style={[
-        styles.bubbleWrapper, 
-        selected && styles.selectedWrapper
-      ]}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onLongPress={handleLongPress}
+        onPress={onPress}
+        delayLongPress={200}
+        style={[
+          styles.bubbleWrapper, 
+          selected && styles.selectedWrapper
+        ]}
+      >
         {/* Highlight flash overlay */}
         <Animated.View
           pointerEvents="none"
@@ -261,7 +267,7 @@ const MessageBubble = React.memo(({
           isMine={isMine}
           onReactionPress={onReactionPress}
         />
-      </View>
+        </TouchableOpacity>
     </Swipeable>
   );
 }, (prev, next) => {

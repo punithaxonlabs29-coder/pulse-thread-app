@@ -323,25 +323,11 @@ export class MessageLocalDataSource {
     const db = DatabaseService.getDB();
 
     await DatabaseService.withWriteLock(async () => {
-      const before = await db.getFirstAsync<{ count: number }>(
-        "SELECT COUNT(*) as count FROM messages WHERE channel_id = ?",
-        [channelId]
-      );
-
-      console.log("BEFORE DELETE:", before);
-
-      const result = await db.runAsync(
-        "DELETE FROM messages WHERE channel_id = ?",
-        [channelId]
-      );
-
-      console.log("DELETE RESULT:", result);
-
-      const after = await db.getFirstAsync<{ count: number }>(
-        "SELECT COUNT(*) as count FROM messages WHERE channel_id = ?",
-        [channelId]
-      );
-      console.log("AFTER DELETE:", after);
+      await db.runAsync("DELETE FROM attachments WHERE message_id IN (SELECT local_id FROM messages WHERE channel_id = ? UNION SELECT server_id FROM messages WHERE channel_id = ?)", [channelId, channelId]);
+      await db.runAsync("DELETE FROM reactions WHERE message_id IN (SELECT local_id FROM messages WHERE channel_id = ? UNION SELECT server_id FROM messages WHERE channel_id = ?)", [channelId, channelId]);
+      await db.runAsync("DELETE FROM message_mentions WHERE message_id IN (SELECT local_id FROM messages WHERE channel_id = ? UNION SELECT server_id FROM messages WHERE channel_id = ?)", [channelId, channelId]);
+      await db.runAsync("DELETE FROM starred_messages WHERE channel_id = ?", [channelId]);
+      await db.runAsync("DELETE FROM messages WHERE channel_id = ?", [channelId]);
     });
-}
+  }
 }
