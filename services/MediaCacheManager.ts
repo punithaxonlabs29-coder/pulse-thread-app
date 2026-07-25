@@ -40,6 +40,9 @@ class MediaCacheService {
 
       // Initialize SQLite
       this.db = await SQLite.openDatabaseAsync('media_cache.db');
+      // WAL mode + busy_timeout to prevent "table is locked" races with pulse.db
+      await this.db.execAsync('PRAGMA journal_mode = WAL;');
+      await this.db.execAsync('PRAGMA busy_timeout = 5000;');
       await this.db.execAsync(`
         CREATE TABLE IF NOT EXISTS media_cache (
           message_id TEXT PRIMARY KEY,

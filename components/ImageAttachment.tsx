@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from "@expo/vector-icons";
 import { ConnectsService } from '../services/connects.service';
 import * as FileSystem from 'expo-file-system/legacy';
+import { MediaCacheManager } from '../services/MediaCacheManager';
 import DownloadButton from './ui/DownloadButton';
 import { createStyles } from './ImageAttachment.styles';
 import { useColors } from '../design';
@@ -63,6 +64,7 @@ export default function ImageAttachment({ url, name, messageId, time, readStatus
               if (!fileInfo.exists) {
                 await FileSystem.writeAsStringAsync(filePath, cleanBase64, { encoding: 'base64' });
               }
+              await MediaCacheManager.saveMedia(messageId, targetUrl, filePath, fileInfo.exists ? fileInfo.size : 0, 'image');
               setSource(filePath);
               return;
             }
@@ -99,6 +101,9 @@ export default function ImageAttachment({ url, name, messageId, time, readStatus
       />
       {!gridMode && time && (
         <View style={styles.timeOverlay}>
+          {source ? (
+            <DownloadButton url={source} filename={name} style={{ marginRight: 4 }} />
+          ) : null}
           <AppText style={styles.timeText}>{time}</AppText>
           {isMine && readStatus && (
             <Ionicons
@@ -110,13 +115,6 @@ export default function ImageAttachment({ url, name, messageId, time, readStatus
           )}
         </View>
       )}
-
-      {/* Download Button Component Overlay */}
-      {!gridMode && source ? (
-        <View style={styles.downloadOverlay}>
-          <DownloadButton url={source} filename={name} style={styles.downloadCircle} />
-        </View>
-      ) : null}
     </View>
   );
 }

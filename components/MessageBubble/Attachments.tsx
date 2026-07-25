@@ -5,6 +5,7 @@ import ImageAttachment from '../ImageAttachment';
 import VideoAttachment from '../VideoAttachment';
 import AudioAttachment from '../AudioAttachment';
 import MediaGalleryModal from '../MediaGalleryModal';
+import { MediaCacheManager } from '../../services/MediaCacheManager';
 import { createStyles } from './Attachments.styles';
 import { AppText } from '../ui/AppText';
 import { useColors } from '../../design';
@@ -49,7 +50,15 @@ export const Attachments = React.memo(({
     isMine
   };
 
-  const handleMediaPress = (index: number) => {
+  const handleMediaPress = async (index: number) => {
+    try {
+      const state = await MediaCacheManager.getMediaState(messageId);
+      if (state?.local_uri) {
+        media.forEach(item => {
+          if (!item.local_uri) item.local_uri = state.local_uri;
+        });
+      }
+    } catch (e) {}
     setInitialIndex(index);
     setGalleryVisible(true);
   };
@@ -72,7 +81,7 @@ export const Attachments = React.memo(({
       } else {
         return (
           <TouchableOpacity onPress={() => handleMediaPress(0)} activeOpacity={0.9}>
-            <VideoAttachment url={url || ""} messageId={messageId} name={name} type="video" isVisible={isVisible} {...mediaProps} readStatus={mediaProps.readStatus as any} />
+            <VideoAttachment url={url || ""} messageId={messageId} name={name} duration={file.duration} type="video" isVisible={isVisible} {...mediaProps} readStatus={mediaProps.readStatus as any} />
           </TouchableOpacity>
         );
       }
@@ -99,7 +108,7 @@ export const Attachments = React.memo(({
               {type.startsWith("image/") ? (
                 <ImageAttachment url={url || ""} name={name} messageId={messageId} gridMode={true} isVisible={isVisible} />
               ) : (
-                <VideoAttachment url={url || ""} messageId={messageId} name={name} type="video" gridMode={true} isVisible={isVisible} isMine={isMine} />
+                <VideoAttachment url={url || ""} messageId={messageId} name={name} duration={file.duration} type="video" gridMode={true} isVisible={isVisible} isMine={isMine} />
               )}
               {index === 3 && extraCount > 0 && (
                 <View style={styles.extraOverlay}>

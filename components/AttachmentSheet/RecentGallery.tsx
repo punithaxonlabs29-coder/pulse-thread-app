@@ -39,9 +39,10 @@ export default function RecentGallery({
         return;
       }
 
+      // Load both photos AND videos
       const result = await MediaLibrary.getAssetsAsync({
         first: 300,
-        mediaType: "photo",
+        mediaType: ['photo', 'video'],
         sortBy: [["creationTime", false]],
       });
 
@@ -51,6 +52,12 @@ export default function RecentGallery({
     }
 
     setLoading(false);
+  };
+
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
   if (loading) {
@@ -66,6 +73,7 @@ export default function RecentGallery({
       renderItem={({ item }) => {
         const selectIndex = selectedAssets.findIndex((a) => a.id === item.id);
         const isSelected = selectIndex !== -1;
+        const isVideo = item.mediaType === 'video';
 
         return (
           <TouchableOpacity
@@ -81,10 +89,19 @@ export default function RecentGallery({
               ]}
             />
 
+            {/* Video duration badge */}
+            {isVideo && (
+              <View style={styles.videoBadge}>
+                <Text style={styles.videoBadgeText}>
+                  {item.duration ? formatDuration(item.duration) : '▶'}
+                </Text>
+              </View>
+            )}
+
             {/* Selection overlay border */}
             {isSelected && <View style={styles.overlay} />}
 
-            {/* WhatsApp Green Selection Circle Number */}
+            {/* Selection circle number */}
             <View
               style={[
                 styles.badge,
@@ -143,5 +160,19 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 12,
     fontWeight: "700",
+  },
+  videoBadge: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  videoBadgeText: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "600",
   },
 });

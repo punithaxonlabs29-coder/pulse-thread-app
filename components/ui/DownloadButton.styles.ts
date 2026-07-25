@@ -2,8 +2,8 @@ import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: {
-    padding: 8,
-    borderRadius: 20,
+    padding: 2,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,

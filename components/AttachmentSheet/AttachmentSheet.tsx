@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as MediaLibrary from "expo-media-library";
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { useColors } from "../../design";
 import AttachmentHeader from "./AttachmentHeader";
@@ -99,25 +100,58 @@ export default function AttachmentSheet({
     });
   };
 
-  const convertSelectedToAttachments = (): PendingAttachment[] => {
-    return selectedAssets.map((asset) => ({
-      uri: asset.uri,
-      type: "image/jpeg",
-      mimeType: "image/jpeg",
-      name: asset.filename || `photo_${Date.now()}.jpg`,
-    }));
+  const convertSelectedToAttachments = async (): Promise<PendingAttachment[]> => {
+    const results: PendingAttachment[] = [];
+    for (const asset of selectedAssets) {
+      const isVideo = asset.mediaType === 'video';
+      const mimeType = isVideo ? 'video/mp4' : 'image/jpeg';
+      const ext = isVideo ? 'mp4' : 'jpg';
+      let uri = asset.uri; // starts as content://media/...
+
+      // Resolve content:// → real file:// path via MediaLibrary.getAssetInfoAsync
+      try {
+        const info = await MediaLibrary.getAssetInfoAsync(asset.id);
+        if (info?.localUri) {
+          uri = info.localUri;
+          console.log('Resolved asset URI via MediaLibrary:', uri);
+        } else {
+          throw new Error('No localUri');
+        }
+      } catch (mlErr) {
+        console.log('MediaLibrary.getAssetInfoAsync failed, trying FileSystem.copyAsync:', mlErr);
+        // Fallback: copy content:// to app-local file
+        try {
+          const destPath = `${FileSystem.documentDirectory}attachment_${Date.now()}.${ext}`;
+          await FileSystem.copyAsync({ from: uri, to: destPath });
+          uri = destPath;
+          console.log('Copied asset to local path:', uri);
+        } catch (copyErr) {
+          console.log('FileSystem.copyAsync also failed:', copyErr);
+          // Keep original uri — upload will likely fail but we tried everything
+        }
+      }
+
+      results.push({
+        uri,
+        type: mimeType,
+        mimeType,
+        name: asset.filename || `${isVideo ? 'video' : 'photo'}_${Date.now()}.${ext}`,
+        size: asset.duration ? undefined : undefined, // MediaLibrary.Asset doesn't expose size directly
+      });
+    }
+    return results;
   };
 
-  const handleDirectSend = () => {
+  const handleDirectSend = async () => {
     if (selectedAssets.length === 0) return;
-    const attachments = convertSelectedToAttachments();
+    const attachments = await convertSelectedToAttachments();
     onSendMediaBatch(attachments, caption);
     onClose();
   };
 
-  const handleEditBatch = () => {
+  const handleEditBatch = async () => {
     if (selectedAssets.length === 0) return;
-    const attachments = convertSelectedToAttachments();
+    const attachments = await convertSelectedToAttachments();
     onEditMediaBatch(attachments, caption);
     onClose();
   };

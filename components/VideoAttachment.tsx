@@ -13,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ConnectsService } from '../services/connects.service';
 import { MediaCacheManager } from '../services/MediaCacheManager';
+import { SessionService } from '../services/session.service';
+import { CONFIG } from '../constants/config';
 import { createStyles } from './VideoAttachment.styles';
 import { useColors } from '../design';
 import { AppText } from './ui/AppText';
@@ -34,9 +36,20 @@ interface VideoAttachmentProps {
   time?: string;
   readStatus?: "sent" | "delivered" | "read" | "pending" | "sending" | "failed";
   gridMode?: boolean;
+  duration?: number | string;
 }
 
-export default function VideoAttachment({ url, name, messageId, isMine, type = 'video', isVisible = false, time, readStatus, gridMode = false }: VideoAttachmentProps) {
+const formatDuration = (dur?: number | string): string => {
+  if (dur === undefined || dur === null) return '';
+  const d = typeof dur === 'string' ? parseFloat(dur) : dur;
+  if (isNaN(d) || d <= 0) return '';
+  const secs = d > 1000 ? Math.floor(d / 1000) : Math.floor(d);
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+};
+
+export default function VideoAttachment({ url, name, messageId, isMine, type = 'video', isVisible = false, time, readStatus, gridMode = false, duration }: VideoAttachmentProps) {
   const colors = useColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(false);
@@ -44,7 +57,7 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
   const [isVideoModalVisible, setVideoModalVisible] = useState(false);
   const [isPdfModalVisible, setPdfModalVisible] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(url || null);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
 
   const attachmentId = `${messageId}_${name}`;
 
@@ -52,7 +65,7 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
     let isMounted = true;
     
     const checkCacheAndGenerate = async () => {
-      const state = await MediaCacheManager.getMediaState(messageId);
+      const state = await MediaCacheManager.getMediaState(attachmentId);
       if (state?.thumbnail_uri) {
         if (isMounted) setThumbnailUrl(state.thumbnail_uri);
         return;
@@ -62,15 +75,15 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
 
       try {
         const fileUri = await getCachedFile();
-        if (fileUri) {
+        if (fileUri && fileUri.startsWith('file://')) {
           const { uri } = await VideoThumbnails.getThumbnailAsync(fileUri, { time: 1000, quality: 0.5 });
           if (isMounted) setThumbnailUrl(uri);
           
           const fileInfo = await FileSystem.getInfoAsync(uri);
-          await MediaCacheManager.saveThumbnail(messageId, fileUri, uri, fileInfo.exists ? fileInfo.size : 0);
+          await MediaCacheManager.saveThumbnail(attachmentId, fileUri, uri, fileInfo.exists ? fileInfo.size : 0);
         }
       } catch (e) {
-        console.log('Video thumbnail error:', e);
+        // Quietly fallback to default video icon
       }
     };
 
@@ -79,7 +92,7 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
     }
     
     return () => { isMounted = false; };
-  }, [type, messageId, isVisible]);
+  }, [type, messageId, attachmentId, isVisible]);
 
   // Cleanup local state if global audio changes
   useEffect(() => {
@@ -94,45 +107,151 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
   }, [type, isPlayingAudio, attachmentId]);
 
   const getCachedFile = async (): Promise<string | null> => {
-    const state = await MediaCacheManager.getMediaState(messageId);
+    let rawUrl = typeof url === 'string' ? url : ((url as any)?.uri || (url as any)?.url || (url as any)?.file_url || (url as any)?.dat || String(url || ''));
+    let cleanUri = rawUrl;
+    const contentMatch = rawUrl.match(/(content:\/\/[^\s}]+)/);
+    const fileMatch = rawUrl.match(/(file:\/\/[^\s}]+)/);
+    const httpMatch = rawUrl.match(/(https?:\/\/[^\s}]+)/);
+
+    if (contentMatch) cleanUri = contentMatch[1];
+    else if (fileMatch) cleanUri = fileMatch[1];
+    else if (httpMatch) cleanUri = httpMatch[1];
+
+    // 1. Check MediaCacheManager SQLite DB
+    const state = await MediaCacheManager.getMediaState(attachmentId);
     if (state?.local_uri) {
-      return state.local_uri;
+      const info = await FileSystem.getInfoAsync(state.local_uri);
+      if (info.exists && info.size > 1024) return state.local_uri;
     }
 
-    let finalUrl = url;
-    
-    // If URL was stripped by backend (lightweight mode), fetch it now
-    if (!finalUrl) {
-      console.log("Fetching lazy attachment for message", messageId);
+    let filename = (name || `video_${messageId}`).replace(/[^a-zA-Z0-9_.-]/g, '_');
+    if (!filename.toLowerCase().endsWith('.mp4')) {
+      filename += '.mp4';
+    }
+
+    // 2. Check FileSystem.documentDirectory (DownloadButton location)
+    const docPath = `${FileSystem.documentDirectory}${filename}`;
+    const docInfo = await FileSystem.getInfoAsync(docPath);
+    if (docInfo.exists && docInfo.size > 1024) {
+      await MediaCacheManager.saveMedia(attachmentId, cleanUri || '', docPath, docInfo.size, 'video');
+      return docPath;
+    }
+
+    // 3. Check FileSystem.cacheDirectory (Cache location)
+    const cachePath = `${FileSystem.cacheDirectory}cache/videos/${filename}`;
+    const cacheInfo = await FileSystem.getInfoAsync(cachePath);
+    if (cacheInfo.exists && cacheInfo.size > 1024) {
+      await MediaCacheManager.saveMedia(attachmentId, cleanUri || '', cachePath, cacheInfo.size, 'video');
+      return cachePath;
+    }
+
+    // 4. If not downloaded yet, resolve URL & download locally
+    let finalUrl = cleanUri;
+    if (!finalUrl || finalUrl.includes('/connects/message/attachment/')) {
       const attachments = await ConnectsService.getMessageAttachment(messageId);
       if (attachments && attachments.length > 0) {
-         const att = attachments.find((a: any) => a.name === name) || attachments[0];
-         finalUrl = att?.url || att?.file_url || "";
+        const att = attachments.find((a: any) => a.name === name) || attachments[0];
+        finalUrl = att?.url || att?.file_url || att?.uri || '';
       }
     }
+
+    // If finalUrl is a local content:// URI (sender device), stream to cachePath via fetch()
+    if (finalUrl.startsWith('content://')) {
+      try {
+        const info = await FileSystem.getInfoAsync(cachePath);
+        if (info.exists && info.size > 1024) return cachePath;
+
+        console.log('Caching sender content:// URI to disk:', finalUrl);
+        const res = await fetch(finalUrl);
+        const blob = await res.blob();
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (typeof reader.result === 'string') resolve(reader.result.split(',')[1] || '');
+            else reject(new Error('Failed to read blob'));
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+
+        if (base64Data) {
+          await FileSystem.writeAsStringAsync(cachePath, base64Data, { encoding: 'base64' });
+          await MediaCacheManager.saveMedia(attachmentId, finalUrl, cachePath, blob.size, 'video');
+          return cachePath;
+        }
+      } catch (err) {
+        console.log('Failed to cache sender content:// URI:', err);
+      }
+    }
+
+    // Normalize relative backend URLs dynamically using CONFIG
+    if (!finalUrl.startsWith('http') && !finalUrl.startsWith('file:') && !finalUrl.startsWith('content:') && !finalUrl.startsWith('data:')) {
+      const apiBase = CONFIG.API_BASE_URL.endsWith('/') ? CONFIG.API_BASE_URL : `${CONFIG.API_BASE_URL}/`;
+      const domainBase = apiBase.replace(/\/api\/?$/, '');
+      if (finalUrl.startsWith('/')) {
+        finalUrl = `${domainBase}${finalUrl}`;
+      } else {
+        finalUrl = `${apiBase}${finalUrl}`;
+      }
+    }
+
+    const dirPath = `${FileSystem.cacheDirectory}cache/videos/`;
+    const dirInfo = await FileSystem.getInfoAsync(dirPath);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(dirPath, { intermediates: true });
+    }
+
+    const token = await SessionService.getToken();
+    const isS3Url = finalUrl.includes('.amazonaws.com') || finalUrl.includes('.s3.');
+    const downloadOptions = (!isS3Url && token) ? { headers: { Cookie: `sessionid=${token}` } } : {};
 
     if (finalUrl.startsWith('data:')) {
       const base64Data = finalUrl.split(',')[1];
-      let filename = name || `attachment_${Date.now()}`;
-      if (type === 'video' && !filename.toLowerCase().endsWith('.mp4')) {
-        filename += '.mp4';
+      await FileSystem.writeAsStringAsync(cachePath, base64Data, { encoding: 'base64' });
+      const fileInfo = await FileSystem.getInfoAsync(cachePath);
+      await MediaCacheManager.saveMedia(messageId, finalUrl, cachePath, fileInfo.exists ? fileInfo.size : 0, 'video');
+      return cachePath;
+    } else if (finalUrl.startsWith('content://')) {
+      try {
+        const downloadRes = await FileSystem.downloadAsync(finalUrl, cachePath, downloadOptions);
+        const fileInfo = await FileSystem.getInfoAsync(downloadRes.uri);
+        await MediaCacheManager.saveMedia(messageId, finalUrl, downloadRes.uri, fileInfo.exists ? fileInfo.size : 0, 'video');
+        return downloadRes.uri;
+      } catch (e) {
+        try {
+          await FileSystem.copyAsync({ from: finalUrl, to: cachePath });
+          return cachePath;
+        } catch (err) {
+          return null;
+        }
       }
-      const dirPath = `${FileSystem.cacheDirectory}cache/videos/`;
-      const dirInfo = await FileSystem.getInfoAsync(dirPath);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(dirPath, { intermediates: true });
+    } else if (finalUrl.startsWith('http')) {
+      try {
+        const success = await ConnectsService.downloadAttachmentBinary(finalUrl, cachePath);
+        if (success) {
+          const fileInfo = await FileSystem.getInfoAsync(cachePath);
+          if (fileInfo.exists && fileInfo.size > 0) {
+            await MediaCacheManager.saveMedia(messageId, finalUrl, cachePath, fileInfo.size, 'video');
+            return cachePath;
+          }
+        }
+        
+        // Fallback to FileSystem.downloadAsync
+        const downloaded = await FileSystem.downloadAsync(finalUrl, cachePath, downloadOptions);
+        const fileContent = await FileSystem.readAsStringAsync(downloaded.uri, { length: 50 }).catch(() => '');
+        if (fileContent.startsWith('{') || fileContent.startsWith('<html') || fileContent.startsWith('<!DOCTYPE')) {
+          await FileSystem.deleteAsync(downloaded.uri, { idempotent: true });
+          return null;
+        }
+
+        const fileInfo = await FileSystem.getInfoAsync(downloaded.uri);
+        await MediaCacheManager.saveMedia(messageId, finalUrl, downloaded.uri, fileInfo.exists ? fileInfo.size : 0, 'video');
+        return downloaded.uri;
+      } catch (e) {
+        return null;
       }
-      const fileUri = `${dirPath}${filename}`;
-      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-        encoding: 'base64',
-      });
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
-      await MediaCacheManager.saveMedia(messageId, finalUrl, fileUri, fileInfo.exists ? fileInfo.size : 0, 'video');
-      return fileUri;
-    } else if (finalUrl) {
-      return finalUrl; // Already a URL
     }
-    return null;
+    return finalUrl;
   };
 
   const handleAudioPlayback = async (fileUri: string) => {
@@ -204,13 +323,6 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
 
   const handlePress = async () => {
     if (loading) return;
-
-    if (type === 'video' && url) {
-      setLocalUri(url);
-      setVideoModalVisible(true);
-      return;
-    }
-
     setLoading(true);
     try {
       const fileUri = await getCachedFile();
@@ -255,27 +367,25 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
           {!gridMode && (
             <View style={styles.videoFooter}>
               <Ionicons name="videocam" size={14} color="#FFF" />
-              <Text style={styles.videoDuration}> 0:11</Text>
+              <Text style={styles.videoDuration}> {formatDuration(duration) || '0:00'}</Text>
             </View>
           )}
-          {!gridMode && url ? (
-            <View style={styles.downloadOverlay}>
-              <DownloadButton url={url} filename={name} style={styles.downloadCircle} />
-            </View>
-          ) : null}
           {!gridMode && time && (
-        <View style={styles.timeOverlay}>
-          <AppText style={styles.timeText}>{time}</AppText>
-          {isMine && readStatus && (
-            <Ionicons
-              name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
-              size={14}
-              color={readStatus === "read" ? colors.status.info : colors.text.inverse}
-              style={styles.tickIcon}
-            />
+            <View style={styles.timeOverlay}>
+              {localUri || url ? (
+                <DownloadButton url={localUri || url} filename={name} messageId={messageId} style={{ marginRight: 4 }} />
+              ) : null}
+              <AppText style={styles.timeText}>{time}</AppText>
+              {isMine && readStatus && (
+                <Ionicons
+                  name={readStatus === "sent" ? "checkmark-outline" : "checkmark-done-outline"}
+                  size={14}
+                  color={readStatus === "read" ? colors.status.info : colors.text.inverse}
+                  style={styles.tickIcon}
+                />
+              )}
+            </View>
           )}
-        </View>
-      )}
         </Pressable>
 
         <Modal visible={isVideoModalVisible} transparent={false} animationType="fade" onRequestClose={() => setVideoModalVisible(false)}>
@@ -289,7 +399,14 @@ export default function VideoAttachment({ url, name, messageId, isMine, type = '
               style={styles.fullScreenVideo}
               resizeMode={ResizeMode.CONTAIN}
               useNativeControls
-              shouldPlay
+              shouldPlay={true}
+              isLooping={true}
+              onError={(e) => console.log('Video Playback Error:', e)}
+              onPlaybackStatusUpdate={(status) => {
+                if (!status.isLoaded && (status as any).error) {
+                  console.log('Playback Status Error:', (status as any).error);
+                }
+              }}
             />
           )}
         </SafeAreaView>

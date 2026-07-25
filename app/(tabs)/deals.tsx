@@ -4,7 +4,7 @@ import { AppText } from '../../components/ui/AppText';
 import { useColors, Spacing, Radius } from '../../design';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Hash, MoreVertical, Plus } from 'lucide-react-native';
+import { Hash } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { ConnectsService, SalesStageItem } from '../../services/connects.service';
 
@@ -80,9 +80,6 @@ export default function DealsScreen() {
             ({item.lead_count})
           </AppText>
         )}
-        <Pressable style={styles.moreButton}>
-          <MoreVertical size={20} color={colors.text.muted} />
-        </Pressable>
       </View>
     </Pressable>
   );
@@ -92,9 +89,6 @@ export default function DealsScreen() {
       {/* Top Header matching Chats screen */}
       <View style={styles.header}>
         <AppText variant="h1">Deals</AppText>
-        <TouchableOpacity hitSlop={10}>
-          <Plus size={22} color={colors.text.primary} />
-        </TouchableOpacity>
       </View>
 
       {/* Search Input Bar matching Chats screen */}
@@ -192,9 +186,6 @@ const styles = StyleSheet.create({
     color: '#F97316',
     fontSize: 17.5,
     fontWeight: '700',
-  },
-  moreButton: {
-    padding: 4,
   },
   loadingContainer: {
     flex: 1,

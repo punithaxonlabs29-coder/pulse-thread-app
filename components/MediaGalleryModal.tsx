@@ -8,6 +8,9 @@ import { ResizeMode, Video } from 'expo-av';
 import DownloadButton from './ui/DownloadButton';
 import { useColors, Colors } from '../design';
 import { AppText } from './ui/AppText';
+import { MediaCacheManager } from '../services/MediaCacheManager';
+import { SessionService } from '../services/session.service';
+import { ConnectsService } from '../services/connects.service';
 
 const { width, height } = Dimensions.get('window');
 
@@ -20,55 +23,136 @@ interface MediaGalleryModalProps {
 }
 
 function GalleryImageItem({ uri, thumbnailUri, styles }: { uri: string; thumbnailUri?: string; styles: any }) {
-  const [displayUri, setDisplayUri] = useState<string>(uri);
-  const [loading, setLoading] = useState(!thumbnailUri);
-
-  useEffect(() => {
-    let isMounted = true;
-    if (uri && uri.startsWith('data:')) {
-      (async () => {
-        try {
-          const parts = uri.split(',');
-          if (parts.length > 1) {
-            const cleanBase64 = parts[1];
-            const hash = uri.substring(0, 40).replace(/[^a-zA-Z0-9]/g, '');
-            const filePath = `${FileSystem.cacheDirectory}cache/images/gallery_${hash}.jpg`;
-            const fileInfo = await FileSystem.getInfoAsync(filePath);
-            if (!fileInfo.exists) {
-              await FileSystem.writeAsStringAsync(filePath, cleanBase64, { encoding: 'base64' });
-            }
-            if (isMounted) setDisplayUri(filePath);
-          }
-        } catch (e) {
-          if (isMounted) setDisplayUri(uri);
-        }
-      })();
-    } else {
-      setDisplayUri(uri);
-    }
-    return () => { isMounted = false; };
-  }, [uri]);
+  const [loading, setLoading] = useState(false);
 
   return (
     <View style={styles.pageContainer}>
       <Image
-        source={{ uri: displayUri }}
-        placeholder={thumbnailUri ? { uri: thumbnailUri } : undefined}
+        source={{ uri }}
+        placeholder={thumbnailUri && thumbnailUri !== uri ? { uri: thumbnailUri } : undefined}
         style={styles.mediaItem}
         contentFit="contain"
-        transition={150}
+        transition={100}
         cachePolicy="memory-disk"
-        onLoadStart={() => {
-          if (!thumbnailUri) setLoading(true);
-        }}
+        onLoadStart={() => setLoading(true)}
         onLoad={() => setLoading(false)}
         onError={() => setLoading(false)}
       />
-      {loading && !thumbnailUri && (
+      {loading && (
         <View style={styles.loadingOverlay} pointerEvents="none">
           <ActivityIndicator size="large" color="#FFFFFF" />
         </View>
       )}
+    </View>
+  );
+}
+
+function GalleryVideoItem({ item, shouldPlay, styles, messageIdProp }: { item: any; shouldPlay: boolean; styles: any; messageIdProp?: string }) {
+  const [videoUri, setVideoUri] = useState<string | null>(item.local_uri || item.localUri || null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const resolveVideo = async () => {
+      let uri = item.local_uri || item.localUri || item.url || item.file_url || item.uri;
+      const messageId = item.message_id || item.messageId || messageIdProp || '';
+
+      if (messageId) {
+        const state = await MediaCacheManager.getMediaState(messageId);
+        if (state?.local_uri) {
+          const info = await FileSystem.getInfoAsync(state.local_uri);
+          if (info.exists && info.size > 0) {
+            if (isMounted) setVideoUri(state.local_uri);
+            return;
+          }
+        }
+      }
+
+      // If uri is empty or is the backend attachment query URL, fetch actual attachment object
+      if ((!uri || uri.includes('/connects/message/attachment/')) && messageId) {
+        const attachments = await ConnectsService.getMessageAttachment(messageId);
+        if (attachments && attachments.length > 0) {
+          const att = attachments.find((a: any) => a.name === item.name) || attachments[0];
+          uri = att?.url || att?.file_url || att?.uri || "";
+        }
+      }
+
+      if (!uri) return;
+
+      const safeName = `${messageId}_${(item.name || 'video').replace(/[^a-zA-Z0-9_.-]/g, '_')}.mp4`;
+      const cachePath = `${FileSystem.cacheDirectory}cache/videos/${safeName}`;
+
+      // Handle Base64 video payloads directly
+      if (uri.startsWith('data:')) {
+        try {
+          const parts = uri.split(',');
+          if (parts.length > 1) {
+            const cleanBase64 = parts[1];
+            await FileSystem.writeAsStringAsync(cachePath, cleanBase64, { encoding: 'base64' });
+            if (isMounted) setVideoUri(cachePath);
+            return;
+          }
+        } catch (e) {}
+      }
+
+      // Handle Remote HTTP video files
+      if (uri.startsWith('http')) {
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(cachePath);
+          if (fileInfo.exists && fileInfo.size > 0) {
+            if (isMounted) setVideoUri(cachePath);
+            return;
+          }
+
+          const success = await ConnectsService.downloadAttachmentBinary(uri, cachePath);
+          if (success) {
+            const downloadedInfo = await FileSystem.getInfoAsync(cachePath);
+            if (downloadedInfo.exists && downloadedInfo.size > 0) {
+              if (isMounted) setVideoUri(cachePath);
+              return;
+            }
+          }
+
+          const token = await SessionService.getToken();
+          const headers = token ? { headers: { Cookie: `sessionid=${token}` } } : {};
+          const downloaded = await FileSystem.downloadAsync(uri, cachePath, headers);
+          const check = await FileSystem.readAsStringAsync(downloaded.uri, { length: 50 }).catch(() => '');
+          if (!check.startsWith('{') && !check.startsWith('<html') && !check.startsWith('<!DOCTYPE')) {
+            if (isMounted) setVideoUri(downloaded.uri);
+            return;
+          }
+        } catch (e) {}
+      }
+
+      if (isMounted) setVideoUri(uri);
+    };
+
+    resolveVideo();
+    return () => { isMounted = false; };
+  }, [item]);
+
+  const thumbnailUri = item.thumbnail_uri || item.thumbnailUrl || item.thumbnail_url;
+
+  if (!videoUri) {
+    return (
+      <View style={styles.pageContainer}>
+        <ActivityIndicator size="large" color="#FFFFFF" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.pageContainer}>
+      <Video
+        source={{ uri: videoUri }}
+        style={styles.mediaItem}
+        resizeMode={ResizeMode.CONTAIN}
+        useNativeControls
+        usePoster={!!thumbnailUri}
+        posterSource={thumbnailUri ? { uri: thumbnailUri } : undefined}
+        posterStyle={{ resizeMode: 'contain' }}
+        shouldPlay={shouldPlay}
+        isLooping={true}
+      />
     </View>
   );
 }
@@ -81,26 +165,16 @@ export default function MediaGalleryModal({ visible, media, initialIndex, messag
   const renderItem = ({ item, index }: { item: any; index: number }) => {
     const type = item.type || item.mime_type || "";
     const isVideo = type.startsWith("video/") || item.name?.endsWith(".webm") || item.name?.endsWith(".mp4");
-    
-    const uri = item.url || item.file_url || item.uri;
-    const thumbnailUri = item.thumbnailUrl || item.thumbnail_url || uri;
+    const uri = item.local_uri || item.localUri || item.url || item.file_url || item.uri;
+    const thumbnailUri = item.thumbnail_uri || item.thumbnailUrl || item.thumbnail_url || (uri && !uri.startsWith('data:') ? uri : undefined);
+
+    if (isVideo) {
+      return <GalleryVideoItem item={item} shouldPlay={index === currentIndex} styles={styles} messageIdProp={messageId} />;
+    }
 
     return (
       <View style={styles.pageContainer}>
-        {isVideo ? (
-          <Video
-            source={{ uri }}
-            style={styles.mediaItem}
-            resizeMode={ResizeMode.CONTAIN}
-            useNativeControls
-            usePoster={!!thumbnailUri}
-            posterSource={thumbnailUri ? { uri: thumbnailUri } : undefined}
-            posterStyle={{ resizeMode: 'contain' }}
-            shouldPlay={index === currentIndex}
-          />
-        ) : (
-          <GalleryImageItem uri={uri} thumbnailUri={thumbnailUri} styles={styles} />
-        )}
+        <GalleryImageItem uri={uri} thumbnailUri={thumbnailUri} styles={styles} />
       </View>
     );
   };
@@ -126,12 +200,16 @@ export default function MediaGalleryModal({ visible, media, initialIndex, messag
 
         <FlatList
           data={media}
-          keyExtractor={(_, index) => index.toString()}
+          keyExtractor={(item, index) => item.id || item.name || index.toString()}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           initialScrollIndex={initialIndex}
           getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+          initialNumToRender={1}
+          maxToRenderPerBatch={1}
+          windowSize={3}
+          removeClippedSubviews={true}
           onMomentumScrollEnd={(e) => {
             const index = Math.round(e.nativeEvent.contentOffset.x / width);
             setCurrentIndex(index);

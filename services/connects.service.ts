@@ -1,11 +1,33 @@
-import { AxiosError } from "axios";
+import axios, { AxiosError } from "axios";
 import * as FileSystem from 'expo-file-system/legacy';
+// @ts-ignore
+import * as MediaLibrary from 'expo-media-library';
 import { Channel, Message, Reaction } from "../types/connects";
 import { mainApi } from "./api";
 import { SessionService } from "./session.service";
+import { CONFIG } from "../constants/config";
 
 const pendingDownloads = new Map<string, Promise<any[]>>();
 const attachmentMemoryCache = new Map<string, any[]>();
+
+function uint8ToBase64(uint8: Uint8Array): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let base64 = '';
+  const len = uint8.length;
+  for (let i = 0; i < len; i += 3) {
+    const b1 = uint8[i];
+    const b2 = i + 1 < len ? uint8[i + 1] : 0;
+    const b3 = i + 2 < len ? uint8[i + 2] : 0;
+
+    const c1 = b1 >> 2;
+    const c2 = ((b1 & 3) << 4) | (b2 >> 4);
+    const c3 = ((b2 & 15) << 2) | (b3 >> 6);
+    const c4 = b3 & 63;
+
+    base64 += chars[c1] + chars[c2] + (i + 1 < len ? chars[c3] : '=') + (i + 2 < len ? chars[c4] : '=');
+  }
+  return base64;
+}
 
 interface GetChannelsResponse {
   status: boolean;
@@ -396,6 +418,102 @@ export const ConnectsService = {
     return promise;
   },
 
+  async downloadAttachmentBinary(downloadUrl: string, targetPath: string): Promise<boolean> {
+    try {
+      let rawString = typeof downloadUrl === 'string' ? downloadUrl : ((downloadUrl as any)?.uri || (downloadUrl as any)?.url || (downloadUrl as any)?.file_url || (downloadUrl as any)?.dat || String(downloadUrl || ''));
+      let cleanUrl = rawString;
+
+      const contentMatch = rawString.match(/(content:\/\/[^\s}]+)/);
+      const fileMatch = rawString.match(/(file:\/\/[^\s}]+)/);
+      const httpMatch = rawString.match(/(https?:\/\/[^\s}]+)/);
+
+      if (contentMatch) cleanUrl = contentMatch[1];
+      else if (fileMatch) cleanUrl = fileMatch[1];
+      else if (httpMatch) cleanUrl = httpMatch[1];
+
+      if (cleanUrl.startsWith('content://') || cleanUrl.startsWith('file://')) {
+        try {
+          await FileSystem.copyAsync({ from: cleanUrl, to: targetPath });
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+        const apiBase = CONFIG.API_BASE_URL.endsWith('/') ? CONFIG.API_BASE_URL : `${CONFIG.API_BASE_URL}/`;
+        const domainBase = apiBase.replace(/\/api\/?$/, '');
+        if (cleanUrl.startsWith('/')) {
+          cleanUrl = `${domainBase}${cleanUrl}`;
+        } else {
+          cleanUrl = `${apiBase}${cleanUrl}`;
+        }
+      }
+
+      // For S3 or public URLs: use native FileSystem.downloadAsync (direct binary stream to disk)
+      const isS3Url = cleanUrl.includes('.amazonaws.com') || cleanUrl.includes('.s3.');
+      if (isS3Url) {
+        console.log('Downloading S3 binary directly to disk via FileSystem.downloadAsync:', cleanUrl);
+        const downloadRes = await FileSystem.downloadAsync(cleanUrl, targetPath);
+        if (downloadRes.status >= 200 && downloadRes.status < 300) {
+          const info = await FileSystem.getInfoAsync(targetPath);
+          return info.exists && info.size > 0;
+        }
+        return false;
+      }
+
+      // For backend session-authenticated URLs: pass Cookie header in downloadAsync options
+      const token = await SessionService.getToken();
+      const options = token ? { headers: { Cookie: `sessionid=${token}` } } : {};
+      const downloadRes = await FileSystem.downloadAsync(cleanUrl, targetPath, options);
+
+      if (downloadRes.status >= 200 && downloadRes.status < 300) {
+        const info = await FileSystem.getInfoAsync(targetPath);
+        return info.exists && info.size > 0;
+      }
+      return false;
+    } catch (e) {
+      console.log("downloadAttachmentBinary error:", e);
+      return false;
+    }
+  },
+
+  async uploadVideoToS3(localUri: string, fileName: string, mimeType: string): Promise<string> {
+    try {
+      console.log('Requesting S3 presigned upload URL for:', fileName);
+      const res = await mainApi.post('connects/message/upload-url/', {
+        fileName,
+        fileType: mimeType || 'video/mp4',
+      });
+
+      if (!res.data || !res.data.uploadUrl || !res.data.fileUrl) {
+        throw new Error('Failed to get presigned upload URL from backend');
+      }
+
+      const { uploadUrl, fileUrl } = res.data;
+      console.log('Uploading file directly to S3 via presigned PUT URL...');
+
+      const uploadResult = await FileSystem.uploadAsync(uploadUrl, localUri, {
+        httpMethod: 'PUT',
+        headers: {
+          'Content-Type': mimeType || 'video/mp4',
+          'x-amz-acl': 'public-read',
+        },
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      });
+
+      if (uploadResult.status < 200 || uploadResult.status >= 300) {
+        throw new Error(`S3 upload failed with HTTP status ${uploadResult.status}`);
+      }
+
+      console.log('Successfully uploaded video directly to S3:', fileUrl);
+      return fileUrl;
+    } catch (err) {
+      console.log('uploadVideoToS3 error:', err);
+      throw err;
+    }
+  },
+
   async sendMessage(
     channelId: string,
     text: string,
@@ -408,24 +526,95 @@ export const ConnectsService = {
     try {
       const processedAttachments = await Promise.all(
         attachments.map(async (att) => {
-          let base64Url = att.uri;
-          
-          if (att.uri && !att.uri.startsWith('data:')) {
+          let rawUri: string = att.uri || '';
+
+          // ── Step 1: Normalize Android Intent strings to clean content:// URI ──
+          if (rawUri.includes('Intent {') || rawUri.includes('dat=')) {
+            const contentMatch = rawUri.match(/(content:\/\/[^\s}]+)/);
+            const fileMatch = rawUri.match(/(file:\/\/[^\s}]+)/);
+            if (contentMatch) rawUri = contentMatch[1];
+            else if (fileMatch) rawUri = fileMatch[1];
+          }
+
+          const isVideo = (att.type && att.type.startsWith('video/')) ||
+                          (att.mimeType && att.mimeType.startsWith('video/')) ||
+                          (att.name && (att.name.endsWith('.mp4') || att.name.endsWith('.mov') || att.name.endsWith('.webm')));
+
+          // ── Step 2: Direct S3 presigned PUT upload for videos ────────────────
+          if (isVideo && rawUri && !rawUri.startsWith('http')) {
             try {
-              const base64Data = await FileSystem.readAsStringAsync(att.uri, {
+              console.log('Uploading video directly to S3 via presigned URL:', att.name);
+              const s3FileUrl = await this.uploadVideoToS3(rawUri, att.name || 'video.mp4', att.type || 'video/mp4');
+              return {
+                id: `ATT_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                name: att.name || 'video.mp4',
+                type: att.type || 'video/mp4',
+                size: att.size || 0,
+                url: s3FileUrl,
+                ...(att.duration !== undefined && { duration: att.duration })
+              };
+            } catch (s3Err) {
+              console.log('Direct S3 upload failed, falling back to base64 encoding:', s3Err);
+              // Fallback to base64 pipeline below
+            }
+          }
+
+          // ── Step 3: Read image / small attachment into base64 ─────────────────
+          let base64Url = rawUri;
+          let calculatedSize = att.size || 0;
+
+          if (rawUri.startsWith('content://')) {
+            try {
+              console.log('Reading content:// URI using fetch():', rawUri);
+              const response = await fetch(rawUri);
+              const blob = await response.blob();
+
+              const base64Data = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  if (typeof reader.result === 'string') resolve(reader.result);
+                  else reject(new Error('FileReader result is not string'));
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+
+              if (base64Data && base64Data.startsWith('data:')) {
+                base64Url = base64Data;
+                const rawBase64 = base64Data.split(',')[1] || '';
+                calculatedSize = Math.floor((rawBase64.length * 3) / 4);
+              }
+            } catch (fetchErr) {
+              console.log('fetch() failed for content:// URI:', fetchErr);
+            }
+          }
+
+          if (!base64Url.startsWith('data:') && (rawUri.startsWith('file://') || rawUri.startsWith('/'))) {
+            try {
+              const base64Data = await FileSystem.readAsStringAsync(rawUri, {
                 encoding: 'base64',
               });
               base64Url = `data:${att.type || 'application/octet-stream'};base64,${base64Data}`;
+              calculatedSize = Math.floor((base64Data.length * 3) / 4);
             } catch (e) {
-              console.log("Failed to convert file to base64:", e);
+              console.log('Failed to convert file:// to base64:', e, 'uri:', rawUri);
             }
+          } else if (base64Url.startsWith('data:')) {
+            const base64Str = base64Url.split(',')[1] || '';
+            calculatedSize = Math.floor((base64Str.length * 3) / 4);
+          }
+
+          // Safety UX limit for non-S3 base64 uploads (200 MB)
+          if (calculatedSize > 200 * 1024 * 1024) {
+            const mb = (calculatedSize / (1024 * 1024)).toFixed(1);
+            throw new Error(`File "${att.name}" is ${mb} MB. Maximum allowed size is 200 MB.`);
           }
 
           return {
             id: `ATT_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-            name: att.name || "attachment",
-            type: att.type || "application/octet-stream",
-            size: att.size || 0,
+            name: att.name || 'attachment',
+            type: att.type || 'application/octet-stream',
+            size: calculatedSize,
             url: base64Url,
             ...(att.duration !== undefined && { duration: att.duration })
           };

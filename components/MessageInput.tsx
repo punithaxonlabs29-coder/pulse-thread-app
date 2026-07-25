@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { TextInput, TouchableOpacity, View, Text, Image , Keyboard, ScrollView, Platform } from "react-native";
+import { TextInput, TouchableOpacity, View, Text, Image , Keyboard, ScrollView, Platform, Alert } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as IntentLauncher from 'expo-intent-launcher';
+import * as FileSystem from 'expo-file-system/legacy';
 import AttachmentPreview, { PendingAttachment } from './AttachmentPreview';
 import AttachmentSheet from './AttachmentSheet/AttachmentSheet';
 import AudioRecorder, { AudioRecordingResult } from './AudioRecorder';
@@ -175,59 +176,55 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
           console.log("Audio permission request error:", e);
         }
 
-        if (Platform.OS === 'android') {
-          try {
-            const intentResult = await IntentLauncher.startActivityAsync(
-              'android.media.action.VIDEO_CAPTURE'
-            );
-            if (intentResult.resultCode === -1 && intentResult.data) {
-              addAttachment({
-                uri: intentResult.data,
-                type: 'video/mp4',
-                name: `video_${Date.now()}.mp4`,
-                mimeType: 'video/mp4'
-              });
-              return;
-            } else if (intentResult.resultCode === 0) {
-              // User cancelled recording
-              return;
-            }
-          } catch (intentErr) {
-            console.log("IntentLauncher video capture failed, falling back to launchCameraAsync:", intentErr);
-          }
-        }
-
         const result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['videos'],
           allowsEditing: false,
           videoMaxDuration: 60,
         });
+
         if (!result.canceled && result.assets[0]) {
           const asset = result.assets[0];
+          console.log('Camera video recorded:', asset.uri, 'duration:', asset.duration);
           addAttachment({
             uri: asset.uri,
             type: asset.mimeType || 'video/mp4',
             name: asset.fileName || `video_${Date.now()}.mp4`,
             size: asset.fileSize,
-            mimeType: asset.mimeType || 'video/mp4'
+            mimeType: asset.mimeType || 'video/mp4',
+            ...(asset.duration !== undefined && asset.duration !== null && {
+              duration: Math.round(asset.duration > 1000 ? asset.duration / 1000 : asset.duration)
+            })
           });
         }
       } else if (option === 'gallery') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') return;
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
+          mediaTypes: ['images', 'videos'],
           quality: 0.7,
           allowsMultipleSelection: true,
         });
         if (!result.canceled && result.assets) {
           result.assets.forEach(asset => {
+            const isVideo = asset.type === 'video' || (asset.mimeType && asset.mimeType.startsWith('video/'));
+            if (isVideo && asset.fileSize && asset.fileSize > 200 * 1024 * 1024) {
+              Alert.alert(
+                'Video Too Large',
+                `The selected video is ${(asset.fileSize / (1024 * 1024)).toFixed(1)} MB. Maximum allowed video size is 200 MB.`
+              );
+              return;
+            }
+            const defaultExt = isVideo ? 'mp4' : 'jpg';
+            const defaultMime = isVideo ? 'video/mp4' : 'image/jpeg';
             addAttachment({
               uri: asset.uri,
-              type: asset.mimeType || 'image/jpeg',
-              name: asset.fileName || `gallery_${Date.now()}.jpg`,
+              type: asset.mimeType || defaultMime,
+              name: asset.fileName || `gallery_${Date.now()}.${defaultExt}`,
               size: asset.fileSize,
-              mimeType: asset.mimeType
+              mimeType: asset.mimeType || defaultMime,
+              ...(asset.duration !== undefined && asset.duration !== null && {
+                duration: Math.round(asset.duration > 1000 ? asset.duration / 1000 : asset.duration)
+              })
             });
           });
         }
@@ -240,15 +237,30 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
           allowsMultipleSelection: true,
         });
         if (!result.canceled && result.assets) {
-          result.assets.forEach(asset => {
+          for (const asset of result.assets) {
+            let videoUri = asset.uri;
+
+            // content:// URIs from gallery cannot be read by FileSystem — copy immediately
+            if (videoUri.startsWith('content://')) {
+              try {
+                const ext = (asset.fileName || 'video.mp4').split('.').pop() || 'mp4';
+                const tempPath = `${FileSystem.documentDirectory}video_${Date.now()}.${ext}`;
+                await FileSystem.copyAsync({ from: videoUri, to: tempPath });
+                videoUri = tempPath;
+                console.log('Gallery video copied to local path:', videoUri);
+              } catch (copyErr) {
+                console.log('Gallery video content:// copy failed:', copyErr);
+              }
+            }
+
             addAttachment({
-              uri: asset.uri,
+              uri: videoUri,
               type: asset.mimeType || 'video/mp4',
               name: asset.fileName || `video_${Date.now()}.mp4`,
               size: asset.fileSize,
               mimeType: asset.mimeType
             });
-          });
+          }
         }
       } else if (option === 'audio') {
         const result = await DocumentPicker.getDocumentAsync({

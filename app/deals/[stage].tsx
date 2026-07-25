@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, ScrollView, Linking, Alert } from 'react-native';
 import { AppText } from '../../components/ui/AppText';
 import { useColors } from '../../design';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
@@ -183,6 +183,21 @@ export default function StageDealsScreen() {
     0
   );
 
+  const handleCallLead = (phone?: string) => {
+    if (!phone) {
+      Alert.alert('No Phone Number', 'No contact phone number is available for this lead.');
+      return;
+    }
+    const cleanNumber = phone.replace(/[^0-9+]/g, '');
+    if (!cleanNumber) {
+      Alert.alert('Invalid Number', 'Phone number format is invalid.');
+      return;
+    }
+    Linking.openURL(`tel:${cleanNumber}`).catch(() => {
+      Alert.alert('Error', 'Unable to initiate call on this device.');
+    });
+  };
+
   const renderDealCard = ({ item }: { item: DealLead }) => {
     const displayName = item.customer_name || item.customer_project_name || 'Unnamed Lead';
     const subTitle = item.customer_mobile || item.customer_email || '';
@@ -220,13 +235,29 @@ export default function StageDealsScreen() {
           (isSelected || pressed) && styles.selectedMintCard
         ]}
       >
-        {/* Title (Bold Purple) */}
-        <AppText style={styles.mintTitle}>{displayName}</AppText>
+        {/* Card Header with Title & Call Icon at Top Right */}
+        <View style={styles.cardHeaderRow}>
+          <View style={{ flex: 1, paddingRight: 8 }}>
+            <AppText style={styles.mintTitle}>{displayName}</AppText>
+            {subTitle ? (
+              <AppText style={styles.mintSubtitle}>{subTitle}</AppText>
+            ) : null}
+          </View>
 
-        {/* Mobile / Secondary Subtext */}
-        {subTitle ? (
-          <AppText style={styles.mintSubtitle}>{subTitle}</AppText>
-        ) : null}
+          {item.customer_mobile ? (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleCallLead(item.customer_mobile);
+              }}
+              style={styles.callIconButton}
+              activeOpacity={0.75}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="call" size={18} color="#15803D" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         {/* Product line with Dark 'P' icon */}
         <View style={styles.productRow}>
@@ -499,17 +530,34 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   mintCard: {
-    backgroundColor: '#F4FBF6',
-    borderColor: '#DCF2E3',
+    backgroundColor: '#FAFDFA',
+    borderColor: '#E2E8F0',
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   selectedMintCard: {
-    backgroundColor: '#EEFAF4',
-    borderColor: '#A7F3D0',
+    backgroundColor: '#F0FDF4',
+    borderColor: '#86EFAC',
     borderWidth: 2,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  callIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#DCFCE7', // Soft light green background
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
   },
   mintTitle: {
     fontSize: 20,
