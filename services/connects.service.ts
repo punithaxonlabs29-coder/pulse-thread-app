@@ -246,6 +246,11 @@ export const ConnectsService = {
   },
 
   async getMessages(channelId: string, after?: string, before?: string, limit: number = 100, offset?: number): Promise<Message[]> {
+    if (channelId.startsWith("lead-")) {
+      const leadId = channelId.replace(/^lead-/, "");
+      return this.getDealConversation(leadId);
+    }
+
     try {
       let url = `connects/messages/?channel_id=${channelId}&limit=${limit}&lightweight=true&t=${Date.now()}`;
       if (after) {
@@ -480,36 +485,41 @@ export const ConnectsService = {
 
   async uploadVideoToS3(localUri: string, fileName: string, mimeType: string): Promise<string> {
     try {
-      console.log('Requesting S3 presigned upload URL for:', fileName);
-      const res = await mainApi.post('connects/message/upload-url/', {
-        fileName,
-        fileType: mimeType || 'video/mp4',
+      const cleanUri =
+        localUri.startsWith("file://") || localUri.startsWith("content://")
+          ? localUri
+          : `file://${localUri}`;
+
+      console.log("Requesting S3 presigned upload URL for:", fileName, "cleanUri:", cleanUri);
+      const res = await mainApi.post("connects/message/upload-url/", {
+        fileName: fileName || "media.mp4",
+        fileType: mimeType || "video/mp4",
       });
 
       if (!res.data || !res.data.uploadUrl || !res.data.fileUrl) {
-        throw new Error('Failed to get presigned upload URL from backend');
+        throw new Error("Failed to get presigned upload URL from backend");
       }
 
       const { uploadUrl, fileUrl } = res.data;
-      console.log('Uploading file directly to S3 via presigned PUT URL...');
+      console.log("Uploading file directly to S3 via presigned PUT URL:", fileUrl);
 
-      const uploadResult = await FileSystem.uploadAsync(uploadUrl, localUri, {
-        httpMethod: 'PUT',
+      const uploadResult = await FileSystem.uploadAsync(uploadUrl, cleanUri, {
+        httpMethod: "PUT",
         headers: {
-          'Content-Type': mimeType || 'video/mp4',
-          'x-amz-acl': 'public-read',
+          "Content-Type": mimeType || "video/mp4",
+          "x-amz-acl": "public-read",
         },
         uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
       });
 
       if (uploadResult.status < 200 || uploadResult.status >= 300) {
-        throw new Error(`S3 upload failed with HTTP status ${uploadResult.status}`);
+        throw new Error(`S3 upload failed with HTTP status ${uploadResult.status}: ${uploadResult.body}`);
       }
 
-      console.log('Successfully uploaded video directly to S3:', fileUrl);
+      console.log("Successfully uploaded file directly to S3:", fileUrl);
       return fileUrl;
     } catch (err) {
-      console.log('uploadVideoToS3 error:', err);
+      console.log("uploadVideoToS3 error:", err);
       throw err;
     }
   },
@@ -526,36 +536,44 @@ export const ConnectsService = {
     try {
       const processedAttachments = await Promise.all(
         attachments.map(async (att) => {
-          let rawUri: string = att.uri || '';
+          let rawUri: string = att.uri || "";
 
           // ── Step 1: Normalize Android Intent strings to clean content:// URI ──
-          if (rawUri.includes('Intent {') || rawUri.includes('dat=')) {
+          if (rawUri.includes("Intent {") || rawUri.includes("dat=")) {
             const contentMatch = rawUri.match(/(content:\/\/[^\s}]+)/);
             const fileMatch = rawUri.match(/(file:\/\/[^\s}]+)/);
             if (contentMatch) rawUri = contentMatch[1];
             else if (fileMatch) rawUri = fileMatch[1];
           }
 
-          const isVideo = (att.type && att.type.startsWith('video/')) ||
-                          (att.mimeType && att.mimeType.startsWith('video/')) ||
-                          (att.name && (att.name.endsWith('.mp4') || att.name.endsWith('.mov') || att.name.endsWith('.webm')));
+          const isMedia =
+            (att.type && (att.type.startsWith("video/") || att.type.startsWith("audio/"))) ||
+            (att.mimeType && (att.mimeType.startsWith("video/") || att.mimeType.startsWith("audio/"))) ||
+            (att.name &&
+              (att.name.endsWith(".mp4") ||
+                att.name.endsWith(".mov") ||
+                att.name.endsWith(".webm") ||
+                att.name.endsWith(".m4a")));
 
-          // ── Step 2: Direct S3 presigned PUT upload for videos ────────────────
-          if (isVideo && rawUri && !rawUri.startsWith('http')) {
+          // ── Step 2: Direct S3 presigned PUT upload for videos & audio ────────
+          if (isMedia && rawUri && !rawUri.startsWith("http") && !rawUri.startsWith("data:")) {
             try {
-              console.log('Uploading video directly to S3 via presigned URL:', att.name);
-              const s3FileUrl = await this.uploadVideoToS3(rawUri, att.name || 'video.mp4', att.type || 'video/mp4');
+              console.log("Uploading media directly to S3 via presigned URL:", att.name);
+              const s3FileUrl = await this.uploadVideoToS3(
+                rawUri,
+                att.name || "media.mp4",
+                att.type || att.mimeType || "video/mp4"
+              );
               return {
                 id: `ATT_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-                name: att.name || 'video.mp4',
-                type: att.type || 'video/mp4',
+                name: att.name || "media.mp4",
+                type: att.type || att.mimeType || "video/mp4",
                 size: att.size || 0,
                 url: s3FileUrl,
-                ...(att.duration !== undefined && { duration: att.duration })
+                ...(att.duration !== undefined && { duration: att.duration }),
               };
             } catch (s3Err) {
-              console.log('Direct S3 upload failed, falling back to base64 encoding:', s3Err);
-              // Fallback to base64 pipeline below
+              console.log("Direct S3 upload failed for channel media:", s3Err);
             }
           }
 
@@ -782,23 +800,98 @@ export const ConnectsService = {
     dealInput?: string
   ): Promise<SendDealMessageResponse> {
     try {
+      const processedAttachments = await Promise.all(
+        attachments.map(async (att) => {
+          let rawUri: string = att.uri || att.url || "";
+
+          if (
+            rawUri.startsWith("http://") ||
+            rawUri.startsWith("https://") ||
+            rawUri.startsWith("data:")
+          ) {
+            return att;
+          }
+
+          const isMedia =
+            (att.type && (att.type.startsWith("video/") || att.type.startsWith("audio/"))) ||
+            (att.mimeType && (att.mimeType.startsWith("video/") || att.mimeType.startsWith("audio/"))) ||
+            (att.name &&
+              (att.name.endsWith(".mp4") ||
+                att.name.endsWith(".mov") ||
+                att.name.endsWith(".webm") ||
+                att.name.endsWith(".m4a") ||
+                att.name.endsWith(".mp3")));
+
+          if (isMedia && rawUri) {
+            try {
+              const mime = att.type || att.mimeType || (att.name?.endsWith(".mp4") ? "video/mp4" : "audio/m4a");
+              const s3FileUrl = await this.uploadVideoToS3(
+                rawUri,
+                att.name || (mime.startsWith("video/") ? "video.mp4" : "audio.m4a"),
+                mime
+              );
+              return {
+                id: `ATT_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                name: att.name || (mime.startsWith("video/") ? "video.mp4" : "audio.m4a"),
+                type: mime,
+                size: att.size || 0,
+                url: s3FileUrl,
+                ...(att.duration !== undefined && { duration: att.duration }),
+              };
+            } catch (s3Err) {
+              console.log("Direct S3 upload failed for deal media:", s3Err);
+            }
+          }
+
+          try {
+            const base64Data = await FileSystem.readAsStringAsync(rawUri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            const mime = att.type || att.mimeType || "audio/m4a";
+            return {
+              id: `ATT_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+              name: att.name || "clip.m4a",
+              type: mime,
+              size: att.size || 0,
+              url: `data:${mime};base64,${base64Data}`,
+              ...(att.duration !== undefined && { duration: att.duration }),
+            };
+          } catch (readErr) {
+            console.log("Error reading attachment base64:", readErr);
+            return att;
+          }
+        })
+      );
+
       const response = await mainApi.post<SendDealMessageResponse>(
         "connects/deal-conversation/send/",
         {
           customer_lead_unique_id: customerLeadUniqueId,
           text: text,
-          attachments: attachments,
+          attachments: processedAttachments,
           ...(dealInput && { deal_input: dealInput, dealInput: dealInput }),
         }
       );
       return response.data;
     } catch (error) {
-      console.log("Send Deal Message Error:", (error as AxiosError).message);
+      console.log(
+        "Send Deal Message Error:",
+        (error as AxiosError).message,
+        (error as AxiosError).response?.data
+      );
       throw error;
     }
   },
 
   mapDealMessageToMessage(raw: DealMessageRaw, leadId: string): Message {
+    const rawAttachments = raw.attachments || (raw as any).attachment_list || [];
+    const normalizedAttachments = rawAttachments.map((att: any) => ({
+      ...att,
+      url: att.url || att.file_url || att.fileUrl || att.uri || "",
+      type: att.type || att.mime_type || att.mimeType || "audio/m4a",
+      name: att.name || att.file_name || att.fileName || "attachment",
+    }));
+
     return {
       message_id: raw.pulse_message_unique_id || raw.id || `MSG_${Date.now()}`,
       channel_id: `lead-${leadId}`,
@@ -807,7 +900,7 @@ export const ConnectsService = {
       text: raw.message || "",
       created_at: raw.createdAt || raw.timestamp || raw.sortTimestamp || new Date().toISOString(),
       status: (raw.status as any) || "sent",
-      attachments: raw.attachments || [],
+      attachments: normalizedAttachments,
       side: raw.side,
       message_type: raw.messageType || raw.message_type,
       deal_input: raw.deal_input || raw.dealInput || undefined,

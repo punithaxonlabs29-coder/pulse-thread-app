@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { TextInput, TouchableOpacity, View, Text, Image , Keyboard, ScrollView, Platform, Alert } from "react-native";
+import { TextInput, TouchableOpacity, View, Text, Image , Keyboard, ScrollView, Platform, Alert, ToastAndroid } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -43,9 +43,10 @@ interface MessageInputProps {
   onCancelReply?: () => void;
   members?: MentionMember[];
   isDealChat?: boolean;
+  onSelectOption?: (option: string) => void;
 }
 
-export default function MessageInput({ onSend, onTyping, replyingTo, onCancelReply, members, isDealChat = false }: MessageInputProps) {
+export default function MessageInput({ onSend, onTyping, replyingTo, onCancelReply, members, isDealChat = false, onSelectOption }: MessageInputProps) {
   const colors = useColors();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -143,6 +144,12 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
 
   const handleMenuSelect = async (option: string) => {
     setMenuVisible(false);
+    if (option === 'explain_clip') {
+      if (onSelectOption) {
+        onSelectOption('explain_clip');
+      }
+      return;
+    }
     if (option === 'deal_inputs') {
       setTimeout(() => {
         setShowDealInputModal(true);
@@ -167,7 +174,7 @@ export default function MessageInput({ onSend, onTyping, replyingTo, onCancelRep
             mimeType: asset.mimeType
           });
         }
-      } else if (option === 'camera_video' || option === 'explain_clip') {
+      } else if (option === 'camera_video') {
         const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
         if (cameraStatus !== 'granted') return;
         try {

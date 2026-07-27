@@ -16,6 +16,7 @@ import MessageInput, { MentionMember } from "../components/MessageInput";
 import ReactionPicker from "../components/ReactionPicker";
 import SearchHeader from "../components/SearchHeader";
 import SelectionHeader from "../components/SelectionHeader";
+import ScreenShareModal from "../components/ScreenShareModal";
 import { CacheService } from "../services/cache.service";
 import { ConnectsService } from "../services/connects.service";
 import NotificationService from "../services/notification.service";
@@ -106,6 +107,7 @@ export default function ChatScreen() {
 
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [screenShareModalVisible, setScreenShareModalVisible] = useState(false);
 
   // ── Search effects ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1259,10 +1261,23 @@ export default function ChatScreen() {
               onCancelReply={() => setReplyingTo(null)}
               members={channelMembers}
               isDealChat={channelType === "lead" || (channelId as string)?.startsWith("lead-") || (channelId as string)?.startsWith("dummy-deal")}
+              onSelectOption={(opt) => {
+                if (opt === 'explain_clip') {
+                  setScreenShareModalVisible(true);
+                }
+              }}
             />
           </View>
         </ImageBackground>
         </KeyboardAvoidingView>
+
+        <ScreenShareModal
+          visible={screenShareModalVisible}
+          onClose={() => setScreenShareModalVisible(false)}
+          onSendAttachment={(attachment) => {
+            handleSend('', [attachment]);
+          }}
+        />
 
         <ReactionPicker 
           visible={reactionModalVisible}

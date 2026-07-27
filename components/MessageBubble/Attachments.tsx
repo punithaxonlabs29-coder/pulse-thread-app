@@ -69,7 +69,7 @@ export const Attachments = React.memo(({
     if (media.length === 1) {
       const file = media[0];
       const type = file.type || file.mime_type || "";
-      const url = file.url || file.file_url;
+      const url = file.url || file.file_url || file.uri || file.local_uri;
       const name = file.name || "Attachment";
       
       if (type.startsWith("image/")) {
@@ -93,7 +93,7 @@ export const Attachments = React.memo(({
       <View style={styles.gridContainer}>
         {displayMedia.map((file, index) => {
           const type = file.type || file.mime_type || "";
-          const url = file.url || file.file_url;
+          const url = file.url || file.file_url || file.uri || file.local_uri;
           const name = file.name || "Attachment";
 
           if (type.startsWith("image/")) {
@@ -172,11 +172,11 @@ export const Attachments = React.memo(({
       
       {others.map((file, index) => {
         const type = file.type || file.mime_type || "";
-        const url = file.url || file.file_url;
+        const url = file.url || file.file_url || file.uri || file.local_uri;
         const name = file.name || "Attachment";
         
         if (type.startsWith("audio/")) {
-          const duration = file.duration || file.durationMillis || 0;
+          const duration = (file.duration ? file.duration * 1000 : 0) || file.durationMillis || 0;
           return <AudioAttachment key={`other-${index}`} url={url || ""} messageId={messageId} name={name} durationMillis={duration} isVisible={isVisible} {...mediaProps} readStatus={mediaProps.readStatus as any} />;
         }
         if (type.toLowerCase() === "link" || file.file_type === "Link") {

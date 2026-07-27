@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.pulsethread"
     },
     "android": {
       "backgroundColor": "#FFFFFF",
@@ -72,7 +73,14 @@
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
       "./withNotifee.js",
-      "./withFontScaleConfig.js"
+      "./withFontScaleConfig.js",
+      [
+        "react-native-nitro-screen-recorder",
+        {
+          "enableMicrophonePermission": true,
+          "microphonePermissionText": "Allow Pulse to access your microphone for screen recording"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
